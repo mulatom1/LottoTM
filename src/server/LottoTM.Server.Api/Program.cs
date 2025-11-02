@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
-using LottoMT.Server.Api.Repository;
+using LottoTM.Server.Api.Repository;
 using Microsoft.OpenApi.Models;
 
 
@@ -93,7 +93,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 
-LottoMT.Server.Api.Futures.ApiVersion.Endpoint.AddEndpoint(app);
+LottoTM.Server.Api.Futures.ApiVersion.Endpoint.AddEndpoint(app);
 
 
 await app.RunAsync();

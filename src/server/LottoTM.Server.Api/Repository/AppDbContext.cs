@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 
-namespace LottoMT.Server.Api.Repository;
+namespace LottoTM.Server.Api.Repository;
 
 public class AppDbContext : DbContext
 {

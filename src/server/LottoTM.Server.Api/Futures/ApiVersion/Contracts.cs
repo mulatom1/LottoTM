@@ -1,4 +1,4 @@
-﻿namespace LottoMT.Server.Api.Futures.ApiVersion;
+﻿namespace LottoTM.Server.Api.Futures.ApiVersion;
 
 public class Contracts
 {
