@@ -91,3 +91,23 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+
+# ===============================================
+# Konfiguracja narzędzi AI (Claude)
+# ===============================================
+# GitHub Copilot respektuje powyższe reguły i nie wymaga osobnych wpisów.
+
+# Ignoruj lokalne, osobiste ustawienia Claude.
+.claude/settings.local.json
+
+# Ignoruj osobiste instrukcje dla Claude.
+CLAUDE.local.md
+
+# Ignoruj osobiste, eksperymentalne agenty lub komendy Claude.
+.claude/local-agents/
+.claude/local-commands/
+
+# Ewentualne logi lub historia czatów Claude.
+.claude/logs/
+.claude/history/
