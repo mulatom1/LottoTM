@@ -106,7 +106,7 @@ CLAUDE.local.md
 
 # Ignoruj osobiste, eksperymentalne agenty lub komendy Claude.
 .claude/local-agents/
-.claude/local-commands/
+.claude/commands/
 
 # Ewentualne logi lub historia czatów Claude.
 .claude/logs/

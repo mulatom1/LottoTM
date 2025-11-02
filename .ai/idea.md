@@ -1,0 +1,61 @@
+### **System Wspomagający Gracza: LottoTM - Wersja MVP**
+
+**Wizja produktu:** Stworzenie intuicyjnego systemu dla graczy LOTTO, który ułatwi zarządzanie wieloma zestawami liczb i wskaże wygrane, zwiększając komfort i efektywność gry.
+
+#### **Główny problem, który rozwiązujemy:**
+
+Wielu graczy LOTTO posiada liczne, często zróżnicowane zestawy liczb. Ręczne sprawdzanie każdego z nich po losowaniu jest procesem czasochłonnym, monotonnym i podatnym na błędy, co może prowadzić do przeoczenia wygranej. Aplikacja LottoTM ma na celu całkowitą eliminację tego problemu.
+
+---
+
+#### **Podstawowe funkcje systemu (MVP):**
+
+**Zarządzanie kontem użytkownika:**
+*   **Logowanie i wylogowywanie:** Bezpieczny dostęp do systemu dla zarejestrowanych użytkowników.
+*   **Izolacja danych:** Każdy zalogowany użytkownik ma dostęp wyłącznie do swojego prywatnego zbioru zestawów liczb.
+
+**Obsługa losowań:**
+*   **Wprowadzanie wyników:** Użytkownik może ręcznie wprowadzić oficjalne wyniki losowania dla konkretnej daty w celu ich weryfikacji.
+
+**Zarządzanie kuponami (zestawami liczb):**
+*   **Przeglądanie zestawów:** Czytelna lista wszystkich zapisanych przez użytkownika zestawów.
+*   **Dodawanie ręczne:** Możliwość manualnego wprowadzenia nowego zestawu liczb.
+*   **Generator zestawów:**
+    *   **Pojedynczy zestaw losowy:** Automatyczne generowanie nowego, unikalnego zestawu liczb.
+    *   **Generowanie "systemowe":** Tworzenie do 9 zestawów, które łącznie pokrywają wszystkie 49 liczb w grze, maksymalizując szanse na trafienie.
+*   **Usuwanie zestawów:** Możliwość łatwego usunięcia wybranego zestawu.
+*   **Weryfikacja wygranych:**
+    *   Funkcja sprawdzania, czy któryś z zapisanych zestawów okazał się wygrany w określonym przedziale dat.
+    *   System precyzyjnie wskaże zwycięski zestaw oraz wyróżni trafione liczby.
+
+---
+
+#### **Stos technologiczny (MVP):**
+
+*   **Baza danych:** SQL Server 2022
+*   **Backend:** .NET 8 (C#) z wykorzystaniem:
+    *   ASP.NET Core Web API
+    *   Minimal APIs
+    *   Architektura Vertical Slice
+    *   Entity Framework Core
+*   **Frontend:** React 19 z biblioteką Tailwind CSS do stylizacji, TypeScript.
+*   **Autoryzacja:** Zabezpieczenie systemu za pomocą tokenów JWT (JSON Web Tokens).
+
+---
+
+#### **Funkcje wyłączone z zakresu MVP (do rozważenia w przyszłości):**
+
+*   Import i eksport zestawów liczb z plików zewnętrznych (np. CSV, PDF).
+*   Funkcje społecznościowe, takie jak współdzielenie zestawów z innymi użytkownikami.
+*   Integracje z zewnętrznymi systemami (np. automatyczne pobieranie wyników losowań).
+*   Dedykowana aplikacja mobilna (w pierwszej fazie projekt dostępny będzie jako aplikacja webowa).
+
+---
+
+#### **Kryteria sukcesu MVP:**
+
+*   **Akceptacja generatora:** Co najmniej 75% zestawów liczb wygenerowanych przez system jest akceptowanych i zapisywanych przez użytkowników.
+*   **Szybkość weryfikacji:** Sprawdzenie 100 zestawów liczb pod kątem jednego losowania trwa nie dłużej niż 2 sekundy.
+*   **Retencja użytkowników:** 40% użytkowników, którzy założyli konto, wraca do aplikacji co najmniej raz w tygodniu (w tygodniach z losowaniami).
+*   **Pozytywne opinie:** Uzyskanie średniej oceny 4/5 lub wyższej w ankietach satysfakcji zbieranych od pierwszych użytkowników.
+*   **Niski wskaźnik błędów:** Mniej niż 1% sesji użytkownika kończy się niespodziewanym błędem krytycznym.
