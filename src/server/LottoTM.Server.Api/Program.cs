@@ -97,3 +97,6 @@ LottoTM.Server.Api.Futures.ApiVersion.Endpoint.AddEndpoint(app);
 
 
 await app.RunAsync();
+
+// Make the implicit Program class public so test projects can access it
+public partial class Program { }

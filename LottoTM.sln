@@ -13,6 +13,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{91FCE4E8
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Server", "Server", "{4C8F4CA5-F3CC-4FAA-8A55-38F7607FB559}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LottoTM.Server.Api.Tests", "tests\Server\LottoTM.Server.Api.Tests\LottoTM.Server.Api.Tests.csproj", "{3605FD14-2847-4058-ADA3-EE58B8344072}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -23,6 +25,10 @@ Global
 		{04840AC2-07B7-4523-B1C4-D10AD1D4F777}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{04840AC2-07B7-4523-B1C4-D10AD1D4F777}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{04840AC2-07B7-4523-B1C4-D10AD1D4F777}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3605FD14-2847-4058-ADA3-EE58B8344072}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3605FD14-2847-4058-ADA3-EE58B8344072}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3605FD14-2847-4058-ADA3-EE58B8344072}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3605FD14-2847-4058-ADA3-EE58B8344072}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -31,6 +37,7 @@ Global
 		{04840AC2-07B7-4523-B1C4-D10AD1D4F777} = {4ACB43A1-D094-4A19-9332-6EBBE9814B82}
 		{4ACB43A1-D094-4A19-9332-6EBBE9814B82} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{4C8F4CA5-F3CC-4FAA-8A55-38F7607FB559} = {91FCE4E8-0C68-40A1-BFF8-1DDB7DEA33CF}
+		{3605FD14-2847-4058-ADA3-EE58B8344072} = {4C8F4CA5-F3CC-4FAA-8A55-38F7607FB559}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {10263CE7-8BBC-4C84-AC19-6F322EA20D31}
