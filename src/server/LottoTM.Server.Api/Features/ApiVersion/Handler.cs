@@ -25,8 +25,6 @@ public class ApiVersionHandler : IRequestHandler<Contracts.Request, Contracts.Re
             throw new ValidationException(validationResult.Errors);
         }
 
-        throw new Exception("Test exception from ApiVersionHandler");
-
         var apiVersion = _configuration.GetValue<string>("ApiVersion");
         return await Task.FromResult(new Contracts.Response(apiVersion ?? "Version not found"));
     }
