@@ -15,7 +15,7 @@ Wielu graczy LOTTO posiada liczne, często zróżnicowane zestawy liczb. Ręczne
 *   **Izolacja danych:** Każdy zalogowany użytkownik ma dostęp wyłącznie do swojego prywatnego zbioru zestawów liczb.
 
 **Obsługa losowań:**
-*   **Wprowadzanie wyników:** Użytkownik może ręcznie wprowadzić oficjalne wyniki losowania dla konkretnej daty w celu ich weryfikacji.
+*   **Wprowadzanie wyników:** Użytkownik administrator może ręcznie wprowadzić oficjalne wyniki losowania dla konkretnej daty w celu ich weryfikacji.
 
 **Zarządzanie kuponami (zestawami liczb):**
 *   **Przeglądanie zestawów:** Czytelna lista wszystkich zapisanych przez użytkownika zestawów.
@@ -27,26 +27,6 @@ Wielu graczy LOTTO posiada liczne, często zróżnicowane zestawy liczb. Ręczne
 *   **Weryfikacja wygranych:**
     *   Funkcja sprawdzania, czy któryś z zapisanych zestawów okazał się wygrany w określonym przedziale dat.
     *   System precyzyjnie wskaże zwycięski zestaw oraz wyróżni trafione liczby.
-
----
-
-#### **Stos technologiczny (MVP):**
-
-*   **Baza danych:** SQL Server 2022
-*   **Backend:** .NET 8 (C#) z wykorzystaniem:
-    *   ASP.NET Core Web API
-    *   Minimal APIs
-    *   Architektura Vertical Slice
-    *   Entity Framework Core
-    *   Serilog dla logowania
-    *   Fluent Validation dla walidacji danych
-    *   Obsługa CORS (MediatR)
-    *   Globalna obsługa wyjątków i błędów
-*   **Frontend:** React 19 z wykorzystaniem:
-    *   react-router do zarządzania trasami.
-    *   TypeScript
-    *   biblioteką Tailwind CSS do stylizacji.
-*   **Autoryzacja:** Zabezpieczenie systemu za pomocą tokenów JWT (JSON Web Tokens).
 
 ---
 
