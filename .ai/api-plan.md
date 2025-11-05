@@ -464,14 +464,14 @@
 **Autoryzacja:** Wymagany JWT
 
 **Parametry URL:**
-- `id` (wymagany): ID zestawu (GUID - UNIQUEIDENTIFIER)
+- `id` (wymagany): ID zestawu (int)
 
-**Przykład:** `GET /api/tickets/a3bb189e-8bf9-3888-9912-ace4e6543002`
+**Przykład:** `GET /api/tickets/123`
 
 **Payload odpowiedzi (sukces):**
 ```json
 {
-  "id": "a3bb189e-8bf9-3888-9912-ace4e6543002",
+  "id": 123,
   "userId": 123,
   "numbers": [5, 14, 23, 29, 37, 41],
   "createdAt": "2025-10-25T10:00:00Z"
@@ -550,7 +550,73 @@
    - Sortowanie liczb w nowym i istniejących zestawach
    - Porównanie: `newNumbersSorted.SequenceEqual(existingNumbersSorted)`
    - Jeśli duplikat: zwróć 400 z komunikatem o istnieniu zestawu
-5. Transakcja: INSERT do `Tickets` (generuje GUID) + 6x INSERT do `TicketNumbers` (Position 1-6)
+5. Transakcja: INSERT do `Tickets` (generuje auto-increment ID) + 6x INSERT do `TicketNumbers` (Position 1-6)
+6. Zwrot komunikatu o sukcesie
+
+---
+
+#### **PUT /api/tickets/{id}**
+
+**Opis:** Edycja istniejącego zestawu liczb
+
+**Autoryzacja:** Wymagany JWT
+
+**Parametry URL:**
+- `id` (wymagany): ID zestawu (int)
+
+**Przykład:** `PUT /api/tickets/123`
+
+**Payload żądania:**
+```json
+{
+  "numbers": [7, 15, 22, 33, 38, 45]
+}
+```
+
+**Walidacja:**
+- `numbers`: wymagane, tablica 6 liczb INT
+  - Każda liczba w zakresie 1-49 (CHECK constraint)
+  - Liczby muszą być unikalne
+- Walidacja unikalności po edycji - edytowany zestaw musi pozostać unikalny dla użytkownika (pomijając sam siebie)
+
+**Payload odpowiedzi (sukces):**
+```json
+{
+  "message": "Zestaw zaktualizowany pomyślnie"
+}
+```
+
+**Kody sukcesu:**
+- `200 OK` - Zestaw zaktualizowany
+
+**Kody błędów:**
+- `401 Unauthorized` - Brak tokenu
+- `403 Forbidden` - Zestaw należy do innego użytkownika
+- `404 Not Found` - Zestaw nie istnieje
+- `400 Bad Request` - Nieprawidłowe dane
+  ```json
+  {
+    "errors": {
+      "numbers": ["Wymagane dokładnie 6 liczb", "Liczby muszą być w zakresie 1-49", "Liczby muszą być unikalne"],
+      "duplicate": ["Taki zestaw już istnieje w Twoich zapisanych zestawach"]
+    }
+  }
+  ```
+
+**Logika biznesowa:**
+1. Pobranie `UserId` z JWT
+2. Sprawdzenie właściciela: `SELECT * FROM Tickets WHERE Id = @id AND UserId = @currentUserId`
+   - Jeśli brak: zwróć 403 Forbidden
+3. Walidacja:
+   - `numbers.length == 6`
+   - Wszystkie liczby w zakresie 1-49
+   - Liczby unikalne: `numbers.Distinct().Count() == 6`
+4. Sprawdzenie unikalności zestawu dla użytkownika (pomijając edytowany zestaw):
+   - Pobranie wszystkich zestawów użytkownika z TicketNumbers (z wykluczeniem edytowanego Id)
+   - Sortowanie liczb w nowym i istniejących zestawach
+   - Porównanie: `newNumbersSorted.SequenceEqual(existingNumbersSorted)`
+   - Jeśli duplikat: zwróć 400 z komunikatem o istnieniu zestawu
+5. Transakcja: UPDATE `Tickets.UpdatedAt` (jeśli kolumna istnieje) + DELETE wszystkich `TicketNumbers` dla danego TicketId + 6x INSERT nowych `TicketNumbers` (Position 1-6)
 6. Zwrot komunikatu o sukcesie
 
 ---
@@ -562,9 +628,9 @@
 **Autoryzacja:** Wymagany JWT
 
 **Parametry URL:**
-- `id` (wymagany): ID zestawu (GUID - UNIQUEIDENTIFIER)
+- `id` (wymagany): ID zestawu (int)
 
-**Przykład:** `DELETE /api/tickets/a3bb189e-8bf9-3888-9912-ace4e6543002`
+**Przykład:** `DELETE /api/tickets/123`
 
 **Payload odpowiedzi (sukces):**
 ```json
@@ -1285,9 +1351,10 @@ public List<int[]> GenerateSystemTickets()
 | PUT | `/api/draws/{id}` | Edycja wyniku losowania (admin) | Tak (IsAdmin) |
 | DELETE | `/api/draws/{id}` | Usunięcie losowania (admin) | Tak (IsAdmin) |
 | GET | `/api/tickets` | Lista zestawów użytkownika | Tak |
-| GET | `/api/tickets/{id}` | Szczegóły zestawu (GUID) | Tak |
+| GET | `/api/tickets/{id}` | Szczegóły zestawu (int) | Tak |
 | POST | `/api/tickets` | Dodanie zestawu ręcznie | Tak |
-| DELETE | `/api/tickets/{id}` | Usunięcie zestawu (GUID) | Tak |
+| PUT | `/api/tickets/{id}` | Edycja zestawu (int) | Tak |
+| DELETE | `/api/tickets/{id}` | Usunięcie zestawu (int) | Tak |
 | POST | `/api/tickets/generate-random` | Generowanie losowego zestawu | Tak |
 | POST | `/api/tickets/generate-system` | Generowanie 9 zestawów systemowych | Tak |
 | POST | `/api/verification/check` | Weryfikacja wygranych | Tak |
@@ -1297,7 +1364,7 @@ public List<int[]> GenerateSystemTickets()
 1. **JWT w localStorage** (nie w cookies) - prostsze dla MVP, CORS policies wystarczą
 2. **Draws globalny** - Tabela Draws jest współdzielona przez wszystkich użytkowników, z kolumną CreatedByUserId tracking kto wprowadził wynik
 3. **Znormalizowana struktura** - DrawNumbers i TicketNumbers zamiast Number1-Number6 dla lepszej elastyczności
-4. **Tickets.Id jako GUID** - UNIQUEIDENTIFIER zamiast INT dla lepszej skalowalności
+4. **Tickets.Id jako INT** - Auto-increment integer dla prostoty i wydajności w MVP
 5. **Opcja C dla edycji** - nadpisanie bez historii weryfikacji (db-plan.md)
 6. **Weryfikacja on-demand** - brak tabeli TicketVerifications w MVP
 7. **Paginacja dla list** - wszystkie endpointy GET zwracające listy (draws, tickets)

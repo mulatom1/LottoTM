@@ -1,7 +1,7 @@
 -- =====================================================================================
 -- migration: 20251105120000_initial_schema.sql
 -- description: initial database schema for lottotm mvp
--- version: 2.0
+-- version: 2.1
 -- date: 2025-11-05
 -- database: sql server 2022
 -- orm: entity framework core 9
@@ -15,7 +15,7 @@
 --
 -- special notes:
 --   - normalized structure: separate tables for ticket/draw numbers
---   - guid used for tickets.id for better scalability
+--   - int identity used for all primary keys for simplicity
 --   - cascade delete configured for all foreign keys
 --   - utc timestamps used throughout (getutcdate())
 --   - isadmin flag added to users for access control
@@ -45,12 +45,13 @@ create index IX_Users_Email on Users(Email);
 -- =====================================================================================
 -- table: Tickets
 -- description: metadata for user ticket sets (the numbers are in TicketNumbers table)
---              guid used for id to improve scalability and security
+--              int identity used for id (simple autoincrement primary key)
 --              each user can have maximum 100 tickets (validated in backend)
+-- security note: always filter by userid from jwt token to prevent unauthorized access
 -- =====================================================================================
 
 create table Tickets (
-    Id uniqueidentifier primary key default newid(),
+    Id int primary key identity(1,1),
     UserId int not null,
     CreatedAt datetime2 not null default getutcdate(),
     constraint FK_Tickets_Users foreign key (UserId) 
@@ -75,7 +76,7 @@ create index IX_Tickets_UserId on Tickets(UserId);
 
 create table TicketNumbers (
     Id int primary key identity(1,1),
-    TicketId uniqueidentifier not null,
+    TicketId int not null,
     Number int not null,
     Position tinyint not null,
     constraint FK_TicketNumbers_Tickets foreign key (TicketId) 
@@ -113,9 +114,8 @@ create table Draws (
         references Users(Id) on delete cascade
 );
 
--- index for date range queries (where drawdate between @from and @to)
--- unique index also enforces one draw per day
-create unique index IX_Draws_DrawDate on Draws(DrawDate);
+-- note: UQ_Draws_DrawDate constraint automatically creates unique index for date range queries
+-- no need for explicit index creation
 
 -- index for tracking queries (who created this draw?)
 -- also supports cascade delete performance
