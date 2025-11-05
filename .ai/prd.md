@@ -1543,11 +1543,4 @@ Response:
 
 ---
 
-## 16. Aprobacja Dokumentu
-
-**Wersja dokumentu:** 1.5
-**Data ostatniej aktualizacji:** 2025-11-05
-
----
-
 **Koniec dokumentu PRD dla LottoTM MVP**
