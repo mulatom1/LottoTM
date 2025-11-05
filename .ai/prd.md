@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD)
 # LottoTM - System Zarządzania Kuponami Lotto MVP
 
-**Wersja:** 1.4
+**Wersja:** 1.5
 **Data:** 2025-11-05
 **Autor:** Tomasz Mularczyk
 
@@ -273,6 +273,11 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
   - Wyświetlanie komunikatów błędów
 - Walidacja limitu: jeśli użytkownik ma już 100 zestawów → blokada + komunikat
 - **Walidacja unikalności:** System blokuje duplikaty zestawów dla użytkownika (każdy zestaw musi być unikalny)
+  - **Uwaga implementacyjna:** Ze względu na znormalizowaną strukturę (Tickets + TicketNumbers), walidacja unikalności wymaga porównania zestawu 6 liczb niezależnie od kolejności. Algorytm:
+    1. Posortowanie nowych liczb
+    2. Zapytanie pobierające wszystkie zestawy użytkownika z liczbami
+    3. Dla każdego istniejącego zestawu: posortowanie i porównanie
+    4. Jeśli znaleziono identyczny zestaw → odrzucenie
 - Zapis zestawu do bazy danych z powiązaniem do `UserId`
 - Po zapisie: komunikat sukcesu + powrót do listy zestawów
 
@@ -411,7 +416,9 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 
 ### 4.1 Wydajność
 - **NFR-001:** Weryfikacja 100 zestawów względem 1 losowania ≤ 2 sekundy
+  - **Uwaga:** Znormalizowana struktura tabel (Tickets + TicketNumbers) wymaga JOIN podczas weryfikacji. Indeksy na TicketNumbers.TicketId i TicketNumbers.Number zapewniają optymalizację zapytań.
 - **NFR-002:** Czas odpowiedzi API dla standardowych operacji CRUD ≤ 500ms (95 percentyl)
+  - **Uwaga:** Pobieranie zestawu wymaga JOIN między Tickets i TicketNumbers. Wykorzystanie eager loading (.Include()) w Entity Framework zapewnia optymalizację.
 - **NFR-003:** Czas ładowania strony głównej ≤ 3 sekundy (First Contentful Paint)
 - **NFR-004:** Generowanie 9 zestawów systemowych ≤ 1 sekunda
 
@@ -822,7 +829,9 @@ src/server/LottoTM.Server.Api/
 ├── Entities/
 │       ├── User.cs
 │       ├── Ticket.cs
-│       └── Draw.cs
+│       ├── TicketNumber.cs     // Nowa encja dla znormalizowanej struktury
+│       ├── Draw.cs
+│       └── DrawNumber.cs       // Nowa encja dla znormalizowanej struktury
 ├── Services/
 │       ├── JwtService.cs
 │       └── PasswordHasher.cs
@@ -845,6 +854,28 @@ Każdy feature (np. `ApiVersion`, `Register`, `AddTicket`) zawiera:
 - Łatwiejsze testowanie i rozwijanie
 - Czytelna organizacja - każdy endpoint w swoim katalogu
 
+**Uwagi implementacyjne dla znormalizowanej struktury:**
+
+**Tickets (Zestawy):**
+- Encja `Ticket` zawiera tylko metadane (Id, UserId, CreatedAt)
+- Encja `TicketNumber` przechowuje pojedyncze liczby z pozycją (1-6)
+- Relacja: Ticket (1) -> TicketNumbers (6)
+- Przy dodawaniu zestawu: tworzenie 1 rekordu Ticket + 6 rekordów TicketNumber w transakcji
+- Przy pobieraniu zestawu: wykorzystanie `.Include(t => t.Numbers)` w EF Core
+- Walidacja unikalności zestawu: porównanie wszystkich 6 liczb (niezależnie od kolejności)
+
+**Draws (Losowania):**
+- Encja `Draw` zawiera tylko metadane (Id, DrawDate, CreatedAt, CreatedByUserId)
+- Encja `DrawNumber` przechowuje pojedyncze wylosowane liczby z pozycją (1-6)
+- Relacja: Draw (1) -> DrawNumbers (6)
+- Przy dodawaniu losowania: tworzenie 1 rekordu Draw + 6 rekordów DrawNumber w transakcji
+- Przy pobieraniu losowania: wykorzystanie `.Include(d => d.Numbers)` w EF Core
+- Constraint UNIQUE na DrawDate zapewnia jedno losowanie na dzień
+
+**Weryfikacja wygranych:**
+- JOIN między Tickets, TicketNumbers, Draws i DrawNumbers
+- Algorytm: porównanie liczb z TicketNumbers i DrawNumbers dla danego zakresu dat
+
 ### 6.3 Schemat Bazy Danych
 
 #### Tabela: Users
@@ -865,12 +896,6 @@ CREATE INDEX IX_Users_Email ON Users(Email);
 CREATE TABLE Tickets (
     Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
     UserId INT NOT NULL,
-    Number1 INT NOT NULL CHECK (Number1 BETWEEN 1 AND 49),
-    Number2 INT NOT NULL CHECK (Number2 BETWEEN 1 AND 49),
-    Number3 INT NOT NULL CHECK (Number3 BETWEEN 1 AND 49),
-    Number4 INT NOT NULL CHECK (Number4 BETWEEN 1 AND 49),
-    Number5 INT NOT NULL CHECK (Number5 BETWEEN 1 AND 49),
-    Number6 INT NOT NULL CHECK (Number6 BETWEEN 1 AND 49),
     CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),    
     CONSTRAINT FK_Tickets_Users FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
 );
@@ -878,17 +903,34 @@ CREATE TABLE Tickets (
 CREATE INDEX IX_Tickets_UserId ON Tickets(UserId);
 ```
 
+#### Tabela: TicketNumbers
+```sql
+CREATE TABLE TicketNumbers (
+    Id INT PRIMARY KEY IDENTITY,
+    TicketId UNIQUEIDENTIFIER NOT NULL,
+    Number INT NOT NULL CHECK (Number BETWEEN 1 AND 49),
+    Position TINYINT NOT NULL CHECK (Position BETWEEN 1 AND 6),
+    CONSTRAINT FK_TicketNumbers_Tickets FOREIGN KEY (TicketId) REFERENCES Tickets(Id) ON DELETE CASCADE,
+    CONSTRAINT UQ_TicketNumbers_TicketPosition UNIQUE (TicketId, Position)
+);
+
+CREATE INDEX IX_TicketNumbers_TicketId ON TicketNumbers(TicketId);
+CREATE INDEX IX_TicketNumbers_Number ON TicketNumbers(Number);
+```
+
+**Uwagi:**
+- Normalizacja: Zestaw liczb (Ticket) jest oddzielony od samych liczb (TicketNumbers)
+- Każdy wiersz w TicketNumbers reprezentuje jedną liczbę w zestawie
+- Position (1-6) określa kolejność liczby w zestawie
+- Constraint UNIQUE (TicketId, Position) zapewnia, że każda pozycja w zestawie jest unikalna
+- Indeks na Number umożliwia szybkie wyszukiwanie zestawów zawierających konkretną liczbę
+- Cascade delete automatycznie usuwa wszystkie liczby przy usunięciu zestawu
+
 #### Tabela: Draws
 ```sql
 CREATE TABLE Draws (
     Id INT PRIMARY KEY IDENTITY,    
-    DrawDate DATE NOT NULL,
-    Number1 INT NOT NULL CHECK (Number1 BETWEEN 1 AND 49),
-    Number2 INT NOT NULL CHECK (Number2 BETWEEN 1 AND 49),
-    Number3 INT NOT NULL CHECK (Number3 BETWEEN 1 AND 49),
-    Number4 INT NOT NULL CHECK (Number4 BETWEEN 1 AND 49),
-    Number5 INT NOT NULL CHECK (Number5 BETWEEN 1 AND 49),
-    Number6 INT NOT NULL CHECK (Number6 BETWEEN 1 AND 49),
+    DrawDate DATE NOT NULL UNIQUE,
     CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
     CreatedByUserId INT NOT NULL,
     CONSTRAINT FK_Draws_Users FOREIGN KEY (CreatedByUserId) REFERENCES Users(Id) ON DELETE CASCADE
@@ -898,7 +940,29 @@ CREATE INDEX IX_Draws_Date ON Draws(DrawDate);
 CREATE INDEX IX_Draws_CreatedByUserId ON Draws(CreatedByUserId);
 ```
 
+#### Tabela: DrawNumbers
+```sql
+CREATE TABLE DrawNumbers (
+    Id INT PRIMARY KEY IDENTITY,
+    DrawId INT NOT NULL,
+    Number INT NOT NULL CHECK (Number BETWEEN 1 AND 49),
+    Position TINYINT NOT NULL CHECK (Position BETWEEN 1 AND 6),
+    CONSTRAINT FK_DrawNumbers_Draws FOREIGN KEY (DrawId) REFERENCES Draws(Id) ON DELETE CASCADE,
+    CONSTRAINT UQ_DrawNumbers_DrawPosition UNIQUE (DrawId, Position)
+);
+
+CREATE INDEX IX_DrawNumbers_DrawId ON DrawNumbers(DrawId);
+CREATE INDEX IX_DrawNumbers_Number ON DrawNumbers(Number);
+```
+
 **Uwagi:**
+- Normalizacja: Wynik losowania (Draw) jest oddzielony od wylosowanych liczb (DrawNumbers)
+- Każdy wiersz w DrawNumbers reprezentuje jedną wylosowaną liczbę
+- Position (1-6) określa kolejność wylosowanej liczby
+- Constraint UNIQUE (DrawId, Position) zapewnia, że każda pozycja w losowaniu jest unikalna
+- Constraint UNIQUE na DrawDate zapewnia, że jest tylko jedno losowanie na dzień
+- Indeks na Number umożliwia szybkie wyszukiwanie losowań zawierających konkretną liczbę
+- Cascade delete automatycznie usuwa wszystkie liczby przy usunięciu losowania
 - Dodano indeks IX_Draws_Date dla wydajności zapytań
 - Relacje FK z Users zapewniają integralność danych i umożliwiają kaskadowe usuwanie
 
@@ -1464,6 +1528,7 @@ Response:
 - **JWT** - JSON Web Token - sposób autoryzacji użytkowników
 - **Vertical Slice Architecture** - organizacja kodu według funkcjonalności
 - **CRUD** - Create, Read, Update, Delete - podstawowe operacje na danych
+- **Normalizacja** - proces organizacji danych w bazie w celu minimalizacji redundancji
 
 ---
 
@@ -1474,12 +1539,13 @@ Response:
 | 1.0 | 2025-11-05 | Tomasz Mularczyk | Pierwsza wersja dokumentu PRD |
 | 1.1 | 2025-11-05 | Tomasz Mularczyk | Poprawka numeracji i uzupełnienie brakujących sekcji |
 | 1.2 | 2025-11-05 | Tomasz Mularczyk | Reorganizacja historyjek użytkownika na grupy modułowe (US-AUTH-XX, US-TICKETS-XX, US-DRAWS-XX, US-CHECKS-XX), dodanie funkcji edycji zestawów i losowań do MVP, ujednolicenie priorytetów, aktualizacja API endpoints |
+| 1.3 | 2025-11-05 | Tomasz Mularczyk | Normalizacja struktury bazy danych: wprowadzenie tabel TicketNumbers i DrawNumbers dla pełnej normalizacji, dodanie uwag implementacyjnych dotyczących wydajności, walidacji unikalności, Entity Framework, weryfikacji wygranych z JOIN, aktualizacja sekcji Entities (dodano TicketNumber.cs i DrawNumber.cs) |
 
 ---
 
 ## 16. Aprobacja Dokumentu
 
-**Wersja dokumentu:** 1.4
+**Wersja dokumentu:** 1.5
 **Data ostatniej aktualizacji:** 2025-11-05
 
 ---
