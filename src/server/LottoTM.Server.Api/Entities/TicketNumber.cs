@@ -15,7 +15,7 @@ public class TicketNumber
     /// <summary>
     /// Foreign key to the ticket this number belongs to
     /// </summary>
-    public Guid TicketId { get; set; }
+    public int TicketId { get; set; }
 
     /// <summary>
     /// The lottery number (must be between 1 and 49)

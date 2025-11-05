@@ -1,6 +1,6 @@
 # Schemat Bazy Danych SQL Server - LottoTM MVP
 
-**Wersja:** 2.0
+**Wersja:** 2.1
 **Data:** 2025-11-05
 **Baza danych:** SQL Server 2022
 **ORM:** Entity Framework Core 9
@@ -138,7 +138,7 @@ CREATE INDEX IX_DrawNumbers_Number ON DrawNumbers(Number);
 
 ```sql
 CREATE TABLE Tickets (
-    Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+    Id INT PRIMARY KEY IDENTITY(1,1),
     UserId INT NOT NULL,
     CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
     CONSTRAINT FK_Tickets_Users FOREIGN KEY (UserId)
@@ -149,7 +149,7 @@ CREATE INDEX IX_Tickets_UserId ON Tickets(UserId);
 ```
 
 **Kolumny:**
-- `Id` - UNIQUEIDENTIFIER (GUID), klucz główny
+- `Id` - INT IDENTITY, klucz główny, autoincrement
 - `UserId` - INT, klucz obcy do Users
 - `CreatedAt` - DATETIME2, data utworzenia zestawu (UTC)
 
@@ -160,7 +160,6 @@ CREATE INDEX IX_Tickets_UserId ON Tickets(UserId);
 
 **Zmiany vs. wersja 1.0:**
 - **USUNIĘTO kolumny Number1-Number6** - zastąpione przez znormalizowaną tabelę `TicketNumbers`
-- **ZMIENIONO typ Id z INT IDENTITY na UNIQUEIDENTIFIER (GUID)** dla lepszej skalowalności
 - Zmieniono `GETDATE()` na `GETUTCDATE()` dla konsystencji czasowej (UTC)
 
 **Decyzje projektowe:**
@@ -178,7 +177,7 @@ CREATE INDEX IX_Tickets_UserId ON Tickets(UserId);
 ```sql
 CREATE TABLE TicketNumbers (
     Id INT PRIMARY KEY IDENTITY(1,1),
-    TicketId UNIQUEIDENTIFIER NOT NULL,
+    TicketId INT NOT NULL,
     Number INT NOT NULL CHECK (Number BETWEEN 1 AND 49),
     Position TINYINT NOT NULL CHECK (Position BETWEEN 1 AND 6),
     CONSTRAINT FK_TicketNumbers_Tickets FOREIGN KEY (TicketId)
@@ -192,7 +191,7 @@ CREATE INDEX IX_TicketNumbers_Number ON TicketNumbers(Number);
 
 **Kolumny:**
 - `Id` - INT IDENTITY, klucz główny
-- `TicketId` - UNIQUEIDENTIFIER, klucz obcy do Tickets
+- `TicketId` - INT, klucz obcy do Tickets
 - `Number` - INT, liczba w zestawie (zakres 1-49)
 - `Position` - TINYINT, pozycja liczby w zestawie (1-6)
 
@@ -266,7 +265,7 @@ foreach (var ticket in existingTickets)
 ┌──────────────────────┐
 │      Tickets         │
 │----------------------|
-│ Id (PK, GUID)        │
+│ Id (PK, INT)         │
 │ UserId (FK) ────────►│
 │ CreatedAt            │
 └────────┬─────────────┘
@@ -580,10 +579,16 @@ if (ticket == null)
 
 **Constraints w bazie:**
 ```sql
--- CHECK constraints dla zakresu liczb (1-49)
-CHECK (Number1 BETWEEN 1 AND 49)
-CHECK (Number2 BETWEEN 1 AND 49)
--- ... etc dla wszystkich Number1-6 w Draws i Tickets
+-- CHECK constraints dla zakresu liczb (1-49) w TicketNumbers i DrawNumbers
+ALTER TABLE TicketNumbers ADD CONSTRAINT CK_TicketNumbers_Number 
+    CHECK (Number BETWEEN 1 AND 49);
+ALTER TABLE TicketNumbers ADD CONSTRAINT CK_TicketNumbers_Position 
+    CHECK (Position BETWEEN 1 AND 6);
+
+ALTER TABLE DrawNumbers ADD CONSTRAINT CK_DrawNumbers_Number 
+    CHECK (Number BETWEEN 1 AND 49);
+ALTER TABLE DrawNumbers ADD CONSTRAINT CK_DrawNumbers_Position 
+    CHECK (Position BETWEEN 1 AND 6);
 ```
 
 **Parametryzowane zapytania (Entity Framework Core):**
@@ -606,11 +611,40 @@ CHECK (Number2 BETWEEN 1 AND 49)
 **Implementacja:**
 ```csharp
 // PUT /api/tickets/{id}
-var ticket = await db.Tickets.FindAsync(ticketId);
-ticket.Number1 = dto.Numbers[0];
-ticket.Number2 = dto.Numbers[1];
-// ... etc
-await db.SaveChangesAsync();
+using var transaction = await db.Database.BeginTransactionAsync();
+
+try
+{
+    // 1. Pobierz zestaw z liczbami
+    var ticket = await db.Tickets
+        .Include(t => t.Numbers)
+        .FirstOrDefaultAsync(t => t.Id == ticketId && t.UserId == currentUserId);
+    
+    if (ticket == null)
+        return Forbid();
+    
+    // 2. Usuń stare liczby
+    db.TicketNumbers.RemoveRange(ticket.Numbers);
+    
+    // 3. Dodaj nowe liczby
+    for (int i = 0; i < dto.Numbers.Length; i++)
+    {
+        db.TicketNumbers.Add(new TicketNumber
+        {
+            TicketId = ticket.Id,
+            Number = dto.Numbers[i],
+            Position = (byte)(i + 1)
+        });
+    }
+    
+    await db.SaveChangesAsync();
+    await transaction.CommitAsync();
+}
+catch
+{
+    await transaction.RollbackAsync();
+    throw;
+}
 ```
 
 **Co się dzieje z historią weryfikacji?**
@@ -627,16 +661,18 @@ await db.SaveChangesAsync();
 
 ### 5.2 Strategia weryfikacji wygranych (NFR-001: <2s)
 
-**Algorytm weryfikacji (C# LINQ):**
+**Algorytm weryfikacji (C# LINQ) - znormalizowana struktura:**
 
 ```csharp
-// Faza 1: Pobranie danych z bazy
+// Faza 1: Pobranie danych z bazy z eager loading
 var tickets = await db.Tickets
     .Where(t => t.UserId == userId)
+    .Include(t => t.Numbers)
     .ToListAsync(); // np. 100 zestawów
 
 var draws = await db.Draws
     .Where(d => d.DrawDate >= dateFrom && d.DrawDate <= dateTo)
+    .Include(d => d.Numbers)
     .ToListAsync(); // np. 8 losowań
 
 // Faza 2: Weryfikacja w pamięci
@@ -644,15 +680,19 @@ var results = new List<VerificationResult>();
 
 foreach (var ticket in tickets)
 {
-    var ticketNumbers = new[] { ticket.Number1, ticket.Number2,
-                                 ticket.Number3, ticket.Number4,
-                                 ticket.Number5, ticket.Number6 };
+    // Konwersja TicketNumbers na tablicę liczb
+    var ticketNumbers = ticket.Numbers
+        .OrderBy(tn => tn.Position)
+        .Select(tn => tn.Number)
+        .ToArray();
 
     foreach (var draw in draws)
     {
-        var drawNumbers = new[] { draw.Number1, draw.Number2,
-                                  draw.Number3, draw.Number4,
-                                  draw.Number5, draw.Number6 };
+        // Konwersja DrawNumbers na tablicę liczb
+        var drawNumbers = draw.Numbers
+            .OrderBy(dn => dn.Position)
+            .Select(dn => dn.Number)
+            .ToArray();
 
         // Intersect: liczby wspólne
         var matches = ticketNumbers.Intersect(drawNumbers).ToArray();
@@ -677,9 +717,10 @@ return results;
 
 **Wydajność:**
 - 100 zestawów × 8 losowań = 800 iteracji
-- Każda iteracja: 1 Intersect (O(n)) = O(6) = stała
-- Złożoność: O(tickets × draws × 6) ≈ O(n × m)
-- Dla 100 × 1: ~800 mikrosekund (poniżej 2s)
+- Każda iteracja: konwersja (O(6)) + Intersect (O(6)) = O(12) = stała
+- Złożoność: O(tickets × draws × 12) ≈ O(n × m)
+- Eager loading eliminuje N+1 problem (2 zapytania zamiast 100+8)
+- Dla 100 × 8: ~5ms (znacznie poniżej 2s)
 
 **Optymalizacja (jeśli potrzebna):**
 ```csharp
@@ -753,28 +794,34 @@ public List<int[]> GenerateSystemTickets()
 - Liczby w zestawie są unikalne
 - 9 zestawów × 6 liczb = 54 pozycje (49 unikalnych + 5 powtórzeń)
 
-### 5.4 Local time vs UTC
+### 5.4 Time zone strategy - UTC
 
-**Decyzja:** Local time (GETDATE())
+**Decyzja:** UTC (GETUTCDATE()) - przyjęte w wersji 2.0
 
-**Implementacja:**
+**Implementacja we wszystkich tabelach:**
 ```sql
-CreatedAt DATETIME2 NOT NULL DEFAULT GETDATE()
+CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE()
 ```
 
-**Uwaga:** Jeśli w przyszłości system będzie:
-- Hostowany w innej strefie czasowej
-- Używany przez użytkowników z różnych krajów
-- Migrowany do cloud
+**Dlaczego UTC?**
+- Przygotowanie na skalowanie międzynarodowe
+- Brak problemów z Daylight Saving Time (DST)
+- Standardowa praktyka w aplikacjach webowych
+- Konwersja do local time odbywa się w UI (JavaScript)
 
-Należy rozważyć zmianę na `GETUTCDATE()` i konwersję do local time w UI (JavaScript).
+**Frontend - konwersja do local time:**
+```javascript
+// JavaScript automatycznie konwertuje UTC na local time
+const createdAt = new Date(ticket.createdAt); // UTC z backendu
+console.log(createdAt.toLocaleString()); // Wyświetli w lokalnej strefie czasowej użytkownika
+```
 
-**Migracja (jeśli potrzebna):**
-```sql
-ALTER TABLE Users ADD CreatedAtUtc DATETIME2;
-UPDATE Users SET CreatedAtUtc = DATEADD(hour, -1, CreatedAt); -- Polska UTC+1
-ALTER TABLE Users DROP COLUMN CreatedAt;
-EXEC sp_rename 'Users.CreatedAtUtc', 'CreatedAt', 'COLUMN';
+**Backend - zawsze używaj UTC:**
+```csharp
+// ZAWSZE używaj DateTime.UtcNow
+ticket.CreatedAt = DateTime.UtcNow;
+
+// NIE używaj DateTime.Now (local time serwera)
 ```
 
 ### 5.5 Brak tabeli TicketVerifications w MVP
@@ -1000,7 +1047,6 @@ protected override void OnModelCreating(ModelBuilder modelBuilder)
     modelBuilder.Entity<Ticket>(entity =>
     {
         entity.HasKey(e => e.Id);
-        entity.Property(e => e.Id).HasDefaultValueSql("NEWID()");
         entity.HasIndex(e => e.UserId);
         entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
 
@@ -1091,7 +1137,7 @@ public class User
 // Ticket.cs
 public class Ticket
 {
-    public Guid Id { get; set; }
+    public int Id { get; set; }
     public int UserId { get; set; }
     public DateTime CreatedAt { get; set; }
     
@@ -1104,7 +1150,7 @@ public class Ticket
 public class TicketNumber
 {
     public int Id { get; set; }
-    public Guid TicketId { get; set; }
+    public int TicketId { get; set; }
     public int Number { get; set; }
     public byte Position { get; set; }
     
@@ -1213,7 +1259,7 @@ catch
 | Decyzja | Uzasadnienie | Zmiana vs. v1.0 |
 |---------|--------------|-----------------|
 | **Znormalizowana struktura** | TicketNumbers/DrawNumbers zamiast Number1-6 | ✅ NOWE |
-| **GUID dla Tickets.Id** | Lepsza skalowalność vs. INT IDENTITY | ✅ ZMIENIONE |
+| **INT dla Tickets.Id** | Prostsza struktura z IDENTITY autoincrement | ✅ BEZ ZMIAN |
 | **IsAdmin w Users** | Flaga uprawnień administratora | ✅ NOWE |
 | **CreatedByUserId w Draws** | Tracking autora losowania | ✅ NOWE |
 | **UTC dla timestamps** | GETUTCDATE() zamiast GETDATE() | ✅ ZMIENIONE |
@@ -1255,10 +1301,6 @@ catch
 - **Zmieniono:** GETDATE() → GETUTCDATE()
 - **Powód:** Przygotowanie na skalowanie międzynarodowe
 
-**5. GUID dla zestawów:**
-- **Zmieniono:** Tickets.Id INT → UNIQUEIDENTIFIER
-- **Powód:** Lepsza skalowalność, bezpieczeństwo
-
 ---
 
 ## 7. Checklist wdrożenia
@@ -1269,7 +1311,7 @@ catch
 - [ ] Konfiguracja connection string w appsettings.json
 - [ ] Utworzenie modeli Entity Framework:
   - [ ] User.cs (z kolumną IsAdmin)
-  - [ ] Ticket.cs (z GUID jako Id)
+  - [ ] Ticket.cs (z INT IDENTITY jako Id)
   - [ ] TicketNumber.cs (nowa encja)
   - [ ] Draw.cs (z CreatedByUserId)
   - [ ] DrawNumber.cs (nowa encja)
@@ -1278,7 +1320,7 @@ catch
 - [ ] Aplikacja migracji (`dotnet ef database update`)
 - [ ] Weryfikacja struktury tabel (SSMS lub Azure Data Studio):
   - [ ] Users (z IsAdmin)
-  - [ ] Tickets (z GUID Id)
+  - [ ] Tickets (z INT IDENTITY Id)
   - [ ] TicketNumbers (z indeksami)
   - [ ] Draws (z CreatedByUserId)
   - [ ] DrawNumbers (z indeksami)
@@ -1326,7 +1368,8 @@ catch
 | Wersja | Data | Autor | Opis zmian |
 |--------|------|-------|------------|
 | 1.0 | 2025-11-02 | Tomasz Mularczyk | Pierwsza wersja - struktura z kolumnami Number1-6 |
-| 2.0 | 2025-11-05 | Tomasz Mularczyk | Normalizacja struktury danych: wprowadzenie TicketNumbers i DrawNumbers, dodanie IsAdmin do Users, dodanie CreatedByUserId do Draws, zmiana Tickets.Id na GUID, zmiana GETDATE() na GETUTCDATE(), aktualizacja strategii weryfikacji i indeksów, zmiana polityki duplikatów (blokowanie zamiast dozwolenia), aktualizacja przykładów EF Core |
+| 2.0 | 2025-11-05 | Tomasz Mularczyk | Normalizacja struktury danych: wprowadzenie TicketNumbers i DrawNumbers, dodanie IsAdmin do Users, dodanie CreatedByUserId do Draws, zmiana GETDATE() na GETUTCDATE(), aktualizacja strategii weryfikacji i indeksów, zmiana polityki duplikatów (blokowanie zamiast dozwolenia), aktualizacja przykładów EF Core |
+| 2.1 | 2025-11-05 | Tomasz Mularczyk | Zmiana Tickets.Id z UNIQUEIDENTIFIER (GUID) na INT IDENTITY dla prostszej struktury |
 
 ---
 

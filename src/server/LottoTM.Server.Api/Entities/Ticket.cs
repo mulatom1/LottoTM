@@ -8,9 +8,9 @@ namespace LottoTM.Server.Api.Entities;
 public class Ticket
 {
     /// <summary>
-    /// Primary key - GUID for better scalability and security
+    /// Primary key - auto-incremented integer identifier
     /// </summary>
-    public Guid Id { get; set; }
+    public int Id { get; set; }
 
     /// <summary>
     /// Foreign key to the user who owns this ticket
