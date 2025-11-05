@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD)
 # LottoTM - System Zarządzania Kuponami Lotto MVP
 
-**Wersja:** 1.5
+**Wersja:** 1.3
 **Data:** 2025-11-05
 **Autor:** Tomasz Mularczyk
 
