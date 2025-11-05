@@ -102,6 +102,7 @@ src/
     auth/register-page.tsx
     draws/draws-page.tsx            - Draw results management
     tikets/tikets-page.tsx          - Ticket management (note: typo in folder name)
+    checks/checks-page.tsx          - Compare and checks drows with user tickets
   services/
     api-service.ts                  - HTTP client for backend API
     contracts/                      - TypeScript interfaces for API responses
