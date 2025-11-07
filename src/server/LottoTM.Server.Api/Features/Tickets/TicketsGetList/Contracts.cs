@@ -1,0 +1,47 @@
+using MediatR;
+
+namespace LottoTM.Server.Api.Features.Tickets.TicketsGetList;
+
+/// <summary>
+/// Data contracts for getting list of tickets
+/// </summary>
+public class Contracts
+{
+    /// <summary>
+    /// Request to get list of tickets for authenticated user
+    /// No parameters needed - returns all tickets for current user
+    /// </summary>
+    public record GetListRequest : IRequest<GetListResponse>;
+
+    /// <summary>
+    /// Response containing list of tickets with pagination metadata
+    /// </summary>
+    /// <param name="Tickets">List of tickets belonging to the user</param>
+    /// <param name="TotalCount">Total number of tickets for the user</param>
+    /// <param name="Page">Current page number (always 1 in MVP - no pagination)</param>
+    /// <param name="PageSize">Number of items per page (equals TotalCount in MVP)</param>
+    /// <param name="TotalPages">Total number of pages (always 0 or 1 in MVP)</param>
+    /// <param name="Limit">Maximum tickets allowed per user (100)</param>
+    public record GetListResponse(
+        List<TicketDto> Tickets,
+        int TotalCount,
+        int Page,
+        int PageSize,
+        int TotalPages,
+        int Limit
+    );
+
+    /// <summary>
+    /// DTO for a single ticket in the list
+    /// </summary>
+    /// <param name="Id">Ticket ID</param>
+    /// <param name="UserId">User ID who owns this ticket</param>
+    /// <param name="Numbers">Array of 6 lottery numbers ordered by position</param>
+    /// <param name="CreatedAt">UTC timestamp when ticket was created</param>
+    public record TicketDto(
+        int Id,
+        int UserId,
+        int[] Numbers,
+        DateTime CreatedAt
+    );
+}

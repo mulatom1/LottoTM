@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Diagnostics;
+﻿using FluentValidation;
+using LottoTM.Server.Api.Exceptions;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Diagnostics;
@@ -43,6 +45,100 @@ public class ExceptionHandlingMiddleware
             // Ignoruj błędy podczas analizy StackTrace (może być niedostępny)
         }
 
+        // Handle FluentValidation exceptions
+        if (exception is ValidationException validationException)
+        {
+            logger.LogWarning(
+                "Validation error occurred in {ErrorSource}: {Errors}",
+                errorSourceClass,
+                string.Join(", ", validationException.Errors.Select(e => $"{e.PropertyName}: {e.ErrorMessage}")));
+
+            context.Response.ContentType = "application/json";
+            context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+
+            var errors = validationException.Errors
+                .GroupBy(e => e.PropertyName)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(e => e.ErrorMessage).ToArray()
+                );
+
+            var problemDetails = new ValidationProblemDetails(errors)
+            {
+                Status = StatusCodes.Status400BadRequest,
+                Title = "One or more validation errors occurred.",
+                Type = "https://tools.ietf.org/html/rfc7231#section-6.5.1"
+            };
+
+            return context.Response.WriteAsJsonAsync(problemDetails);
+        }
+
+        // Handle ForbiddenException
+        if (exception is ForbiddenException forbiddenException)
+        {
+            logger.LogWarning(
+                "Forbidden access attempt in {ErrorSource}: {Message}",
+                errorSourceClass,
+                forbiddenException.Message);
+
+            context.Response.ContentType = "application/json";
+            context.Response.StatusCode = (int)HttpStatusCode.Forbidden;
+
+            var problemDetails = new ProblemDetails
+            {
+                Status = StatusCodes.Status403Forbidden,
+                Title = "Forbidden",
+                Detail = forbiddenException.Message,
+                Type = "https://tools.ietf.org/html/rfc7231#section-6.5.3"
+            };
+
+            return context.Response.WriteAsJsonAsync(problemDetails);
+        }
+
+        // Handle NotFoundException
+        if (exception is NotFoundException notFoundException)
+        {
+            logger.LogWarning(
+                "Resource not found in {ErrorSource}: {Message}",
+                errorSourceClass,
+                notFoundException.Message);
+
+            context.Response.ContentType = "application/json";
+            context.Response.StatusCode = (int)HttpStatusCode.NotFound;
+
+            var problemDetails = new ProblemDetails
+            {
+                Status = StatusCodes.Status404NotFound,
+                Title = "Not Found",
+                Detail = notFoundException.Message,
+                Type = "https://tools.ietf.org/html/rfc7231#section-6.5.4"
+            };
+
+            return context.Response.WriteAsJsonAsync(problemDetails);
+        }
+
+        // Handle UnauthorizedAccessException
+        if (exception is UnauthorizedAccessException unauthorizedException)
+        {
+            logger.LogWarning(
+                "Unauthorized access attempt in {ErrorSource}: {Message}",
+                errorSourceClass,
+                unauthorizedException.Message);
+
+            context.Response.ContentType = "application/json";
+            context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
+
+            var problemDetails = new ProblemDetails
+            {
+                Status = StatusCodes.Status401Unauthorized,
+                Title = "Unauthorized",
+                Detail = unauthorizedException.Message,
+                Type = "https://tools.ietf.org/html/rfc7235#section-3.1"
+            };
+
+            return context.Response.WriteAsJsonAsync(problemDetails);
+        }
+
         logger.LogError(
            exception,
            "An unhandled exception has occurred in {ErrorSource}: {Message}",
@@ -52,14 +148,15 @@ public class ExceptionHandlingMiddleware
         context.Response.ContentType = "application/json";
         context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
 
-        var problemDetails = new ProblemDetails
-        {            
-            Status = StatusCodes.Status400BadRequest,
-            Title = "Server Error",
+        var serverErrorDetails = new ProblemDetails
+        {
+            Status = StatusCodes.Status500InternalServerError,
+            Title = "An error occurred while processing your request.",
+            Type = "https://tools.ietf.org/html/rfc7231#section-6.6.1",
             Detail = $"{exception.Message} {exception.InnerException?.Message} {exception.InnerException?.InnerException?.Message}".Trim(),
             Instance = errorSourceClass,
         };
 
-        return context.Response.WriteAsJsonAsync(problemDetails);
+        return context.Response.WriteAsJsonAsync(serverErrorDetails);
     }
 }
