@@ -12,7 +12,8 @@ public static class Endpoint
             var result = await mediator.Send(request);
             return Results.Ok(result);
         })
-        .WithName("GetApiVersion")
+        .WithName("ApiVersion")
+        .WithTags("Version")
         .Produces<Contracts.Response>(StatusCodes.Status200OK)
         .WithOpenApi();
     }

@@ -1,8 +1,10 @@
 using FluentValidation;
 using LottoTM.Server.Api.Middlewares;
 using LottoTM.Server.Api.Repositories;
+using LottoTM.Server.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
@@ -20,6 +22,10 @@ builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.Get
 
 builder.Services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
 
+// Register services
+builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.AddScoped<ITicketService, TicketService>();
+builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -47,6 +53,7 @@ builder.Services.AddSwaggerGen(c =>
             new string[] {}
         }
     });
+    c.CustomSchemaIds(type => type.FullName?.Replace("+", "."));
 });
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -102,7 +109,23 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 
+// Register endpoints
 LottoTM.Server.Api.Features.ApiVersion.Endpoint.AddEndpoint(app);
+LottoTM.Server.Api.Features.Auth.Login.Endpoint.AddEndpoint(app);
+LottoTM.Server.Api.Features.Auth.Register.Endpoint.AddEndpoint(app);
+LottoTM.Server.Api.Features.Draws.DrawsCreate.Endpoint.AddEndpoint(app);
+LottoTM.Server.Api.Features.Draws.DrawsGetList.Endpoint.AddEndpoint(app);
+LottoTM.Server.Api.Features.Draws.DrawsGetById.Endpoint.AddEndpoint(app);
+LottoTM.Server.Api.Features.Draws.DrawsUpdate.Endpoint.AddEndpoint(app);
+LottoTM.Server.Api.Features.Draws.DrawsDelete.Endpoint.AddEndpoint(app);
+LottoTM.Server.Api.Features.Tickets.TicketsCreate.Endpoint.AddEndpoint(app);
+LottoTM.Server.Api.Features.Tickets.TicketsGetList.Endpoint.AddEndpoint(app);
+LottoTM.Server.Api.Features.Tickets.TicketsGetById.Endpoint.AddEndpoint(app);
+LottoTM.Server.Api.Features.Tickets.TicketsUpdate.Endpoint.AddEndpoint(app);
+LottoTM.Server.Api.Features.Tickets.TicketsDelete.Endpoint.AddEndpoint(app);
+LottoTM.Server.Api.Features.Tickets.GenerateRandom.Endpoint.AddEndpoint(app);
+LottoTM.Server.Api.Features.Tickets.GenerateSystem.Endpoint.AddEndpoint(app);
+LottoTM.Server.Api.Features.Verification.Check.Endpoint.AddEndpoint(app);
 
 
 await app.RunAsync();
