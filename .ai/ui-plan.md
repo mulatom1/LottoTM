@@ -18,7 +18,8 @@ System LottoTM to aplikacja webowa do zarządzania kuponami loterii LOTTO, zbudo
 - **Lokalny stan dla danych biznesowych** - dane takie jak lista zestawów, losowań pobierane i zarządzane na poziomie komponentów
 - **Modalne interakcje** - formularze edycji, preview generatorów, potwierdzenia usunięcia w modalach (nie dedykowane routes)
 - **Centralized error handling** - wszystkie błędy (walidacja inline + błędy biznesowe) wyświetlane w ErrorModal po submit
-- **Paginacja selektywna** - tylko dla Draws (100/strona), Tickets bez paginacji (max 100 zestawów, scrollowanie)
+- **Paginacja selektywna** - tylko dla Draws (20/strona domyślnie, max 100), Tickets bez paginacji (max 100 zestawów, scrollowanie)
+- **Filtrowanie opcjonalne** - Draws wspiera filtrowanie po zakresie dat (dateFrom/dateTo), Tickets bez filtrów w MVP
 
 ### Rezygnacja z Dashboard:
 
@@ -163,7 +164,7 @@ W MVP **całkowicie zrezygnowano z widoku Dashboard** (`/dashboard`). Po zalogow
 - **UX:**
   - Inline validation w czasie rzeczywistym (visual feedback natychmiastowy)
   - Po kliknięciu "Zarejestruj się": wszystkie błędy zbierane i wyświetlane w ErrorModal
-  - Po sukcesie: automatyczne logowanie (wywołanie `POST /api/auth/login`) + redirect `/tickets`
+  - Po sukcesie: automatyczne logowanie (wywołanie `POST /api/auth/login`) + redirect `/login`
   - Auto-focus na email przy otwarciu
 - **Dostępność:**
   - Labels powiązane z inputs
@@ -321,6 +322,37 @@ W MVP **całkowicie zrezygnowano z widoku Dashboard** (`/dashboard`). Po zalogow
 - **Nagłówek h1:** "Historia losowań"
 - **Przycisk "+ Dodaj wynik"** (primary, widoczny tylko dla adminów)
   - Conditional rendering: `{user.isAdmin && <Button>+ Dodaj wynik</Button>}`
+
+**Filtr zakresu dat:**
+- **Date range picker:**
+  - **Input "Od:"**
+    - Label: "Od:"
+    - Type: date
+    - Opcjonalny (domyślnie pusty - brak filtra)
+    - Placeholder: "yyyy-mm-dd"
+  - **Input "Do:"**
+    - Label: "Do:"
+    - Type: date
+    - Opcjonalny (domyślnie pusty - brak filtra)
+    - Placeholder: "yyyy-mm-dd"
+  - Layout:
+    - Mobile: stacked vertically (Od nad Do)
+    - Desktop: inline (Od | Do obok siebie, compact)
+- **Przyciski filtrowania:**
+  - **"Filtruj"** (primary) - stosuje filtr, wywołuje API z parametrami dateFrom/dateTo
+  - **"Wyczyść"** (secondary) - czyści pola filtra, resetuje do pełnej listy
+- **Logika filtrowania:**
+  - Jeśli oba pola puste: `GET /api/draws?page=1&pageSize=20` (bez filtra)
+  - Jeśli wypełnione: `GET /api/draws?page=1&pageSize=20&dateFrom=YYYY-MM-DD&dateTo=YYYY-MM-DD`
+  - Walidacja inline: data "Od" nie może być późniejsza niż data "Do"
+  - Komunikat błędu: "Data 'Od' musi być wcześniejsza lub równa 'Do'"
+  - Po zastosowaniu filtra: informacja "Filtr aktywny: 2025-10-01 - 2025-10-31" (nad listą)
+  - Przycisk "Wyczyść" widoczny tylko gdy filtr jest aktywny
+- **UX filtrowania:**
+  - Filtr zachowuje się przy paginacji (parametry dateFrom/dateTo przekazywane w każdym page request)
+  - Po kliknięciu "Filtruj": lista odświeża się do strony 1 z zastosowanym filtrem
+  - Po kliknięciu "Wyczyść": lista odświeża się do strony 1 bez filtra
+  - Stan filtra (dateFrom/dateTo) zarządzany w local state komponentu DrawsPage
 
 **Lista losowań:**
 - Każde losowanie jako card/row:
@@ -558,9 +590,19 @@ Struktura accordion - każde losowanie jako rozwijalna sekcja:
   - 2025-11-05: [3, 9, 15, 22, 31, 48]
   - ... (więcej wyników)
 - Paginacja na dole: "Strona 1 z 12 (1156 losowań)"
-- Użytkownik klika "2" (page 2)
-- API call: `GET /api/draws?page=2&pageSize=100`
-- Lista odświeża z wynikami strony 2
+- **Opcja A: Paginacja**
+  - Użytkownik klika "2" (page 2)
+  - API call: `GET /api/draws?page=2&pageSize=20`
+  - Lista odświeża z wynikami strony 2
+- **Opcja B: Filtrowanie po zakresie dat**
+  - Użytkownik wypełnia date range picker:
+    - Od: 2025-10-01
+    - Do: 2025-10-31
+  - Klika "Filtruj"
+  - API call: `GET /api/draws?page=1&pageSize=20&dateFrom=2025-10-01&dateTo=2025-10-31`
+  - Lista odświeża z wynikami tylko z października 2025
+  - Info nad listą: "Filtr aktywny: 2025-10-01 - 2025-10-31"
+  - Użytkownik może kliknąć "Wyczyść" aby wrócić do pełnej listy
 
 **Krok 5: Weryfikacja wygranych**
 - Użytkownik klika zakładkę "Sprawdź Wygrane" w navbar
@@ -1001,8 +1043,15 @@ const variantClasses = {
 
 #### 5.2.2 Draws Components
 
+**DrawsFilterPanel** - Panel filtrowania z date range picker
+- Props: `onFilter: (dateFrom?, dateTo?) => void`, `onClearFilter: () => void`, `isFilterActive: boolean`
+- Wykorzystuje 2x DateInput + Button ("Filtruj", "Wyczyść")
+- Walidacja: dateFrom ≤ dateTo
+- State: `dateFrom`, `dateTo` (local state)
+
 **DrawList** - Lista losowań z paginacją (wykorzystuje DrawItem + Pagination)
-- Props: `draws: Draw[]`, `isAdmin: boolean`, `onEdit: (id) => void`, `onDelete: (id) => void`, `pagination: { currentPage, totalPages, onPageChange }`
+- Props: `draws: Draw[]`, `isAdmin: boolean`, `onEdit: (id) => void`, `onDelete: (id) => void`, `pagination: { currentPage, totalPages, onPageChange }`, `filterInfo?: string`
+- Wyświetla info o aktywnym filtrze jeśli `filterInfo` podane (np. "Filtr aktywny: 2025-10-01 - 2025-10-31")
 
 **DrawItem** - Pojedyncze losowanie w liście
 - Props: `draw: Draw`, `isAdmin: boolean`, `onEdit: () => void`, `onDelete: () => void`
@@ -1053,7 +1102,7 @@ const variantClasses = {
 **Przykłady metod:**
 - Auth: `register()`, `login()`
 - Tickets: `getTickets()`, `createTicket()`, `updateTicket()`, `deleteTicket()`, `generateRandomTicket()`, `generateSystemTickets()`
-- Draws: `getDraws(page, pageSize)`, `createDraw()`, `updateDraw()`, `deleteDraw()`
+- Draws: `getDraws(page, pageSize, dateFrom?, dateTo?)`, `createDraw()`, `updateDraw()`, `deleteDraw()`
 - Verification: `checkWinnings(dateFrom, dateTo)`
 
 ### 6.2 Error Handling w Komponentach
@@ -1265,9 +1314,12 @@ const apiService = getApiService()
 
 **F-DRAW-002: Przeglądanie historii losowań**
 - UI: Draws Page (`/draws`)
+  - DrawsFilterPanel: Date range picker (Od/Do) + Button "Filtruj" + Button "Wyczyść"
   - Lista losowań: Data | Liczby | Data wprowadzenia
-  - Paginacja (100/strona): Pagination component
+  - Info o aktywnym filtrze: "Filtr aktywny: 2025-10-01 - 2025-10-31" (jeśli filtr zastosowany)
+  - Paginacja (20/strona domyślnie): Pagination component
   - Sortowanie: drawDate desc (default backend)
+  - API: `GET /api/draws?page=X&pageSize=20&dateFrom=YYYY-MM-DD&dateTo=YYYY-MM-DD`
 
 **F-DRAW-004: Usuwanie wyniku losowania**
 - UI: Draws Page → Modal potwierdzenia (admin)

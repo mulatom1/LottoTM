@@ -524,7 +524,6 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 **Kryteria akceptacji:**
 - Formularz z 6 polami numerycznymi (zakres 1-49)
 - Walidacja unikalności liczb w czasie rzeczywistym
-- Opcjonalne pole nazwy zestawu
 - Zapisanie zestawu do mojego konta
 - Komunikat sukcesu po zapisie
 
@@ -574,7 +573,6 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 **Kryteria akceptacji:**
 - Przycisk "Edytuj" przy każdym zestawie na liście
 - Formularz edycji z wypełnionymi aktualnymi wartościami (6 pól numerycznych 1-49)
-- Możliwość zmiany nazwy zestawu
 - Walidacja unikalności liczb w czasie rzeczywistym
 - Walidacja unikalności zestawu (sprawdzenie czy zmodyfikowany zestaw nie jest duplikatem innego)
 - Przycisk "Zapisz zmiany" i "Anuluj"
