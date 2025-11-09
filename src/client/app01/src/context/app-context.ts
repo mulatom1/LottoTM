@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react';
-import type { User } from '../service/contracts/user';
-import type { ApiService } from '../service/api-service';
+import type { ApiService } from '../services/api-service';
+import type { User } from '../services/contracts/user';
 
 export type AppContextType = {
   user?: User | null;
