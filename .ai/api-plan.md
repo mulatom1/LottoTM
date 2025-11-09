@@ -161,7 +161,7 @@
 
 **Parametry zapytania:**
 - `page` (opcjonalny, domyślnie: 1): Numer strony
-- `pageSize` (opcjonalny, domyślnie: 20, max: 100): Liczba elementów na stronie
+- `pageSize` (opcjonalny, domyślnie:  100): Liczba elementów na stronie
 - `sortBy` (opcjonalny, domyślnie: "drawDate"): Pole sortowania ("drawDate", "createdAt")
 - `sortOrder` (opcjonalny, domyślnie: "desc"): Kierunek sortowania ("asc", "desc")
 
@@ -248,7 +248,6 @@
 
 **Logika biznesowa:**
 1. Zapytanie: `SELECT * FROM Draws WHERE Id = @id` z eager loading `.Include(d => d.Numbers)`
-2. Brak filtrowania po UserId - Draws jest globalną tabelą dostępną dla wszystkich użytkowników
 
 
 ---

@@ -103,8 +103,6 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 - Email jest unikalny w systemie
 - Walidacja formatu email (regex)
 - Wymagania dla hasła: przechowywane w bezpieczny sposób
-- Po pomyślnej rejestracji użytkownik jest automatycznie zalogowany
-- Zwracany jest token JWT
 - Brak wymaganej weryfikacji adresu email w MVP
 
 **Endpointy API:**
@@ -179,7 +177,7 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 
 #### F-DRAW-002: Przeglądanie historii losowań
 **Priorytet:** Must Have
-**Opis:** Użytkownik może zobaczyć listę wszystkich wprowadzonych wyników losowań z możliwością filtrowania po zakresie dat.
+**Opis:** Każdy użytkownik może zobaczyć (zwykły i uprzywilejowany) listę wszystkich wprowadzonych wyników losowań z możliwością filtrowania po zakresie dat.
 
 **Kryteria akceptacji:**
 - Lista zawiera: datę losowania, 6 liczb, datę dodania do systemu
@@ -193,7 +191,7 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
   - Walidacja: data "Od" nie może być późniejsza niż data "Do"
 
 **Endpointy API:**
-- `GET /api/draws?page=1&pageSize=20&sortBy=drawDate&sortOrder=desc&dateFrom=2025-10-01&dateTo=2025-10-31`
+- `GET /api/draws?page=1&pageSize=100&sortBy=drawDate&sortOrder=desc&dateFrom=2025-10-01&dateTo=2025-10-31`
   - Query parameters:
     - `dateFrom` (opcjonalny): filtruj losowania od tej daty (format: YYYY-MM-DD)
     - `dateTo` (opcjonalny): filtruj losowania do tej daty (format: YYYY-MM-DD)
