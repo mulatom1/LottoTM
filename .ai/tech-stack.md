@@ -11,7 +11,7 @@
     *   Obsługa CORS (MediatR)
     *   Globalna obsługa wyjątków i błędów
 *   **Frontend:** React 19 z wykorzystaniem:
-    *   react-router do zarządzania trasami.
+    *   react-router 7 do zarządzania trasami.
     *   TypeScript
-    *   biblioteką Tailwind CSS do stylizacji.
+    *   biblioteką Tailwind CSS 4 do stylizacji.
 *   **Autoryzacja:** Zabezpieczenie systemu za pomocą tokenów JWT (JSON Web Tokens).
