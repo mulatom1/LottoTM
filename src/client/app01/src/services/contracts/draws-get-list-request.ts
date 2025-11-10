@@ -30,4 +30,16 @@ export interface DrawsGetListRequest {
    * Allowed values: "asc", "desc"
    */
   sortOrder?: string;
+
+  /**
+   * Optional filter: start date (YYYY-MM-DD)
+   * Returns only draws with drawDate >= dateFrom
+   */
+  dateFrom?: string;
+
+  /**
+   * Optional filter: end date (YYYY-MM-DD)
+   * Returns only draws with drawDate <= dateTo
+   */
+  dateTo?: string;
 }

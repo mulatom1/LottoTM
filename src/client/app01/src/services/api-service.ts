@@ -391,21 +391,29 @@ export class ApiService {
     public async drawsGetList(request?: DrawsGetListRequest): Promise<DrawsGetListResponse> {
       // Build query parameters with defaults
       const params = new URLSearchParams();
-      
+
       if (request?.page !== undefined) {
         params.append('page', request.page.toString());
       }
-      
+
       if (request?.pageSize !== undefined) {
         params.append('pageSize', request.pageSize.toString());
       }
-      
+
       if (request?.sortBy) {
         params.append('sortBy', request.sortBy);
       }
-      
+
       if (request?.sortOrder) {
         params.append('sortOrder', request.sortOrder);
+      }
+
+      if (request?.dateFrom) {
+        params.append('dateFrom', request.dateFrom);
+      }
+
+      if (request?.dateTo) {
+        params.append('dateTo', request.dateTo);
       }
 
       const queryString = params.toString();

@@ -1,53 +1,76 @@
-import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
 import { useAppContext } from "../../context/app-context";
-
+import Button from "../../components/shared/button";
 
 function HomePage() {
-
-  const { isLoggedIn, user, login, logout, getApiService } = useAppContext();
-  const apiService = getApiService();
-
-  const [appVersion, setAppVersion] =  useState<string>(""); 
-
-  const getApiVersion = async () => {
-    const response = await apiService?.getApiVersion();
-    console.log("API Version Response:", response?.version);
-    setAppVersion(response?.version ?? "");
-  }
-
-  const clickLogin = () => {
-    login({ id: 1,  email: "testuser", token: "token"});
-  };
-
-  useEffect(() => {
-    getApiVersion();
-  }, []);
+  const { user, isLoggedIn } = useAppContext();
+  const navigate = useNavigate();
 
   return (
-    <>
-      <div className="bg-yellow-300">
-        API: {import.meta.env.VITE_API_URL} 
-        <br/>
-        <br/>
-        isUseLogged: {(isLoggedIn ? "Zalogowany" : "Niezalogowany")}
-        <br/>
-        <br/>
-        user: {user?.email ?? ""} {user?.token ?? "" }
-        <br/>
-        <br/>
-        version: {appVersion}
-        <br/>
-        <br/>
-        service usr token: {apiService?.getUsrToken() ?? ""}
-        <br/>
-        <br/>
-        <button className="bg-amber-950 text-white" onClick={clickLogin}>Login</button>
-        <br/>
-        <br/>
-        <button className="bg-amber-950 text-white" onClick={() => logout()}>Logout</button>
+    <main className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+      <div className="max-w-md w-full text-center space-y-8">
+        {/* Header section */}
+        <div className="space-y-4">
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900">
+            LottoTM - System Zarządzania Kuponami LOTTO
+          </h1>
+
+          {/* Description section */}
+          <p className="text-lg text-gray-600">
+            Zarządzaj swoimi zestawami liczb LOTTO i automatycznie weryfikuj wygrane.
+            Szybko, wygodnie, bezpiecznie.
+          </p>
+        </div>
+
+        {/* Conditional rendering based on login state */}
+        {!isLoggedIn ? (
+          /* CTA Buttons for guest users */
+          <div className="space-y-4 pt-8">
+            <Button
+              variant="primary"
+              onClick={() => navigate('/login')}
+              className="w-full"
+            >
+              Zaloguj się
+            </Button>
+
+            <Button
+              variant="secondary"
+              onClick={() => navigate('/register')}
+              className="w-full"
+            >
+              Zarejestruj się
+            </Button>
+          </div>
+        ) : (
+          /* Navigation buttons for logged in users */
+          <div className="space-y-4 pt-8">
+            <p className="text-lg text-gray-700">
+              Witaj, <span className="font-bold">{user?.email}</span>!
+            </p>
+
+            <div className="space-y-3">
+              <Button
+                variant="primary"
+                onClick={() => navigate('/draws')}
+                className="w-full"
+              >
+                Historia losowań
+              </Button>
+
+              <Button
+                variant="primary"
+                onClick={() => navigate('/tickets')}
+                className="w-full"
+              >
+                Moje zestawy
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
-    </>
-  )
+    </main>
+  );
 }
 
-export default HomePage
+export default HomePage;
