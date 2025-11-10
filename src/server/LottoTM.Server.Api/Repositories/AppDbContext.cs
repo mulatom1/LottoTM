@@ -146,7 +146,18 @@ public class AppDbContext : DbContext
     {
         modelBuilder.Entity<TicketNumber>(entity =>
         {
-            entity.ToTable("TicketNumbers");
+            entity.ToTable("TicketNumbers", t =>
+            {
+                // Check constraint for Number range (1-49)
+                t.HasCheckConstraint(
+                    "CHK_TicketNumbers_Number",
+                    "[Number] >= 1 AND [Number] <= 49");
+
+                // Check constraint for Position range (1-6)
+                t.HasCheckConstraint(
+                    "CHK_TicketNumbers_Position",
+                    "[Position] >= 1 AND [Position] <= 6");
+            });
 
             entity.HasKey(e => e.Id);
 
@@ -161,16 +172,6 @@ public class AppDbContext : DbContext
 
             entity.Property(e => e.Position)
                 .IsRequired();
-
-            // Check constraint for Number range (1-49)
-            entity.HasCheckConstraint(
-                "CHK_TicketNumbers_Number",
-                "[Number] >= 1 AND [Number] <= 49");
-
-            // Check constraint for Position range (1-6)
-            entity.HasCheckConstraint(
-                "CHK_TicketNumbers_Position",
-                "[Position] >= 1 AND [Position] <= 6");
 
             // Unique constraint on (TicketId, Position)
             entity.HasIndex(e => new { e.TicketId, e.Position })
@@ -236,7 +237,18 @@ public class AppDbContext : DbContext
     {
         modelBuilder.Entity<DrawNumber>(entity =>
         {
-            entity.ToTable("DrawNumbers");
+            entity.ToTable("DrawNumbers", t =>
+            {
+                // Check constraint for Number range (1-49)
+                t.HasCheckConstraint(
+                    "CHK_DrawNumbers_Number",
+                    "[Number] >= 1 AND [Number] <= 49");
+
+                // Check constraint for Position range (1-6)
+                t.HasCheckConstraint(
+                    "CHK_DrawNumbers_Position",
+                    "[Position] >= 1 AND [Position] <= 6");
+            });
 
             entity.HasKey(e => e.Id);
 
@@ -251,16 +263,6 @@ public class AppDbContext : DbContext
 
             entity.Property(e => e.Position)
                 .IsRequired();
-
-            // Check constraint for Number range (1-49)
-            entity.HasCheckConstraint(
-                "CHK_DrawNumbers_Number",
-                "[Number] >= 1 AND [Number] <= 49");
-
-            // Check constraint for Position range (1-6)
-            entity.HasCheckConstraint(
-                "CHK_DrawNumbers_Position",
-                "[Position] >= 1 AND [Position] <= 6");
 
             // Unique constraint on (DrawId, Position)
             entity.HasIndex(e => new { e.DrawId, e.Position })
