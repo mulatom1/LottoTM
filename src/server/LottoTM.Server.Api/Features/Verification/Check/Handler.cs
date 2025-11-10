@@ -52,23 +52,18 @@ public class CheckVerificationHandler : IRequestHandler<Contracts.Request, Contr
 
         try
         {
-            // 4. Fetch user tickets and draws in parallel
-            var ticketsTask = _dbContext.Tickets
+            // 4. Fetch user tickets and draws sequentially (DbContext is not thread-safe)
+            var tickets = await _dbContext.Tickets
                 .AsNoTracking()
                 .Where(t => t.UserId == userId)
                 .Include(t => t.Numbers)
                 .ToListAsync(cancellationToken);
 
-            var drawsTask = _dbContext.Draws
+            var draws = await _dbContext.Draws
                 .AsNoTracking()
                 .Where(d => d.DrawDate >= request.DateFrom && d.DrawDate <= request.DateTo)
                 .Include(d => d.Numbers)
                 .ToListAsync(cancellationToken);
-
-            await Task.WhenAll(ticketsTask, drawsTask);
-
-            var tickets = await ticketsTask;
-            var draws = await drawsTask;
 
             _logger.LogInformation(
                 "Weryfikacja: pobrano {TicketCount} kuponów i {DrawCount} losowań dla użytkownika {UserId}",

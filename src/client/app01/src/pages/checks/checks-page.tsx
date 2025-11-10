@@ -1,13 +1,2 @@
-
-function ChecksPage() {
-
-  return (
-    <>
-      <div className="bg-yellow-300">
-        Checks
-      </div>
-    </>
-  )
-}
-
-export default ChecksPage
+// Import ChecksPage from new location
+export { default } from './ChecksPage';
