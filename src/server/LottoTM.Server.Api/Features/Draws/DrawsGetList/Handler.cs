@@ -71,6 +71,7 @@ public class GetDrawsHandler : IRequestHandler<Contracts.GetDrawsRequest, Contra
             var drawDtos = draws.Select(d => new Contracts.DrawDto(
                 d.Id,
                 d.DrawDate.ToDateTime(TimeOnly.MinValue), // Convert DateOnly to DateTime
+                d.LottoType,
                 d.Numbers.OrderBy(dn => dn.Position).Select(dn => dn.Number).ToArray(),
                 d.CreatedAt
             )).ToList();

@@ -32,6 +32,17 @@ const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
         <p className="mb-2 text-gray-700">
           Czy na pewno chcesz usunąć ten zestaw?
         </p>
+
+        {/* Nazwa grupy (jeśli istnieje) */}
+        {ticket.groupName && (
+          <div className="mt-2 mb-3 text-center">
+            <span className="inline-block px-2 py-1 bg-purple-100 text-purple-800 rounded text-sm font-medium">
+              {ticket.groupName}
+            </span>
+          </div>
+        )}
+
+        {/* Liczby zestawu */}
         <div className="flex flex-wrap gap-2 justify-center mt-4 p-4 bg-gray-50 rounded">
           {ticket.numbers.map((num, index) => (
             <span

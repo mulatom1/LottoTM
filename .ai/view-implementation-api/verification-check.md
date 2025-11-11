@@ -30,8 +30,8 @@ Wszystkie typy zostaną zdefiniowane w nowym folderze `Features/Verification/Che
 - **`Contracts.cs`**:
   - `Request(DateOnly DateFrom, DateOnly DateTo)`: Model żądania.
   - `Response(List<TicketVerificationResult> Results, int TotalTickets, int TotalDraws, long ExecutionTimeMs)`: Model odpowiedzi.
-  - `TicketVerificationResult(int TicketId, List<int> TicketNumbers, List<DrawVerificationResult> Draws)`: Wynik dla pojedynczego kuponu.
-  - `DrawVerificationResult(int DrawId, DateOnly DrawDate, List<int> DrawNumbers, int Hits, List<int> WinningNumbers)`: Wynik trafienia w losowaniu.
+  - `TicketVerificationResult(int TicketId, string GroupName, List<int> TicketNumbers, List<DrawVerificationResult> Draws)`: Wynik dla pojedynczego kuponu.
+  - `DrawVerificationResult(int DrawId, DateOnly DrawDate, string LottoType, List<int> DrawNumbers, int Hits, List<int> WinningNumbers)`: Wynik trafienia w losowaniu.
 
 ## 4. Szczegóły odpowiedzi
 
@@ -42,11 +42,13 @@ Wszystkie typy zostaną zdefiniowane w nowym folderze `Features/Verification/Che
     "results": [
       {
         "ticketId": 1001,
+        "groupName": "Ulubione",
         "ticketNumbers": [5, 14, 23, 29, 37, 41],
         "draws": [
           {
             "drawId": 123,
             "drawDate": "2025-10-15",
+            "lottoType": "LOTTO",
             "drawNumbers": [3, 14, 23, 31, 37, 48],
             "hits": 3,
             "winningNumbers": [14, 23, 37]
@@ -80,8 +82,8 @@ Wszystkie typy zostaną zdefiniowane w nowym folderze `Features/Verification/Che
 5. Handler pobiera `UserId` z `ClaimsPrincipal` (z `IHttpContextAccessor`).
 6. Handler uruchamia `Stopwatch` do pomiaru czasu.
 7. Handler wykonuje dwa równoległe zapytania do bazy danych (`AppDbContext`):
-   a. Pobiera wszystkie kupony (`Tickets`) wraz z ich numerami (`TicketNumbers`) dla danego `UserId`.
-   b. Pobiera wszystkie losowania (`Draws`) wraz z ich numerami (`DrawNumbers`) w zadanym zakresie dat.
+   a. Pobiera wszystkie kupony (`Tickets`) wraz z ich numerami (`TicketNumbers`) i nazwami grup (`GroupName`) dla danego `UserId`.
+   b. Pobiera wszystkie losowania (`Draws`) wraz z ich numerami (`DrawNumbers`) i typami gry (`LottoType`) w zadanym zakresie dat.
 8. W pamięci serwera, handler iteruje po każdym kuponie użytkownika.
 9. Dla każdego kuponu, iteruje po każdym pobranym losowaniu.
 10. Za pomocą `Enumerable.Intersect`, znajduje liczbę trafień między numerami kuponu a numerami losowania.

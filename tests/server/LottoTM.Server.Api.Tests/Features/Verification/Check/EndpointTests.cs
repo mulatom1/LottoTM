@@ -66,10 +66,12 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var ticketResult = result.Results[0];
         Assert.Equal(ticketId, ticketResult.TicketId);
+        Assert.NotNull(ticketResult.GroupName);
         Assert.Equal(6, ticketResult.TicketNumbers.Count);
         Assert.Single(ticketResult.Draws); // One draw with 3+ hits
 
         var drawResult = ticketResult.Draws[0];
+        Assert.Equal("LOTTO", drawResult.LottoType);
         Assert.Equal(3, drawResult.Hits);
         Assert.Equal(3, drawResult.WinningNumbers.Count);
         Assert.Contains(14, drawResult.WinningNumbers);
@@ -432,6 +434,62 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     /// <summary>
+    /// Test with both LOTTO and LOTTO PLUS draws
+    /// </summary>
+    [Fact]
+    public async Task CheckVerification_WithBothLottoTypes_ReturnsCorrectLottoTypes()
+    {
+        // Arrange
+        var testDbName = "TestDb_Check_BothTypes_" + Guid.NewGuid();
+        var factory = CreateTestFactory(testDbName);
+
+        var userId = SeedTestUser(testDbName, "user@example.com", "Password123!", false);
+
+        // Create a ticket that matches both draws
+        SeedTestTicket(factory, userId, new[] { 5, 14, 23, 29, 37, 41 });
+
+        // Create LOTTO draw with 3 matching numbers: 5, 14, 23
+        SeedTestDrawWithType(factory, userId, DateOnly.Parse("2025-10-15"), new[] { 5, 14, 23, 31, 32, 33 }, "LOTTO");
+
+        // Create LOTTO PLUS draw with 3 matching numbers: 14, 23, 29
+        SeedTestDrawWithType(factory, userId, DateOnly.Parse("2025-10-16"), new[] { 14, 23, 29, 35, 36, 38 }, "LOTTO PLUS");
+
+        var client = factory.CreateClient();
+        var token = GenerateTestToken(factory, userId, "user@example.com", false);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var request = new Contracts.Request(
+            DateOnly.Parse("2025-10-01"),
+            DateOnly.Parse("2025-10-31")
+        );
+
+        // Act
+        var response = await client.PostAsJsonAsync("/api/verification/check", request);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
+        Assert.NotNull(result);
+        Assert.Equal(1, result.TotalTickets);
+        Assert.Equal(2, result.TotalDraws);
+        Assert.Single(result.Results); // One ticket with hits
+
+        var ticketResult = result.Results[0];
+        Assert.Equal(2, ticketResult.Draws.Count); // Two draws with 3+ hits
+
+        // Verify LOTTO draw
+        var lottoDraw = ticketResult.Draws.FirstOrDefault(d => d.LottoType == "LOTTO");
+        Assert.NotNull(lottoDraw);
+        Assert.Equal(3, lottoDraw.Hits);
+
+        // Verify LOTTO PLUS draw
+        var lottoPlusDraw = ticketResult.Draws.FirstOrDefault(d => d.LottoType == "LOTTO PLUS");
+        Assert.NotNull(lottoPlusDraw);
+        Assert.Equal(3, lottoPlusDraw.Hits);
+    }
+
+    /// <summary>
     /// Test execution time is included in response
     /// </summary>
     [Fact]
@@ -560,6 +618,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         var ticket = new Ticket
         {
             UserId = userId,
+            GroupName = $"TestTicket: {DateTime.Now:yyyy-MM-dd HH:mm:ss}",
             CreatedAt = DateTime.UtcNow
         };
 
@@ -587,6 +646,14 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
     /// </summary>
     private static void SeedTestDraw(WebApplicationFactory<Program> factory, int userId, DateOnly drawDate, int[] numbers)
     {
+        SeedTestDrawWithType(factory, userId, drawDate, numbers, "LOTTO");
+    }
+
+    /// <summary>
+    /// Helper method to seed a test draw with specified numbers and lotto type
+    /// </summary>
+    private static void SeedTestDrawWithType(WebApplicationFactory<Program> factory, int userId, DateOnly drawDate, int[] numbers, string lottoType)
+    {
         if (numbers.Length != 6)
         {
             throw new ArgumentException("Draw must have exactly 6 numbers", nameof(numbers));
@@ -598,6 +665,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         var draw = new Draw
         {
             DrawDate = drawDate,
+            LottoType = lottoType,
             CreatedAt = DateTime.UtcNow,
             CreatedByUserId = userId
         };

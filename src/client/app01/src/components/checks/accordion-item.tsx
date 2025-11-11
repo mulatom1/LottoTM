@@ -3,15 +3,17 @@
 // ===================================================================
 
 import { useState } from 'react';
-import { ResultTicketItem } from './ResultTicketItem';
+import { ResultTicketItem } from './result-ticket-item';
 
 interface AccordionItemProps {
   draw: {
     drawDate: string;
+    lottoType: string;
     drawNumbers: number[];
   };
   tickets: Array<{
     ticketId: number;
+    groupName: string;
     ticketNumbers: number[];
     hits: number;
     winningNumbers: number[];
@@ -61,8 +63,17 @@ export function AccordionItem({ draw, tickets, defaultExpanded = false }: Accord
 
           {/* Draw Info */}
           <div>
-            <div className="text-sm font-semibold text-gray-900">
-              Losowanie {draw.drawDate}
+            <div className="flex items-center gap-2">
+              <div className="text-sm font-semibold text-gray-900">
+                Losowanie {draw.drawDate}
+              </div>
+              <span className={`text-xs font-medium px-2 py-0.5 rounded ${
+                draw.lottoType === 'LOTTO PLUS'
+                  ? 'bg-purple-100 text-purple-700'
+                  : 'bg-green-100 text-green-700'
+              }`}>
+                {draw.lottoType}
+              </span>
             </div>
             <div className="flex gap-2 mt-2">
               {draw.drawNumbers.map((num, index) => (

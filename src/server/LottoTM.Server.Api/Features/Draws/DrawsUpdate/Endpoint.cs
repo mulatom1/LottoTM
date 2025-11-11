@@ -18,6 +18,7 @@ public static class Endpoint
             var request = new Contracts.Request
             {
                 Id = id,
+                LottoType = dto.LottoType,
                 DrawDate = dto.DrawDate,
                 Numbers = dto.Numbers
             };
@@ -39,5 +40,5 @@ public static class Endpoint
     /// <summary>
     /// DTO for binding request body (without Id, which comes from route)
     /// </summary>
-    public record UpdateDrawDto(DateOnly DrawDate, int[] Numbers);
+    public record UpdateDrawDto(DateOnly DrawDate, string LottoType, int[] Numbers);
 }

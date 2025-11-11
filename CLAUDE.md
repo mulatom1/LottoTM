@@ -101,7 +101,7 @@ src/
     auth/login-page.tsx
     auth/register-page.tsx
     draws/draws-page.tsx            - Draw results management
-    tikets/tikets-page.tsx          - Ticket management (note: typo in folder name)
+    tickets/tickets-page.tsx        - Ticket management (note: typo in folder name)
     checks/checks-page.tsx          - Compare and checks drows with user tickets
   services/
     api-service.ts                  - HTTP client for backend API
@@ -150,7 +150,7 @@ All unhandled exceptions are caught by `ExceptionHandlingMiddleware` which:
 
 ## Important Notes
 
-- The frontend folder name has a typo: `tikets` instead of `tickets`
+- The frontend folder name has a typo: `tickets` instead of `tickets`
 - Backend uses Polish comments in some files (e.g., validation error messages)
 - JWT configuration requires minimum 32-character key
 - CORS is configured to allow all origins (consider restricting in production)

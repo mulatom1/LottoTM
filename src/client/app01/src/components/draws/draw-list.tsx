@@ -1,14 +1,10 @@
 import React from 'react';
 import DrawItem from './draw-item';
 import Spinner from '../shared/spinner';
+import type { DrawDto } from '../../services/contracts/draws-get-list-response';
 
 export interface DrawListProps {
-  draws: Array<{
-    id: number;
-    drawDate: string;
-    numbers: number[];
-    createdAt: string;
-  }>;
+  draws: DrawDto[];
   isAdmin: boolean;
   onEdit: (drawId: number) => void;
   onDelete: (drawId: number) => void;

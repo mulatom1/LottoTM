@@ -1,8 +1,8 @@
 # Product Requirements Document (PRD)
 # LottoTM - System Zarządzania Kuponami Lotto MVP
 
-**Wersja:** 1.3
-**Data:** 2025-11-05
+**Wersja:** 1.4
+**Data:** 2025-11-11
 **Autor:** Tomasz Mularczyk
 
 ---
@@ -86,7 +86,6 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 8. **Powiadomienia:** Tylko wizualny wskaźnik w UI (brak email/push)
 9. **Losowania per użytkownik:** Każdy użytkownik wprowadza wyniki losowań do globalnej tabeli Draws
 10. **Unikalność zestawów:** System blokuje duplikaty zestawów dla tego samego użytkownika
-11. **Nadpisywanie losowań:** Jeśli użytkownik wprowadzi wynik na istniejącą datę, zostanie on nadpisany
 
 ---
 
@@ -155,10 +154,11 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 
 #### F-DRAW-001: Dodawanie wyniku losowania
 **Priorytet:** Must Have
-**Opis:** Użytkownik uprzywilejowany (admin, flaga isAdmin) może ręcznie wprowadzić oficjalne wyniki losowania LOTTO do globalnej tabeli Draws.
+**Opis:** Użytkownik uprzywilejowany (admin, flaga isAdmin) może ręcznie wprowadzić oficjalne wyniki losowania LOTTO lub LOTTO PLUS do globalnej tabeli Draws.
 
 **Kryteria akceptacji:**
 - Formularz zawiera 6 oddzielnych pól numerycznych (type="number")
+- Wybór typu gry: LOTTO lub LOTTO PLUS (radio buttons lub select)
 - Zakres wartości: 1-49 dla każdego pola
 - Walidacja w czasie rzeczywistym:
   - Liczby muszą być unikalne (brak duplikatów)
@@ -168,19 +168,20 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 - Walidacja: data losowania nie może być w przyszłości
 - Zapis wyniku do bazy danych
 - Po zapisie: komunikat sukcesu + przekierowanie/odświeżenie listy losowań
+- Jeśli losowanie o podanej dacie i typie już istnieje zwraca błąd (unikalny klucz)
 
 **Endpointy API:**
 - `POST /api/draws`
-  - Body: `{ "drawDate": "2025-10-30", "numbers": [3, 12, 25, 31, 42, 48] }`
-  - Response: `{ "message": "Losowanie utworzone pomyślnie" }`
-  - **Uwaga:** Jeśli losowanie na daną datę już istnieje dla użytkownika, zostanie nadpisane
+  - Body: `{ "drawDate": "2025-10-30", "lottoType": "LOTTO", "numbers": [3, 12, 25, 31, 42, 48] }`
+  - Response: `{ "message": "Losowanie utworzone pomyślnie" }`  
 
 #### F-DRAW-002: Przeglądanie historii losowań
 **Priorytet:** Must Have
-**Opis:** Każdy użytkownik może zobaczyć (zwykły i uprzywilejowany) listę wszystkich wprowadzonych wyników losowań z możliwością filtrowania po zakresie dat.
+**Opis:** Każdy użytkownik może zobaczyć (zwykły i uprzywilejowany) listę wszystkich wprowadzonych wyników losowań z możliwością filtrowania po zakresie dat i typie gry.
 
 **Kryteria akceptacji:**
-- Lista zawiera: datę losowania, 6 liczb, datę dodania do systemu
+- Lista zawiera: datę losowania, typ gry (LOTTO/LOTTO PLUS), 6 liczb, datę dodania do systemu
+- Filtr typu gry: All / LOTTO / LOTTO PLUS
 - Sortowanie: domyślnie według daty losowania (najnowsze na górze)
 - Paginacja dla dużej liczby wyników (opcjonalnie w MVP)
 - **Filtr zakresu dat:**
@@ -191,11 +192,12 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
   - Walidacja: data "Od" nie może być późniejsza niż data "Do"
 
 **Endpointy API:**
-- `GET /api/draws?page=1&pageSize=100&sortBy=drawDate&sortOrder=desc&dateFrom=2025-10-01&dateTo=2025-10-31`
+- `GET /api/draws?page=1&pageSize=100&sortBy=drawDate&sortOrder=desc&dateFrom=2025-10-01&dateTo=2025-10-31&lottoType=LOTTO`
   - Query parameters:
     - `dateFrom` (opcjonalny): filtruj losowania od tej daty (format: YYYY-MM-DD)
     - `dateTo` (opcjonalny): filtruj losowania do tej daty (format: YYYY-MM-DD)
-  - Response: `{ "draws": [...], "totalCount": 123, "page": 1, "pageSize": 20, "filters": { "dateFrom": "2025-10-01", "dateTo": "2025-10-31" } }`
+    - `lottoType` (opcjonalny): filtruj po typie gry ("LOTTO" lub "LOTTO PLUS")
+  - Response: `{ "draws": [...], "totalCount": 123, "page": 1, "pageSize": 20, "filters": { "dateFrom": "2025-10-01", "dateTo": "2025-10-31", "lottoType": "LOTTO" } }`
 
 #### F-DRAW-003: Pobranie szczegółów losowania
 **Priorytet:** Should Have
@@ -203,7 +205,7 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 
 **Endpointy API:**
 - `GET /api/draws/{id}`
-  - Response: `{ "id": "number", "drawDate": "2025-10-30", "numbers": [3, 12, 25, 31, 42, 48], "createdAt": "datetime" }`
+  - Response: `{ "id": "number", "drawDate": "2025-10-30", "lottoType": "LOTTO", "numbers": [3, 12, 25, 31, 42, 48], "createdAt": "datetime" }`
 
 #### F-DRAW-004: Usuwanie wyniku losowania
 **Priorytet:** Must Have
@@ -228,7 +230,7 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 **Kryteria akceptacji:**
 - Przycisk "Edytuj" przy wyniku losowania na liście (widoczny tylko dla adminów)
 - Formularz z wypełnionymi aktualnymi wartościami (6 pól numerycznych 1-49)
-- Możliwość zmiany daty losowania
+- Możliwość zmiany daty losowania i typu gry
 - Walidacja unikalności liczb w czasie rzeczywistym
 - Walidacja: data nie może być w przyszłości
 - Zapisanie zmian
@@ -236,7 +238,7 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 
 **Endpointy API:**
 - `PUT /api/draws/{id}`
-  - Body: `{ "drawDate": "2025-10-30", "numbers": [3, 12, 25, 31, 42, 48] }`
+  - Body: `{ "drawDate": "2025-10-30", "lottoType": "LOTTO PLUS", "numbers": [3, 12, 25, 31, 42, 48] }`
   - Response: `{ "message": "Wynik losowania zaktualizowany pomyślnie" }`
   - Authorization: Wymaga uprawnień administratora
 
@@ -249,9 +251,10 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 **Opis:** Użytkownik może zobaczyć listę wszystkich swoich zapisanych zestawów liczb.
 
 **Kryteria akceptacji:**
-- Lista zawiera: 6 liczb, datę utworzenia
+- Lista zawiera: 6 liczb, nazwę grupy (jeśli przypisana), datę utworzenia
 - Wyświetlenie licznika: "X / 100 zestawów"
 - Sortowanie: według daty utworzenia (najnowsze na górze)
+- Możliwość filtrowania według nazwy grupy (opcjonalnie)
 - Przycisk akcji przy każdym zestawie: Edytuj, Usuń
 
 **Endpointy API:**
@@ -260,10 +263,11 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 
 #### F-TICKET-002: Dodawanie zestawu ręcznie
 **Priorytet:** Must Have
-**Opis:** Użytkownik może ręcznie wprowadzić nowy zestaw 6 liczb.
+**Opis:** Użytkownik może ręcznie wprowadzić nowy zestaw 6 liczb z opcjonalną nazwą grupy.
 
 **Kryteria akceptacji:**
 - Formularz zawiera 6 oddzielnych pól numerycznych (type="number")
+- Pole tekstowe na nazwę grupy (opcjonalne, max 100 znaków)
 - Zakres wartości: 1-49 dla każdego pola
 - Walidacja w czasie rzeczywistym:
   - Liczby muszą być unikalne w zestawie
@@ -281,17 +285,18 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 
 **Endpointy API:**
 - `POST /api/tickets`
-  - Body: `{ "numbers": [5, 14, 23, 29, 37, 41] }`
+  - Body: `{ "numbers": [5, 14, 23, 29, 37, 41], "groupName": "Ulubione" }`
   - Response: `{ Id: 1, "message": "Zestaw utworzony pomyślnie" }`
   - **Walidacja:** Każdy zestaw musi być unikalny dla użytkownika (sprawdzenie duplikatów)
 
 #### F-TICKET-003: Edycja zestawu
 **Priorytet:** Must Have
-**Opis:** Użytkownik może modyfikować istniejący zestaw liczb.
+**Opis:** Użytkownik może modyfikować istniejący zestaw liczb oraz nazwę grupy.
 
 **Kryteria akceptacji:**
 - Przycisk "Edytuj" przy zestawie na liście
 - Formularz z wypełnionymi aktualnymi wartościami
+- Możliwość edycji 6 liczb oraz nazwy grupy
 - Walidacja jak przy dodawaniu nowego zestawu
 - Walidacja unikalności po edycji
 - Zapisanie zmian z zachowaniem daty utworzenia
@@ -299,7 +304,7 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 
 **Endpointy API:**
 - `PUT /api/tickets/{id}`
-  - Body: `{ "numbers": [7, 15, 22, 33, 38, 45] }`
+  - Body: `{ "numbers": [7, 15, 22, 33, 38, 45], "groupName": "Rodzina" }`
   - Response: `{ "message": "Zestaw zaktualizowany pomyślnie" }`
 
 #### F-TICKET-004: Usuwanie zestawu
@@ -506,8 +511,9 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 
 **Kryteria akceptacji:**
 - Lista wszystkich zestawów użytkownika
-- Wyświetlenie: 6 liczb, data utworzenia
+- Wyświetlenie: 6 liczb, nazwa grupy (jeśli przypisana), data utworzenia
 - Licznik: "X / 100 zestawów"
+- Możliwość filtrowania po nazwie grupy (opcjonalnie)
 - Paginacja lub scroll dla wielu zestawów
 - Przycisk akcji: Edytuj, Usuń
 
@@ -518,11 +524,12 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 
 #### US-TICKETS-02: Dodawanie zestawu ręcznie
 **Jako** użytkownik
-**Chcę** ręcznie wprowadzić moje ulubione liczby LOTTO
-**Aby** móc je później weryfikować
+**Chcę** ręcznie wprowadzić moje ulubione liczby LOTTO z opcjonalną nazwą grupy
+**Aby** móc je później weryfikować i grupować
 
 **Kryteria akceptacji:**
 - Formularz z 6 polami numerycznymi (zakres 1-49)
+- Pole tekstowe na nazwę grupy (opcjonalne, max 100 znaków)
 - Walidacja unikalności liczb w czasie rzeczywistym
 - Zapisanie zestawu do mojego konta
 - Komunikat sukcesu po zapisie
@@ -567,12 +574,12 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 
 #### US-TICKETS-05: Edycja zestawu liczb
 **Jako** użytkownik
-**Chcę** edytować wcześniej zapisany zestaw liczb
-**Aby** móc modyfikować moje ulubione kombinacje bez konieczności usuwania i dodawania nowego zestawu
+**Chcę** edytować wcześniej zapisany zestaw liczb oraz nazwę grupy
+**Aby** móc modyfikować moje ulubione kombinacje i organizację bez konieczności usuwania i dodawania nowego zestawu
 
 **Kryteria akceptacji:**
 - Przycisk "Edytuj" przy każdym zestawie na liście
-- Formularz edycji z wypełnionymi aktualnymi wartościami (6 pól numerycznych 1-49)
+- Formularz edycji z wypełnionymi aktualnymi wartościami (6 pól numerycznych 1-49 oraz nazwa grupy)
 - Walidacja unikalności liczb w czasie rzeczywistym
 - Walidacja unikalności zestawu (sprawdzenie czy zmodyfikowany zestaw nie jest duplikatem innego)
 - Przycisk "Zapisz zmiany" i "Anuluj"
@@ -605,13 +612,14 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 #### US-DRAWS-01: Przeglądanie historii losowań
 **Jako** użytkownik
 **Chcę** zobaczyć wszystkie wprowadzone wyniki losowań z możliwością filtrowania
-**Aby** mieć przegląd historii i łatwo znaleźć losowania z określonego okresu
+**Aby** mieć przegląd historii i łatwo znaleźć losowania z określonego okresu i typu gry
 
 **Kryteria akceptacji:**
 - Lista wszystkich wyników losowań (domyślnie bez filtra)
-- Wyświetlenie: data losowania, 6 liczb, data wprowadzenia
+- Wyświetlenie: data losowania, typ gry (LOTTO/LOTTO PLUS), 6 liczb, data wprowadzenia
 - Sortowanie według daty losowania (najnowsze na górze)
 - Filtr zakresu dat z polami "Od" i "Do"
+- Filtr typu gry: All / LOTTO / LOTTO PLUS
 - Możliwość czyszczenia filtra
 - Przycisk akcji: Edytuj, Usuń (dla uprzywilejowanych użytkowników)
 
@@ -622,11 +630,12 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 
 #### US-DRAWS-02: Wprowadzanie wyników losowania
 **Jako** użytkownik uprzywilejowany (admin)
-**Chcę** wprowadzić oficjalne wyniki losowania LOTTO
+**Chcę** wprowadzić oficjalne wyniki losowania LOTTO lub LOTTO PLUS
 **Aby** móc zweryfikować swoje zestawy oraz by inni użytkownicy mogli to zrobić
 
 **Kryteria akceptacji:**
 - Formularz z 6 polami numerycznymi (zakres 1-49)
+- Wybór typu gry: LOTTO lub LOTTO PLUS
 - Walidacja unikalności liczb
 - Date picker do wyboru daty losowania
 - Walidacja: data nie może być w przyszłości
@@ -645,7 +654,7 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 **Kryteria akceptacji:**
 - Przycisk "Edytuj" przy każdym wyniku losowania (widoczny tylko dla adminów)
 - Formularz edycji z wypełnionymi aktualnymi wartościami (6 pól numerycznych 1-49)
-- Możliwość zmiany daty losowania
+- Możliwość zmiany daty losowania i typu gry
 - Walidacja unikalności liczb w czasie rzeczywistym
 - Walidacja: data nie może być w przyszłości
 - Przycisk "Zapisz zmiany" i "Anuluj"
@@ -824,10 +833,10 @@ src/server/LottoTM.Server.Api/
 │           └── Endpoint.cs      // POST /api/verification/check
 ├── Entities/
 │       ├── User.cs
-│       ├── Ticket.cs
-│       ├── TicketNumber.cs     // Nowa encja dla znormalizowanej struktury
-│       ├── Draw.cs
-│       └── DrawNumber.cs       // Nowa encja dla znormalizowanej struktury
+│       ├── Ticket.cs              // Zawiera UserId, GroupName (string, max 100), CreatedAt
+│       ├── TicketNumber.cs        // Nowa encja dla znormalizowanej struktury
+│       ├── Draw.cs                // Zawiera DrawDate, LottoType (enum: LOTTO, LOTTO PLUS), CreatedAt, CreatedByUserId
+│       └── DrawNumber.cs          // Nowa encja dla znormalizowanej struktury
 ├── Services/
 │       ├── JwtService.cs
 │       └── PasswordHasher.cs
@@ -853,7 +862,8 @@ Każdy feature (np. `ApiVersion`, `Register`, `AddTicket`) zawiera:
 **Uwagi implementacyjne dla znormalizowanej struktury:**
 
 **Tickets (Zestawy):**
-- Encja `Ticket` zawiera tylko metadane (Id, UserId, CreatedAt)
+- Encja `Ticket` zawiera metadane (Id, UserId, GroupName, CreatedAt)
+- GroupName (string, max 100 znaków) - wymagane pole do grupowania zestawów (domyślnie pusty string)
 - Encja `TicketNumber` przechowuje pojedyncze liczby z pozycją (1-6)
 - Relacja: Ticket (1) -> TicketNumbers (6)
 - Przy dodawaniu zestawu: tworzenie 1 rekordu Ticket + 6 rekordów TicketNumber w transakcji
@@ -861,16 +871,17 @@ Każdy feature (np. `ApiVersion`, `Register`, `AddTicket`) zawiera:
 - Walidacja unikalności zestawu: porównanie wszystkich 6 liczb (niezależnie od kolejności)
 
 **Draws (Losowania):**
-- Encja `Draw` zawiera tylko metadane (Id, DrawDate, CreatedAt, CreatedByUserId)
+- Encja `Draw` zawiera metadane (Id, DrawDate, LottoType, CreatedAt, CreatedByUserId)
+- LottoType (enum lub string: "LOTTO", "LOTTO PLUS") - wymagane pole określające typ gry
 - Encja `DrawNumber` przechowuje pojedyncze wylosowane liczby z pozycją (1-6)
 - Relacja: Draw (1) -> DrawNumbers (6)
 - Przy dodawaniu losowania: tworzenie 1 rekordu Draw + 6 rekordów DrawNumber w transakcji
 - Przy pobieraniu losowania: wykorzystanie `.Include(d => d.Numbers)` w EF Core
-- Constraint UNIQUE na DrawDate zapewnia jedno losowanie na dzień
+- Constraint UNIQUE na kombinację (DrawDate, LottoType) zapewnia jedno losowanie danego typu na dzień
 
 **Weryfikacja wygranych:**
 - JOIN między Tickets, TicketNumbers, Draws i DrawNumbers
-- Algorytm: porównanie liczb z TicketNumbers i DrawNumbers dla danego zakresu dat
+- Algorytm: porównanie liczb z TicketNumbers i DrawNumbers dla danego zakresu dat i typu gry
 
 ### 6.3 Schemat Bazy Danych
 
@@ -890,14 +901,22 @@ CREATE INDEX IX_Users_Email ON Users(Email);
 #### Tabela: Tickets
 ```sql
 CREATE TABLE Tickets (
-    Id UNIQUEIDENTIFIER PRIMARY KEY DEFAULT NEWID(),
+    Id INT PRIMARY KEY IDENTITY,
     UserId INT NOT NULL,
+    GroupName NVARCHAR(100) NOT NULL DEFAULT '',
     CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),    
     CONSTRAINT FK_Tickets_Users FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
 );
 
 CREATE INDEX IX_Tickets_UserId ON Tickets(UserId);
+CREATE INDEX IX_Tickets_GroupName ON Tickets(GroupName);
 ```
+
+**Uwagi:**
+- **GroupName** - wymagane pole tekstowe (max 100 znaków, domyślnie pusty string) służące do grupowania kilku zestawów
+- Użytkownik może przypisać tę samą nazwę grupy do wielu zestawów, aby łatwiej nimi zarządzać
+- Pusty string oznacza zestaw nienależący do żadnej grupy
+- Indeks na GroupName umożliwia szybkie filtrowanie zestawów według grup
 
 #### Tabela: TicketNumbers
 ```sql
@@ -927,6 +946,7 @@ CREATE INDEX IX_TicketNumbers_Number ON TicketNumbers(Number);
 CREATE TABLE Draws (
     Id INT PRIMARY KEY IDENTITY,    
     DrawDate DATE NOT NULL UNIQUE,
+    LottoType NVARCHAR(20) NOT NULL CHECK (LottoType IN ('LOTTO', 'LOTTO PLUS')),
     CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
     CreatedByUserId INT NOT NULL,
     CONSTRAINT FK_Draws_Users FOREIGN KEY (CreatedByUserId) REFERENCES Users(Id) ON DELETE CASCADE
@@ -934,7 +954,15 @@ CREATE TABLE Draws (
 
 CREATE INDEX IX_Draws_Date ON Draws(DrawDate);
 CREATE INDEX IX_Draws_CreatedByUserId ON Draws(CreatedByUserId);
+CREATE INDEX IX_Draws_LottoType ON Draws(LottoType);
 ```
+
+**Uwagi:**
+- **LottoType** - wymagane pole określające typ gry ("LOTTO" lub "LOTTO PLUS")
+- Constraint CHECK zapewnia, że tylko dozwolone wartości mogą być zapisane
+- Indeks na LottoType umożliwia szybkie filtrowanie losowań według typu gry
+- Constraint UNIQUE na DrawDate został usunięty, ponieważ w tym samym dniu może odbyć się losowanie LOTTO i LOTTO PLUS
+- Należy rozważyć dodanie UNIQUE constraint na kombinację (DrawDate, LottoType)
 
 #### Tabela: DrawNumbers
 ```sql
@@ -1421,10 +1449,12 @@ Response:
     {
       "drawId": "1",
       "drawDate": "2025-10-28",
+      "lottoType": "LOTTO",
       "drawNumbers": [12, 18, 25, 31, 40, 49],
       "tickets": [
         {
-          "ticketId": "1",      
+          "ticketId": "1",
+          "groupName": "Ulubione",
           "numbers": [3, 12, 25, 31, 42, 48],
           "matchCount": 3,
           "matchedNumbers": [12, 25, 31]
@@ -1434,10 +1464,12 @@ Response:
     {
       "drawId": "2",
       "drawDate": "2025-10-15",
+      "lottoType": "LOTTO PLUS",
       "drawNumbers": [5, 11, 22, 33, 44, 49],
       "tickets": [
         {
-          "ticketId": "2",      
+          "ticketId": "2",
+          "groupName": "",
           "numbers": [1, 2, 3, 4, 5, 6],
           "matchCount": 1,
           "matchedNumbers": [5]
@@ -1536,6 +1568,7 @@ Response:
 | 1.1 | 2025-11-05 | Tomasz Mularczyk | Poprawka numeracji i uzupełnienie brakujących sekcji |
 | 1.2 | 2025-11-05 | Tomasz Mularczyk | Reorganizacja historyjek użytkownika na grupy modułowe (US-AUTH-XX, US-TICKETS-XX, US-DRAWS-XX, US-CHECKS-XX), dodanie funkcji edycji zestawów i losowań do MVP, ujednolicenie priorytetów, aktualizacja API endpoints |
 | 1.3 | 2025-11-05 | Tomasz Mularczyk | Normalizacja struktury bazy danych: wprowadzenie tabel TicketNumbers i DrawNumbers dla pełnej normalizacji, dodanie uwag implementacyjnych dotyczących wydajności, walidacji unikalności, Entity Framework, weryfikacji wygranych z JOIN, aktualizacja sekcji Entities (dodano TicketNumber.cs i DrawNumber.cs) |
+| 1.4 | 2025-11-11 | Tomasz Mularczyk | Rozszerzenie modelu danych: dodanie pola GroupName (string, 100 znaków) do tabeli Tickets dla grupowania zestawów; dodanie pola LottoType (enum: LOTTO, LOTTO PLUS) do tabeli Draws dla obsługi różnych typów gier; aktualizacja wymagań funkcjonalnych, user stories, przykładów API oraz schematu bazy danych |
 
 ---
 

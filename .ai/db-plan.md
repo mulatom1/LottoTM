@@ -1,7 +1,7 @@
 # Schemat Bazy Danych SQL Server - LottoTM MVP
 
-**Wersja:** 2.1
-**Data:** 2025-11-05
+**Wersja:** 2.2
+**Data:** 2025-11-11
 **Baza danych:** SQL Server 2022
 **ORM:** Entity Framework Core 9
 
@@ -48,32 +48,36 @@ CREATE INDEX IX_Users_Email ON Users(Email);
 
 ### 1.2 Tabela: Draws
 
-**Opis:** Globalny rejestr wyników losowań LOTTO dostępny dla wszystkich użytkowników. Każda data losowania jest unikalna. Losowania są wprowadzane przez użytkowników z uprawnieniami administratora.
+**Opis:** Globalny rejestr wyników losowań LOTTO i LOTTO PLUS dostępny dla wszystkich użytkowników. Każda kombinacja (data losowania + typ gry) jest unikalna. Losowania są wprowadzane przez użytkowników z uprawnieniami administratora.
 
 ```sql
 CREATE TABLE Draws (
     Id INT PRIMARY KEY IDENTITY(1,1),
     DrawDate DATE NOT NULL,
+    LottoType NVARCHAR(20) NOT NULL CHECK (LottoType IN ('LOTTO', 'LOTTO PLUS')),
     CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
     CreatedByUserId INT NOT NULL,
-    CONSTRAINT UQ_Draws_DrawDate UNIQUE (DrawDate),
+    CONSTRAINT UQ_Draws_DrawDateLottoType UNIQUE (DrawDate, LottoType),
     CONSTRAINT FK_Draws_Users FOREIGN KEY (CreatedByUserId)
         REFERENCES Users(Id) ON DELETE CASCADE
 );
 
 CREATE INDEX IX_Draws_DrawDate ON Draws(DrawDate);
 CREATE INDEX IX_Draws_CreatedByUserId ON Draws(CreatedByUserId);
+CREATE INDEX IX_Draws_LottoType ON Draws(LottoType);
 ```
 
 **Kolumny:**
 - `Id` - INT IDENTITY, klucz główny
-- `DrawDate` - DATE, unikalna data losowania (bez godziny)
+- `DrawDate` - DATE, data losowania (bez godziny)
+- `LottoType` - NVARCHAR(20), typ gry ("LOTTO" lub "LOTTO PLUS")
 - `CreatedAt` - DATETIME2, data wprowadzenia wyniku do systemu (UTC)
 - `CreatedByUserId` - INT, klucz obcy do Users (kto wprowadził wynik)
 
 **Ograniczenia:**
 - PRIMARY KEY na `Id`
-- UNIQUE constraint na `DrawDate` (jedno losowanie na datę)
+- UNIQUE constraint na kombinacji (DrawDate, LottoType) - jedno losowanie danego typu na datę
+- CHECK constraint na LottoType - tylko wartości 'LOTTO' lub 'LOTTO PLUS'
 - FOREIGN KEY `CreatedByUserId` → `Users.Id` z CASCADE DELETE
 - NOT NULL na wszystkich kolumnach
 
@@ -82,6 +86,12 @@ CREATE INDEX IX_Draws_CreatedByUserId ON Draws(CreatedByUserId);
 - **DODANO kolumnę `CreatedByUserId`** - tracking który użytkownik (admin) wprowadził wynik losowania
 - Zmieniono `GETDATE()` na `GETUTCDATE()` dla konsystencji czasowej (UTC)
 - Dodano indeks `IX_Draws_CreatedByUserId` dla wydajności zapytań
+
+**Zmiany vs. wersja 2.1:**
+- **DODANO kolumnę `LottoType`** - obsługa różnych typów gier (LOTTO, LOTTO PLUS)
+- **ZMIENIONO UNIQUE constraint** - z `DrawDate` na `(DrawDate, LottoType)` - w tym samym dniu może być losowanie LOTTO i LOTTO PLUS
+- **DODANO CHECK constraint** - walidacja wartości LottoType na poziomie bazy danych
+- **DODANO indeks `IX_Draws_LottoType`** - dla szybkiego filtrowania po typie gry
 
 ---
 
@@ -140,33 +150,43 @@ CREATE INDEX IX_DrawNumbers_Number ON DrawNumbers(Number);
 CREATE TABLE Tickets (
     Id INT PRIMARY KEY IDENTITY(1,1),
     UserId INT NOT NULL,
+    GroupName NVARCHAR(100) NOT NULL DEFAULT '',
     CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
     CONSTRAINT FK_Tickets_Users FOREIGN KEY (UserId)
         REFERENCES Users(Id) ON DELETE CASCADE
 );
 
 CREATE INDEX IX_Tickets_UserId ON Tickets(UserId);
+CREATE INDEX IX_Tickets_GroupName ON Tickets(GroupName);
 ```
 
 **Kolumny:**
 - `Id` - INT IDENTITY, klucz główny, autoincrement
 - `UserId` - INT, klucz obcy do Users
+- `GroupName` - NVARCHAR(100), wymagane, nazwa grupy dla kilku zestawów (domyślnie pusty string)
 - `CreatedAt` - DATETIME2, data utworzenia zestawu (UTC)
 
 **Ograniczenia:**
 - PRIMARY KEY na `Id`
 - FOREIGN KEY `UserId` → `Users.Id` z CASCADE DELETE
 - NOT NULL na wszystkich kolumnach
+- DEFAULT '' (pusty string) dla GroupName
 
 **Zmiany vs. wersja 1.0:**
 - **USUNIĘTO kolumny Number1-Number6** - zastąpione przez znormalizowaną tabelę `TicketNumbers`
 - Zmieniono `GETDATE()` na `GETUTCDATE()` dla konsystencji czasowej (UTC)
+
+**Zmiany vs. wersja 2.1:**
+- **DODANO kolumnę `GroupName`** - wymagane pole tekstowe do grupowania zestawów (z domyślną wartością pustego stringa)
+- **DODANO indeks `IX_Tickets_GroupName`** - dla szybkiego filtrowania po grupach
 
 **Decyzje projektowe:**
 - Brak kolumny `Name` - nazwy generowane w UI (np. "Zestaw #1")
 - Brak kolumny `UpdatedAt` - edycja nadpisuje bez historii (Opcja C)
 - Limit 100 zestawów/użytkownik - walidacja w backendzie
 - Duplikaty zestawów **BLOKOWANE** - walidacja unikalności w backendzie
+- **GroupName DEFAULT ''** - zestaw bez grupy ma pusty string
+- **GroupName wykorzystanie:** Użytkownik może przypisać tę samą nazwę grupy do wielu zestawów (np. "Rodzina", "Urodziny")
 
 ---
 
@@ -267,6 +287,7 @@ foreach (var ticket in existingTickets)
 │----------------------|
 │ Id (PK, INT)         │
 │ UserId (FK) ────────►│
+│ GroupName            │
 │ CreatedAt            │
 └────────┬─────────────┘
          │
@@ -286,7 +307,8 @@ foreach (var ticket in existingTickets)
 │      Draws       │
 │------------------|
 │ Id (PK)          │
-│ DrawDate (UQ)    │
+│ DrawDate         │
+│ LottoType        │
 │ CreatedAt        │
 │ CreatedByUserId  │──┐
 └────────┬─────────┘  │
@@ -302,6 +324,8 @@ foreach (var ticket in existingTickets)
 │ Number (1-49)        │
 │ Position (1-6)       │
 └──────────────────────┘
+
+UQ: (DrawDate, LottoType)
 ```
 
 ### 2.2 Opis relacji
@@ -1048,6 +1072,8 @@ protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         entity.HasKey(e => e.Id);
         entity.HasIndex(e => e.UserId);
+        entity.HasIndex(e => e.GroupName);
+        entity.Property(e => e.GroupName).HasMaxLength(100);
         entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
 
         // Relacja do Users z CASCADE DELETE
@@ -1082,10 +1108,18 @@ protected override void OnModelCreating(ModelBuilder modelBuilder)
     modelBuilder.Entity<Draw>(entity =>
     {
         entity.HasKey(e => e.Id);
-        entity.HasIndex(e => e.DrawDate).IsUnique();
+        entity.HasIndex(e => e.DrawDate);
         entity.HasIndex(e => e.CreatedByUserId);
+        entity.HasIndex(e => e.LottoType);
         entity.Property(e => e.DrawDate).IsRequired();
+        entity.Property(e => e.LottoType).HasMaxLength(20).IsRequired();
         entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+
+        // UNIQUE constraint na (DrawDate, LottoType)
+        entity.HasIndex(e => new { e.DrawDate, e.LottoType }).IsUnique();
+
+        // CHECK constraint na LottoType
+        entity.ToTable(t => t.HasCheckConstraint("CK_Draws_LottoType", "LottoType IN ('LOTTO', 'LOTTO PLUS')"));
 
         // Relacja do Users (tracking autora) z CASCADE DELETE
         entity.HasOne(e => e.CreatedByUser)
@@ -1139,6 +1173,7 @@ public class Ticket
 {
     public int Id { get; set; }
     public int UserId { get; set; }
+    public string GroupName { get; set; } = "";
     public DateTime CreatedAt { get; set; }
     
     // Navigation properties
@@ -1163,6 +1198,7 @@ public class Draw
 {
     public int Id { get; set; }
     public DateTime DrawDate { get; set; }
+    public string LottoType { get; set; } = null!;
     public DateTime CreatedAt { get; set; }
     public int CreatedByUserId { get; set; }
     
@@ -1223,6 +1259,7 @@ try
     var ticket = new Ticket
     {
         UserId = userId,
+        GroupName = groupName, // pusty string jeśli brak grupy
         CreatedAt = DateTime.UtcNow
     };
     db.Tickets.Add(ticket);
@@ -1258,9 +1295,11 @@ catch
 
 | Decyzja | Uzasadnienie | Zmiana vs. v1.0 |
 |---------|--------------|-----------------|
-| **Znormalizowana struktura** | TicketNumbers/DrawNumbers zamiast Number1-6 | ✅ NOWE |
+| **Znormalizowana struktura** | TicketNumbers/DrawNumbers zamiast Number1-6 | ✅ BEZ ZMIAN |
 | **INT dla Tickets.Id** | Prostsza struktura z IDENTITY autoincrement | ✅ BEZ ZMIAN |
-| **IsAdmin w Users** | Flaga uprawnień administratora | ✅ NOWE |
+| **GroupName w Tickets** | Opcjonalne pole do grupowania zestawów | ✅ NOWE (v2.2) |
+| **LottoType w Draws** | Obsługa LOTTO i LOTTO PLUS | ✅ NOWE (v2.2) |
+| **IsAdmin w Users** | Flaga uprawnień administratora | ✅ BEZ ZMIAN |
 | **CreatedByUserId w Draws** | Tracking autora losowania | ✅ NOWE |
 | **UTC dla timestamps** | GETUTCDATE() zamiast GETDATE() | ✅ ZMIENIONE |
 | **Draws globalny rejestr** | Wspólne losowania dla wszystkich, ale z tracking autora | ✅ ZMIENIONE |
@@ -1300,6 +1339,24 @@ catch
 **4. UTC zamiast Local time:**
 - **Zmieniono:** GETDATE() → GETUTCDATE()
 - **Powód:** Przygotowanie na skalowanie międzynarodowe
+
+### 📊 Główne zmiany w wersji 2.2
+
+**1. Grupowanie zestawów:**
+- **Dodano:** `Tickets.GroupName` (NVARCHAR(100) NOT NULL DEFAULT '')
+- **Powód:** Umożliwienie użytkownikom organizowania zestawów w grupy (np. "Rodzina", "Urodziny")
+- **Indeks:** IX_Tickets_GroupName dla szybkiego filtrowania
+
+**2. Obsługa różnych typów gier:**
+- **Dodano:** `Draws.LottoType` (NVARCHAR(20) NOT NULL)
+- **Wartości:** "LOTTO" lub "LOTTO PLUS" (CHECK constraint)
+- **Powód:** Wsparcie dla różnych wariantów gry LOTTO
+- **Indeks:** IX_Draws_LottoType dla szybkiego filtrowania
+
+**3. Zmiana unikalności losowań:**
+- **Było:** UNIQUE constraint na `DrawDate`
+- **Jest:** UNIQUE constraint na `(DrawDate, LottoType)`
+- **Powód:** W tym samym dniu może odbyć się losowanie LOTTO i LOTTO PLUS
 
 ---
 
@@ -1370,6 +1427,7 @@ catch
 | 1.0 | 2025-11-02 | Tomasz Mularczyk | Pierwsza wersja - struktura z kolumnami Number1-6 |
 | 2.0 | 2025-11-05 | Tomasz Mularczyk | Normalizacja struktury danych: wprowadzenie TicketNumbers i DrawNumbers, dodanie IsAdmin do Users, dodanie CreatedByUserId do Draws, zmiana GETDATE() na GETUTCDATE(), aktualizacja strategii weryfikacji i indeksów, zmiana polityki duplikatów (blokowanie zamiast dozwolenia), aktualizacja przykładów EF Core |
 | 2.1 | 2025-11-05 | Tomasz Mularczyk | Zmiana Tickets.Id z UNIQUEIDENTIFIER (GUID) na INT IDENTITY dla prostszej struktury |
+| 2.2 | 2025-11-11 | Tomasz Mularczyk | Rozszerzenie modelu danych: dodanie pola GroupName (NVARCHAR(100) NOT NULL DEFAULT '') do tabeli Tickets dla grupowania zestawów; dodanie pola LottoType (NVARCHAR(20) NOT NULL) z CHECK constraint do tabeli Draws dla obsługi różnych typów gier (LOTTO, LOTTO PLUS); zmiana UNIQUE constraint na Draws z DrawDate na kombinację (DrawDate, LottoType); aktualizacja encji EF Core, DbContext configuration, przykładów użycia oraz diagramu relacji |
 
 ---
 

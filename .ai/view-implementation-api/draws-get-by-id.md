@@ -64,6 +64,7 @@ public class Contracts
     public record Response(
         int Id,
         DateTime DrawDate,
+        string LottoType,
         int[] Numbers,
         DateTime CreatedAt
     );
@@ -80,6 +81,7 @@ public class Draw
 {
     public int Id { get; set; }
     public DateTime DrawDate { get; set; }
+    public string LottoType { get; set; } = "";
     public DateTime CreatedAt { get; set; }
     public int CreatedByUserId { get; set; }
 
@@ -116,6 +118,7 @@ public class DrawNumber
 {
   "id": 123,
   "drawDate": "2025-10-30",
+  "lottoType": "LOTTO",
   "numbers": [3, 12, 25, 31, 42, 48],
   "createdAt": "2025-10-30T18:30:00Z"
 }
@@ -124,6 +127,7 @@ public class DrawNumber
 **Opis pól:**
 - `id` (int): Identyfikator losowania w bazie danych
 - `drawDate` (string): Data losowania w formacie ISO 8601 (YYYY-MM-DD)
+- `lottoType` (string): Typ gry ("LOTTO" lub "LOTTO PLUS")
 - `numbers` (int[]): Tablica 6 wylosowanych liczb w zakresie 1-49, posortowanych według pozycji
 - `createdAt` (string): Data i czas wprowadzenia wyniku do systemu w formacie ISO 8601 (UTC)
 

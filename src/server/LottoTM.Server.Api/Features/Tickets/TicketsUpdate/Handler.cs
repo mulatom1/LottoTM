@@ -131,6 +131,9 @@ public class Handler : IRequestHandler<Contracts.Request, IResult>
         using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
         try
         {
+            // Update GroupName if provided
+            ticket.GroupName = request.GroupName ?? string.Empty;
+
             // Remove old numbers
             _context.TicketNumbers.RemoveRange(ticket.Numbers);
 

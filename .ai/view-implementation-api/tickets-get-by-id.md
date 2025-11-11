@@ -48,6 +48,7 @@ public class Contracts
     public record GetByIdResponse(
         int Id,
         int UserId,
+        string GroupName,
         int[] Numbers,
         DateTime CreatedAt
     );
@@ -62,6 +63,7 @@ public class Ticket
 {
     public int Id { get; set; }
     public int UserId { get; set; }
+    public string GroupName { get; set; } = "";
     public DateTime CreatedAt { get; set; }
 
     // Navigation properties
@@ -90,6 +92,7 @@ public class TicketNumber
 {
   "id": 123,
   "userId": 123,
+  "groupName": "Ulubione",
   "numbers": [5, 14, 23, 29, 37, 41],
   "createdAt": "2025-10-25T10:00:00Z"
 }
@@ -160,7 +163,7 @@ Client → [JWT Token] → API Endpoint
                       MediatR Handler
                            ↓
                     FluentValidation
-                    (walidacja GUID)
+                    (walidacja ID > 0)
                            ↓
                       DbContext Query
                       (Tickets + TicketNumbers)
@@ -357,7 +360,7 @@ var numbers = await db.TicketNumbers.Where(n => n.TicketId == id).ToListAsync();
 
 **Wykorzystanie indeksów:**
 - Query automatycznie wykorzysta:
-  - Primary Key index na `Tickets.Id` (GUID)
+  - Primary Key index na `Tickets.Id` (INT)
   - Non-clustered index `IX_Tickets_UserId`
   - Foreign Key index `IX_TicketNumbers_TicketId`
 
@@ -800,7 +803,7 @@ Endpoint `GET /api/tickets/{id}` zapewnia bezpieczny dostęp do szczegółów po
 
 1. **Bezpieczeństwo:** Weryfikacja JWT + własności zasobu + security by obscurity
 2. **Wydajność:** Eager loading + indeksy bazy danych
-3. **Walidacja:** FluentValidation dla formatu GUID
+3. **Walidacja:** FluentValidation dla formatu ID (int > 0)
 4. **Obsługa błędów:** Global exception handler + szczegółowe komunikaty
 5. **Architektura:** Vertical Slice + MediatR + CQRS pattern
 

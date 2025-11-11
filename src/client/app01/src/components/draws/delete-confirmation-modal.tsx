@@ -7,6 +7,7 @@ export interface DeleteConfirmationModalProps {
   draw: {
     id: number;
     drawDate: string;
+    lottoType: string;
     numbers: number[];
   } | null;
   onConfirm: (drawId: number) => Promise<void>;
@@ -53,7 +54,8 @@ const DeleteConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({
       <div className="space-y-4">
         {/* Confirmation message */}
         <p className="text-gray-700">
-          Czy na pewno chcesz usunąć wynik losowania z dnia{' '}
+          Czy na pewno chcesz usunąć wynik losowania{' '}
+          <span className="font-bold">{draw.lottoType}</span> z dnia{' '}
           <span className="font-bold">{formatDate(draw.drawDate)}</span>?
         </p>
 

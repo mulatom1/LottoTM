@@ -5,6 +5,7 @@ export interface DrawItemProps {
   draw: {
     id: number;
     drawDate: string;
+    lottoType: string;
     numbers: number[];
     createdAt: string;
   };
@@ -48,10 +49,21 @@ const DrawItem: React.FC<DrawItemProps> = ({
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         {/* Left section: Date and numbers */}
         <div className="flex-1">
-          {/* Draw date */}
-          <h3 className="text-lg font-bold text-gray-900 mb-2">
-            {formatDate(draw.drawDate)}
-          </h3>
+          {/* Draw date and lotto type */}
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
+            <h3 className="text-lg font-bold text-gray-900">
+              {formatDate(draw.drawDate)}
+            </h3>
+            <span
+              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                draw.lottoType === 'LOTTO'
+                  ? 'bg-blue-100 text-blue-800'
+                  : 'bg-purple-100 text-purple-800'
+              }`}
+            >
+              {draw.lottoType}
+            </span>
+          </div>
 
           {/* Numbers badges */}
           <div className="flex flex-wrap gap-2 mb-2">

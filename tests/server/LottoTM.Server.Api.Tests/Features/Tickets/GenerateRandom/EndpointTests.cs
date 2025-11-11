@@ -402,6 +402,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
             var ticket = new Ticket
             {
                 UserId = userId,
+                GroupName = $"Seeded Ticket {i + 1}",
                 CreatedAt = DateTime.UtcNow.AddMinutes(-i)
             };
 

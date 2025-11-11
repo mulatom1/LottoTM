@@ -252,6 +252,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         var ticket = new Ticket
         {
             UserId = userId,
+            GroupName = "Test Group",
             CreatedAt = DateTime.UtcNow
         };
         dbContext.Tickets.Add(ticket);
@@ -378,6 +379,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
             var ticket = new Ticket
             {
                 UserId = userId,
+                GroupName = $"Test Group {i + 1}",
                 CreatedAt = DateTime.UtcNow.AddMinutes(-count + i) // Stagger creation times for sorting tests
             };
 

@@ -8,7 +8,7 @@ import HomePage from './pages/home/home-page';
 import LoginPage from './pages/auth/login-page';
 import RegisterPage from './pages/auth/register-page';
 import DrawsPage from './pages/draws/draws-page';
-import TicketsPage from './pages/tikets/tikets-page';
+import TicketsPage from './pages/tickets/tickets-page';
 import ChecksPage from './pages/checks/checks-page';
 
 createRoot(document.getElementById('root')!).render(

@@ -14,6 +14,11 @@ export interface TicketsGetByIdResponse {
   userId: number;
 
   /**
+   * Optional group name for organizing tickets
+   */
+  groupName: string;
+
+  /**
    * Array of 6 lottery numbers (1-49) in order by position
    */
   numbers: number[];

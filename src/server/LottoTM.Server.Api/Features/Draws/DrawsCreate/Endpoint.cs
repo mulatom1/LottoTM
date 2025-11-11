@@ -22,7 +22,7 @@ public static class Endpoint
         })
         .RequireAuthorization()
         .WithName("DrawsCreate")
-        .WithTags("Tickets")
+        .WithTags("Draws")
         .Produces<Contracts.CreateDrawResponse>(StatusCodes.Status201Created)
         .Produces(StatusCodes.Status401Unauthorized)
         .ProducesValidationProblem(StatusCodes.Status400BadRequest)

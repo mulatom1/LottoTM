@@ -102,20 +102,21 @@ public class UpdateDrawHandler : IRequestHandler<Contracts.Request, IResult>
             );
         }
 
-        // 5. Sprawdzenie unikalności daty (jeśli zmieniona)
-        if (draw.DrawDate != request.DrawDate)
+        // 5. Sprawdzenie unikalności kombinacji (DrawDate, LottoType) - jeśli zmieniona
+        if (draw.DrawDate != request.DrawDate || draw.LottoType != request.LottoType)
         {
             var dateExists = await _dbContext.Draws
-                .AnyAsync(d => d.DrawDate == request.DrawDate && d.Id != request.Id, cancellationToken);
+                .AnyAsync(d => d.DrawDate == request.DrawDate && d.LottoType == request.LottoType && d.Id != request.Id, cancellationToken);
 
             if (dateExists)
             {
-                _logger.LogWarning("Draw date {DrawDate} already exists for another draw", request.DrawDate);
+                _logger.LogWarning("Draw with date {DrawDate} and type {LottoType} already exists for another draw", 
+                    request.DrawDate, request.LottoType);
 
                 return Results.Problem(
                     statusCode: StatusCodes.Status400BadRequest,
                     title: "Bad Request",
-                    detail: "Losowanie z podaną datą już istnieje w systemie"
+                    detail: $"Losowanie typu {request.LottoType} na datę {request.DrawDate} już istnieje w systemie"
                 );
             }
         }
@@ -128,6 +129,9 @@ public class UpdateDrawHandler : IRequestHandler<Contracts.Request, IResult>
 
             // Update Draw metadata
             draw.DrawDate = request.DrawDate;
+
+            // Update LottoType
+            draw.LottoType = request.LottoType;
 
             // Delete old numbers (EF Core tracking handles CASCADE)
             _dbContext.DrawNumbers.RemoveRange(draw.Numbers);

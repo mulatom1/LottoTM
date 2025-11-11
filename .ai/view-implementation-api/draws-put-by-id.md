@@ -15,6 +15,7 @@
 - Znormalizowana struktura: 1 Draw + 6 DrawNumbers (pozycje 1-6)
 - Edycja dostępna tylko dla administratorów
 - Data losowania musi pozostać unikalna w systemie
+- Tylko użytkownicy z uprawnieniami administratora mogą modyfikować losowania (IsAdmin)
 
 ---
 
@@ -39,7 +40,8 @@ PUT /api/draws/{id}
 ```json
 {
   "drawDate": "2025-10-30",
-  "numbers": [3, 12, 25, 31, 42, 48]
+  "numbers": [3, 12, 25, 31, 42, 48],
+  "lottoType": "LOTTO"
 }
 ```
 
@@ -80,6 +82,11 @@ public class Contracts
         /// New array of 6 drawn numbers (1-49, unique)
         /// </summary>
         public int[] Numbers { get; init; } = Array.Empty<int>();
+
+        /// <summary>
+        /// Lotto type ("LOTTO" or "LOTTO PLUS")
+        /// </summary>
+        public string LottoType { get; init; } = string.Empty;
     }
 
     /// <summary>
@@ -215,12 +222,14 @@ var draw = await _dbContext.Draws
     .FirstOrDefaultAsync(d => d.Id == request.Id, cancellationToken);
 ```
 
-2. **Sprawdzenie unikalności daty (jeśli zmieniona):**
+2. **Sprawdzenie unikalności kombinacji DrawDate + LottoType (jeśli zmienione):**
 ```csharp
-if (draw.DrawDate != request.DrawDate)
+if (draw.DrawDate != request.DrawDate || draw.LottoType != request.LottoType)
 {
-    var dateExists = await _dbContext.Draws
-        .AnyAsync(d => d.DrawDate == request.DrawDate && d.Id != request.Id, cancellationToken);
+    var combinationExists = await _dbContext.Draws
+        .AnyAsync(d => d.DrawDate == request.DrawDate 
+                    && d.LottoType == request.LottoType 
+                    && d.Id != request.Id, cancellationToken);
 }
 ```
 
@@ -231,6 +240,7 @@ try
 {
     // Update Draw metadata
     draw.DrawDate = request.DrawDate;
+    draw.LottoType = request.LottoType;
 
     // Delete old numbers (CASCADE handled by EF Core)
     _dbContext.DrawNumbers.RemoveRange(draw.Numbers);
@@ -257,7 +267,7 @@ catch
 ```
 
 **Indeksy wykorzystywane:**
-- `IX_Draws_DrawDate` (UNIQUE) - dla sprawdzenia unikalności daty
+- `IX_Draws_DrawDate_LottoType` (UNIQUE) - dla sprawdzenia unikalności kombinacji
 - `IX_DrawNumbers_DrawId` - dla eager loading liczb
 
 ---
@@ -325,6 +335,12 @@ public class Validator : AbstractValidator<Contracts.Request>
             .WithMessage("Liczby muszą być w zakresie 1-49")
             .Must(n => n.Distinct().Count() == 6)
             .WithMessage("Liczby muszą być unikalne");
+
+        RuleFor(x => x.LottoType)
+            .NotEmpty()
+            .WithMessage("Typ gry jest wymagany")
+            .Must(lt => lt == "LOTTO" || lt == "LOTTO PLUS")
+            .WithMessage("Dozwolone wartości: LOTTO, LOTTO PLUS");
     }
 }
 ```

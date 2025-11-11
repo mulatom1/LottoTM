@@ -98,6 +98,7 @@ public class CheckVerificationHandler : IRequestHandler<Contracts.Request, Contr
                         drawResults.Add(new Contracts.DrawVerificationResult(
                             draw.Id,
                             draw.DrawDate,
+                            draw.LottoType,
                             drawNumbers,
                             hits,
                             winningNumbers
@@ -110,6 +111,7 @@ public class CheckVerificationHandler : IRequestHandler<Contracts.Request, Contr
                 {
                     results.Add(new Contracts.TicketVerificationResult(
                         ticket.Id,
+                        ticket.GroupName ?? string.Empty,
                         ticketNumbers,
                         drawResults
                     ));

@@ -313,6 +313,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         var ticket = new Ticket
         {
             UserId = userId,
+            GroupName = $"Manual: {DateTime.Now:yyyy-MM-dd HH:mm:ss}",
             CreatedAt = DateTime.UtcNow
         };
 

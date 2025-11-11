@@ -3,6 +3,7 @@
 export interface Ticket {
   id: number;
   userId: number;
+  groupName: string;
   numbers: number[];
   createdAt: string;
 }
@@ -17,6 +18,7 @@ export interface GetTicketsResponse {
 }
 
 export interface TicketRequest {
+  groupName?: string;
   numbers: number[];
 }
 
@@ -52,6 +54,7 @@ export interface ApiErrorResponse {
 export interface TicketFormState {
   mode: 'add' | 'edit';
   initialNumbers?: number[];
+  initialGroupName?: string;
   ticketId?: number;
 }
 
@@ -95,8 +98,9 @@ export interface TicketFormModalProps {
   onClose: () => void;
   mode: 'add' | 'edit';
   initialNumbers?: number[];
+  initialGroupName?: string;
   ticketId?: number;
-  onSubmit: (numbers: number[], ticketId?: number) => Promise<void>;
+  onSubmit: (numbers: number[], groupName: string, ticketId?: number) => Promise<void>;
 }
 
 export interface GeneratorPreviewModalProps {

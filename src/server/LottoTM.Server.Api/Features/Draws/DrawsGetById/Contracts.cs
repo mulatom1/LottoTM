@@ -20,6 +20,7 @@ public class Contracts
     public record Response(
         int Id,
         DateTime DrawDate,
+        string LottoType,
         int[] Numbers,
         DateTime CreatedAt
     );

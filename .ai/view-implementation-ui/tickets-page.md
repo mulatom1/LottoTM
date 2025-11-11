@@ -114,8 +114,9 @@ Główny komponent-strona zarządzający stanem widoku Tickets, obsługujący ws
 ```tsx
 // DTO z API (GET /api/tickets response)
 interface Ticket {
-  id: string;              // UNIQUEIDENTIFIER (GUID)
+  id: number;              // INT (klucz główny)
   userId: number;
+  groupName: string;       // Max 100 znaków, domyślnie pusty string
   numbers: number[];       // 6 liczb z zakresu 1-49
   createdAt: string;       // ISO 8601 datetime
 }
@@ -123,14 +124,12 @@ interface Ticket {
 interface GetTicketsResponse {
   tickets: Ticket[];
   totalCount: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
   limit: number;           // Max 100
 }
 
 // Request DTO (POST/PUT /api/tickets)
 interface TicketRequest {
+  groupName?: string;      // Opcjonalne, max 100 znaków
   numbers: number[];       // 6 liczb
 }
 
@@ -147,8 +146,9 @@ interface GenerateSystemResponse {
 // ViewModel dla stanu lokalnego
 interface TicketFormState {
   mode: 'add' | 'edit';
+  groupName: string;       // Nazwa grupy (max 100 znaków)
   initialNumbers?: number[];
-  ticketId?: string;       // Dla edycji
+  ticketId?: number;       // Dla edycji
 }
 
 interface GeneratorState {
@@ -253,8 +253,8 @@ Brak (walidacja w TicketFormModal)
 interface TicketListProps {
   tickets: Ticket[];
   loading: boolean;
-  onEdit: (ticketId: string) => void;
-  onDelete: (ticketId: string) => void;
+  onEdit: (ticketId: number) => void;
+  onDelete: (ticketId: number) => void;
 }
 ```
 
@@ -419,8 +419,8 @@ interface TicketFormModalProps {
   onClose: () => void;
   mode: 'add' | 'edit';
   initialNumbers?: number[];      // Pre-wypełnione dla edycji
-  ticketId?: string;               // ID zestawu dla edycji (GUID)
-  onSubmit: (numbers: number[], ticketId?: string) => Promise<void>;
+  ticketId?: number;               // ID zestawu dla edycji
+  onSubmit: (numbers: number[], ticketId?: number) => Promise<void>;
 }
 ```
 
@@ -429,7 +429,7 @@ interface TicketFormModalProps {
 - `onClose: () => void` - callback zamknięcia modalu
 - `mode: 'add' | 'edit'` - tryb (dodawanie/edycja)
 - `initialNumbers?: number[]` - opcjonalne pre-wypełnione liczby (dla edycji)
-- `ticketId?: string` - ID zestawu (dla edycji, GUID)
+- `ticketId?: number` - ID zestawu (dla edycji)
 - `onSubmit: (numbers, ticketId?) => Promise<void>` - callback zapisu zestawu
 
 **State lokalny:**
@@ -625,7 +625,7 @@ interface DeleteConfirmModalProps {
   isOpen: boolean;
   onClose: () => void;
   ticket: Ticket;                         // Zestaw do usunięcia
-  onConfirm: (ticketId: string) => Promise<void>;
+  onConfirm: (ticketId: number) => Promise<void>;
 }
 ```
 
@@ -648,8 +648,9 @@ interface DeleteConfirmModalProps {
 ```tsx
 // GET /api/tickets response
 interface Ticket {
-  id: string;                             // UNIQUEIDENTIFIER (GUID) z backendu
+  id: number;                             // INT (klucz główny)
   userId: number;
+  groupName: string;                      // Max 100 znaków, domyślnie pusty string
   numbers: number[];                      // 6 liczb z zakresu 1-49
   createdAt: string;                      // ISO 8601 datetime, np. "2025-10-25T10:00:00Z"
 }
@@ -657,14 +658,12 @@ interface Ticket {
 interface GetTicketsResponse {
   tickets: Ticket[];
   totalCount: number;                     // Liczba zestawów użytkownika
-  page: number;
-  pageSize: number;
-  totalPages: number;
   limit: number;                          // Max 100
 }
 
 // POST /api/tickets request
 interface TicketRequest {
+  groupName?: string;                     // Opcjonalne, max 100 znaków
   numbers: number[];                      // 6 liczb
 }
 
@@ -709,8 +708,9 @@ interface ApiErrorResponse {
 // Stan formularza dodawania/edycji
 interface TicketFormState {
   mode: 'add' | 'edit';
+  groupName: string;                      // Nazwa grupy (max 100 znaków)
   initialNumbers?: number[];              // Pre-wypełnione dla edycji
-  ticketId?: string;                      // ID dla edycji (GUID)
+  ticketId?: number;                      // ID dla edycji
 }
 
 // Stan generatora (preview)
@@ -745,8 +745,8 @@ interface TicketCounterProps {
 interface TicketListProps {
   tickets: Ticket[];
   loading: boolean;
-  onEdit: (ticketId: string) => void;
-  onDelete: (ticketId: string) => void;
+  onEdit: (ticketId: number) => void;
+  onDelete: (ticketId: number) => void;
 }
 
 interface TicketItemProps {
@@ -760,8 +760,8 @@ interface TicketFormModalProps {
   onClose: () => void;
   mode: 'add' | 'edit';
   initialNumbers?: number[];
-  ticketId?: string;
-  onSubmit: (numbers: number[], ticketId?: string) => Promise<void>;
+  ticketId?: number;
+  onSubmit: (numbers: number[], ticketId?: number) => Promise<void>;
 }
 
 interface GeneratorPreviewModalProps {
@@ -784,7 +784,7 @@ interface DeleteConfirmModalProps {
   isOpen: boolean;
   onClose: () => void;
   ticket: Ticket;
-  onConfirm: (ticketId: string) => Promise<void>;
+  onConfirm: (ticketId: number) => Promise<void>;
 }
 ```
 
@@ -869,8 +869,8 @@ interface UseTicketsReturn {
   // CRUD operations
   fetchTickets: () => Promise<void>;
   addTicket: (numbers: number[]) => Promise<void>;
-  updateTicket: (ticketId: string, numbers: number[]) => Promise<void>;
-  deleteTicket: (ticketId: string) => Promise<void>;
+  updateTicket: (ticketId: number, numbers: number[]) => Promise<void>;
+  deleteTicket: (ticketId: number) => Promise<void>;
 
   // Generators
   generateRandom: () => Promise<number[]>;
@@ -976,7 +976,7 @@ class ApiService {
   }
 
   // PUT /api/tickets/{id}
-  async updateTicket(ticketId: string, numbers: number[]): Promise<UpdateTicketResponse> {
+  async updateTicket(ticketId: number, numbers: number[]): Promise<UpdateTicketResponse> {
     const response = await this.request(`/api/tickets/${ticketId}`, {
       method: 'PUT',
       body: JSON.stringify({ numbers })
@@ -985,7 +985,7 @@ class ApiService {
   }
 
   // DELETE /api/tickets/{id}
-  async deleteTicket(ticketId: string): Promise<DeleteTicketResponse> {
+  async deleteTicket(ticketId: number): Promise<DeleteTicketResponse> {
     const response = await this.request(`/api/tickets/${ticketId}`, {
       method: 'DELETE'
     });
@@ -1121,9 +1121,6 @@ interface TicketRequest {
 interface GetTicketsResponse {
   tickets: Ticket[];
   totalCount: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
   limit: number;
 }
 
@@ -1244,7 +1241,7 @@ interface ApiErrorResponse {
 
 **Krok 2:** System otwiera TicketFormModal w trybie 'edit'
 - Pre-wypełnia pola aktualnymi wartościami zestawu
-- Przechowuje `ticketId` w state (GUID)
+- Przechowuje `ticketId` w state (INT)
 
 **Krok 3:** Użytkownik modyfikuje liczby (np. zmienia 48 → 49)
 - Inline validation działa identycznie jak przy dodawaniu
@@ -1893,8 +1890,8 @@ src/
 │       ├── DeleteConfirmModal.tsx
 │       └── index.ts
 ├── pages/
-│   └── tikets/
-│       └── tikets-page.tsx
+│   └── tickets/
+│       └── tickets-page.tsx
 ├── services/
 │   ├── api-service.ts
 │   └── contracts/

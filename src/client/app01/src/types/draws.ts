@@ -35,6 +35,8 @@ export interface PaginationState {
 export interface DrawFormData {
   /** Draw date in YYYY-MM-DD format */
   drawDate: string;
+  /** Type of lottery game: "LOTTO" or "LOTTO PLUS" */
+  lottoType: string;
   /** Array of 6 numbers, empty string indicates empty field */
   numbers: (number | '')[];
 }
@@ -45,6 +47,8 @@ export interface DrawFormData {
 export interface DrawFormErrors {
   /** Error message for draw date field */
   drawDate?: string;
+  /** Error message for lotto type field */
+  lottoType?: string;
   /** Array of 6 error messages, one per number field */
   numbers?: string[];
 }
@@ -93,6 +97,7 @@ export interface DrawsQueryParams {
 export interface DrawDto {
   id: number;
   drawDate: string;
+  lottoType: string;
   numbers: number[];
   createdAt: string;
 }

@@ -133,6 +133,7 @@ function TicketsPage() {
     setTicketFormState({
       mode: 'edit',
       initialNumbers: ticket.numbers,
+      initialGroupName: ticket.groupName,
       ticketId: ticket.id
     });
     setIsTicketFormOpen(true);
@@ -152,7 +153,7 @@ function TicketsPage() {
   /**
    * Handler: Zapisz zestaw (dodawanie lub edycja)
    */
-  const handleSaveTicket = async (numbers: number[], ticketId?: number) => {
+  const handleSaveTicket = async (numbers: number[], groupName: string, ticketId?: number) => {
     if (!apiService) return;
 
     // Frontend validation
@@ -166,11 +167,11 @@ function TicketsPage() {
     try {
       if (ticketId) {
         // Edycja
-        await apiService.ticketsUpdate(ticketId, { numbers });
+        await apiService.ticketsUpdate(ticketId, { groupName, numbers });
         setToastMessage('Zestaw zaktualizowany pomyślnie');
       } else {
         // Dodawanie
-        await apiService.ticketsCreate({ numbers });
+        await apiService.ticketsCreate({ groupName, numbers });
         setToastMessage('Zestaw zapisany pomyślnie');
       }
 
@@ -346,6 +347,7 @@ function TicketsPage() {
           onClose={() => setIsTicketFormOpen(false)}
           mode={ticketFormState.mode}
           initialNumbers={ticketFormState.initialNumbers}
+          initialGroupName={ticketFormState.initialGroupName}
           ticketId={ticketFormState.ticketId}
           onSubmit={handleSaveTicket}
         />

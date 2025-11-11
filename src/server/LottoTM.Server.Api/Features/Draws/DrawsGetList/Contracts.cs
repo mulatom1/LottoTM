@@ -47,6 +47,7 @@ public class Contracts
     public record DrawDto(
         int Id,
         DateTime DrawDate,
+        string LottoType,
         int[] Numbers,
         DateTime CreatedAt
     );

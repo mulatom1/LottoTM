@@ -28,11 +28,13 @@ Endpoint zwraca ID utworzonego zestawu oraz komunikat o sukcesie.
 ### Request Body:
 ```json
 {
+  "groupName": "Ulubione",
   "numbers": [5, 14, 23, 29, 37, 41]
 }
 ```
 
 **Struktura:**
+- `groupName` (string, opcjonalne): Nazwa grupy do grupowania zestawów (max 100 znaków, domyślnie pusty string)
 - `numbers` (int[]): Tablica dokładnie 6 unikalnych liczb całkowitych w zakresie 1-49
 
 ---
@@ -53,8 +55,9 @@ public class Contracts
     /// <summary>
     /// Request do utworzenia nowego zestawu liczb LOTTO
     /// </summary>
+    /// <param name="GroupName">Nazwa grupy (opcjonalne, max 100 znaków)</param>
     /// <param name="Numbers">Tablica 6 unikalnych liczb w zakresie 1-49</param>
-    public record CreateTicketRequest(int[] Numbers) : IRequest<CreateTicketResponse>;
+    public record CreateTicketRequest(string? GroupName, int[] Numbers) : IRequest<CreateTicketResponse>;
 
     /// <summary>
     /// Response po utworzeniu zestawu
@@ -67,7 +70,7 @@ public class Contracts
 
 ### 3.2 Encje bazodanowe (już istniejące)
 
-- `Ticket` - metadane zestawu (Id, UserId, CreatedAt)
+- `Ticket` - metadane zestawu (Id, UserId, GroupName, CreatedAt)
 - `TicketNumber` - pojedyncza liczba w zestawie (Id, TicketId, Number, Position)
 
 ### 3.3 Modele pomocnicze (opcjonalnie w Handler)
@@ -155,7 +158,7 @@ private record TicketNumberData(int Number, byte Position);
    ↓ 1. Sprawdzenie limitu (COUNT)
    ↓ 2. Sprawdzenie unikalności zestawu (SELECT + algorytm porównania)
    ↓ 3. Utworzenie transakcji
-   ↓    - INSERT Ticket (GUID auto-generated)
+   ↓    - INSERT Ticket (ID auto-generated)
    ↓    - INSERT 6x TicketNumber (Position 1-6)
    ↓ 4. Commit transakcji
    ↓ CreateTicketResponse(Id, Message)
@@ -430,7 +433,7 @@ namespace LottoTM.Server.Api.Features.Tickets;
 public class Contracts
 {
     public record CreateTicketRequest(int[] Numbers) : IRequest<CreateTicketResponse>;
-    public record CreateTicketResponse(Guid Id, string Message);
+    public record CreateTicketResponse(int Id, string Message);
 }
 ```
 
@@ -569,7 +572,7 @@ public class CreateTicketHandler : IRequestHandler<Contracts.CreateTicketRequest
         }
     }
 
-    private async Task<Guid> CreateTicketAsync(int userId, int[] numbers, CancellationToken cancellationToken)
+    private async Task<int> CreateTicketAsync(int userId, int[] numbers, CancellationToken cancellationToken)
     {
         using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
         try
@@ -577,7 +580,6 @@ public class CreateTicketHandler : IRequestHandler<Contracts.CreateTicketRequest
             // 1. Utworzenie Ticket
             var ticket = new Ticket
             {
-                Id = Guid.NewGuid(),
                 UserId = userId,
                 CreatedAt = DateTime.UtcNow
             };
