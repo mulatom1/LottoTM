@@ -2,8 +2,8 @@
 // Checks Components Barrel Export
 // ===================================================================
 
-export { WinBadge } from './WinBadge';
-export { ResultTicketItem } from './ResultTicketItem';
-export { AccordionItem } from './AccordionItem';
-export { CheckResults } from './CheckResults';
-export { CheckPanel } from './CheckPanel';
+export { WinBadge } from './win-badge';
+export { ResultTicketItem } from './result-ticket-item';
+export { AccordionItem } from './accordion-item';
+export { CheckResults } from './check-results';
+export { CheckPanel } from './check-panel';

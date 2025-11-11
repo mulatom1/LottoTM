@@ -18,11 +18,13 @@ public class Contracts
     /// </summary>
     /// <param name="Id">ID of the ticket</param>
     /// <param name="UserId">ID of the user who owns this ticket</param>
+    /// <param name="GroupName">Optional group name for organizing tickets</param>
     /// <param name="Numbers">Array of 6 lottery numbers in order by position</param>
     /// <param name="CreatedAt">UTC timestamp when ticket was created</param>
     public record GetByIdResponse(
         int Id,
         int UserId,
+        string GroupName,
         int[] Numbers,
         DateTime CreatedAt
     );

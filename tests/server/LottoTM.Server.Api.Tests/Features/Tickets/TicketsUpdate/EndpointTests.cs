@@ -418,6 +418,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         var ticket = new Ticket
         {
             UserId = userId,
+            GroupName = "Test Ticket",
             CreatedAt = DateTime.UtcNow
         };
 

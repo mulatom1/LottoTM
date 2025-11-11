@@ -18,6 +18,11 @@ public class Ticket
     public int UserId { get; set; }
 
     /// <summary>
+    /// Group name for tickets purchased together (max 100 characters)
+    /// </summary>
+    public string GroupName { get; set; } = string.Empty;
+
+    /// <summary>
     /// UTC timestamp when ticket was created
     /// </summary>
     public DateTime CreatedAt { get; set; }

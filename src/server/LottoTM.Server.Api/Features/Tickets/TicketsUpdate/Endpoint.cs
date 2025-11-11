@@ -18,7 +18,7 @@ public static class Endpoint
             IMediator mediator,
             CancellationToken cancellationToken) =>
         {
-            var request = new Contracts.Request(id, body.Numbers);
+            var request = new Contracts.Request(id, body.GroupName, body.Numbers);
             var result = await mediator.Send(request, cancellationToken);
             return result;
         })
@@ -34,7 +34,7 @@ public static class Endpoint
         .WithOpenApi(operation =>
         {
             operation.Summary = "Aktualizacja zestawu liczb";
-            operation.Description = "Edycja istniejącego zestawu 6 liczb LOTTO (1-49). Wymaga autoryzacji JWT. Użytkownik może edytować tylko własne zestawy.";
+            operation.Description = "Edycja istniejącego zestawu 6 liczb LOTTO (1-49) i opcjonalnie nazwy grupy. Wymaga autoryzacji JWT. Użytkownik może edytować tylko własne zestawy.";
             return operation;
         });
     }
@@ -42,5 +42,5 @@ public static class Endpoint
     /// <summary>
     /// DTO for request body (JSON deserialization)
     /// </summary>
-    public record UpdateTicketRequest(int[] Numbers);
+    public record UpdateTicketRequest(string? GroupName, int[] Numbers);
 }

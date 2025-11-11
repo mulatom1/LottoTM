@@ -15,9 +15,15 @@ public class Draw
 
     /// <summary>
     /// Date of the lottery draw (without time component).
-    /// Must be unique - only one draw per day allowed.
+    /// Must be unique - only one draw per day and LottoType allowed.
     /// </summary>
     public DateOnly DrawDate { get; set; }
+
+    /// <summary>
+    /// LottoType of the lottery draw (LOTTO, LOTTO PLUS, etc.).
+    /// Must be unique - only one draw per day and LottoType allowed.
+    /// </summary>
+    public required string LottoType { get; set; }
 
     /// <summary>
     /// UTC timestamp when this draw was entered into the system

@@ -18,6 +18,8 @@ public class Contracts
         /// </summary>
         public DateOnly DrawDate { get; init; }
 
+        public string LottoType { get; init; } = string.Empty;
+
         /// <summary>
         /// Array of exactly 6 numbers in range 1-49, all unique
         /// </summary>

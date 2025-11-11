@@ -54,24 +54,24 @@ public class CreateDrawHandler : IRequestHandler<Contracts.CreateDrawRequest, Co
         );
 
         _logger.LogInformation(
-            "Creating draw for date {DrawDate} by user {UserId}",
-            request.DrawDate, currentUserId
+            "Creating draw for date {DrawDate} with type {LottoType} by user {UserId}",
+            request.DrawDate, request.LottoType, currentUserId
         );
 
-        // 3. Sprawdź czy losowanie na daną datę już istnieje
+        // 3. Sprawdź czy losowanie na daną datę i typ gry już istnieje (unique combination)
         var existingDraw = await _dbContext.Draws
-            .AnyAsync(d => d.DrawDate == request.DrawDate, cancellationToken);
+            .AnyAsync(d => d.DrawDate == request.DrawDate && d.LottoType == request.LottoType, cancellationToken);
 
         if (existingDraw)
         {
             _logger.LogWarning(
-                "Draw for date {DrawDate} already exists",
-                request.DrawDate
+                "Draw for date {DrawDate} with type {LottoType} already exists",
+                request.DrawDate, request.LottoType
             );
 
             var errors = new List<FluentValidation.Results.ValidationFailure>
             {
-                new("DrawDate", "Losowanie z tą datą już istnieje")
+                new("DrawDate", $"Losowanie typu {request.LottoType} na datę {request.DrawDate} już istnieje")
             };
             throw new ValidationException(errors);
         }
@@ -85,6 +85,7 @@ public class CreateDrawHandler : IRequestHandler<Contracts.CreateDrawRequest, Co
             var draw = new Draw
             {
                 DrawDate = request.DrawDate,
+                LottoType = request.LottoType,
                 CreatedAt = DateTime.UtcNow,
                 CreatedByUserId = currentUserId
             };

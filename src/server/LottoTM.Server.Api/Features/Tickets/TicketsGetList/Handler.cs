@@ -69,6 +69,7 @@ public class GetListHandler : IRequestHandler<Contracts.GetListRequest, Contract
             var ticketDtos = tickets.Select(ticket => new Contracts.TicketDto(
                 Id: ticket.Id,
                 UserId: ticket.UserId,
+                GroupName: ticket.GroupName,
                 Numbers: ticket.Numbers
                     .OrderBy(n => n.Position)
                     .Select(n => n.Number)

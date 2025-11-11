@@ -32,10 +32,12 @@ public class Contracts
     /// Verification result for a single ticket
     /// </summary>
     /// <param name="TicketId">Ticket identifier</param>
+    /// <param name="GroupName">Group name for organizing tickets (empty string if not assigned)</param>
     /// <param name="TicketNumbers">Array of 6 numbers from the ticket</param>
     /// <param name="Draws">List of draws where this ticket had hits (3 or more matching numbers)</param>
     public record TicketVerificationResult(
         int TicketId,
+        string GroupName,
         List<int> TicketNumbers,
         List<DrawVerificationResult> Draws
     );
@@ -45,12 +47,14 @@ public class Contracts
     /// </summary>
     /// <param name="DrawId">Draw identifier</param>
     /// <param name="DrawDate">Date of the draw</param>
+    /// <param name="LottoType">Type of lottery game (LOTTO, LOTTO PLUS, etc.)</param>
     /// <param name="DrawNumbers">Array of 6 numbers from the draw</param>
     /// <param name="Hits">Number of matching numbers between ticket and draw</param>
     /// <param name="WinningNumbers">List of the actual matching numbers</param>
     public record DrawVerificationResult(
         int DrawId,
         DateOnly DrawDate,
+        string LottoType,
         List<int> DrawNumbers,
         int Hits,
         List<int> WinningNumbers

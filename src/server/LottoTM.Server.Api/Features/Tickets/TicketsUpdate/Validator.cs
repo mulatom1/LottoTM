@@ -9,6 +9,11 @@ public class Validator : AbstractValidator<Contracts.Request>
 {
     public Validator()
     {
+        // Validate GroupName (optional, but max 100 characters if provided)
+        RuleFor(x => x.GroupName)
+            .MaximumLength(100)
+            .WithMessage("Nazwa grupy nie może przekraczać 100 znaków");
+
         // Validate Numbers field is not null
         RuleFor(x => x.Numbers)
             .NotNull()

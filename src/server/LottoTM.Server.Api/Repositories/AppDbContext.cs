@@ -88,12 +88,9 @@ public class AppDbContext : DbContext
                 .IsRequired()
                 .HasDefaultValueSql("GETUTCDATE()");
 
-            // Unique constraint on Email
             entity.HasIndex(e => e.Email)
-                .IsUnique()
-                .HasDatabaseName("IX_Users_Email");
+                .IsUnique();
 
-            // Relationships
             entity.HasMany(e => e.Tickets)
                 .WithOne(e => e.User)
                 .HasForeignKey(e => e.UserId)
@@ -116,22 +113,28 @@ public class AppDbContext : DbContext
             entity.ToTable("Tickets");
 
             entity.HasKey(e => e.Id);
-
+            
             entity.Property(e => e.Id)
-                .HasDefaultValueSql("NEWID()");
+                .ValueGeneratedOnAdd();
 
             entity.Property(e => e.UserId)
                 .IsRequired();
+
+            entity.Property(e => e.GroupName)
+                .IsRequired()
+                .HasMaxLength(100);
 
             entity.Property(e => e.CreatedAt)
                 .IsRequired()
                 .HasDefaultValueSql("GETUTCDATE()");
 
-            // Index for filtering tickets by user
-            entity.HasIndex(e => e.UserId)
-                .HasDatabaseName("IX_Tickets_UserId");
+            entity.HasIndex(e => e.UserId);
 
-            // Relationship with TicketNumbers
+            entity.HasOne(e => e.User)
+                .WithMany(e => e.Tickets)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
             entity.HasMany(e => e.Numbers)
                 .WithOne(e => e.Ticket)
                 .HasForeignKey(e => e.TicketId)
@@ -173,18 +176,17 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Position)
                 .IsRequired();
 
-            // Unique constraint on (TicketId, Position)
             entity.HasIndex(e => new { e.TicketId, e.Position })
-                .IsUnique()
-                .HasDatabaseName("UQ_TicketNumbers_TicketPosition");
+                .IsUnique();
 
-            // Index for join optimization
-            entity.HasIndex(e => e.TicketId)
-                .HasDatabaseName("IX_TicketNumbers_TicketId");
+            entity.HasIndex(e => e.TicketId);
 
-            // Index for queries by number
-            entity.HasIndex(e => e.Number)
-                .HasDatabaseName("IX_TicketNumbers_Number");
+            entity.HasIndex(e => e.Number);
+
+            entity.HasOne(e => e.Ticket)
+                .WithMany(e => e.Numbers)
+                .HasForeignKey(e => e.TicketId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 
@@ -213,16 +215,20 @@ public class AppDbContext : DbContext
             entity.Property(e => e.CreatedByUserId)
                 .IsRequired();
 
-            // Unique constraint on DrawDate (one draw per day)
-            entity.HasIndex(e => e.DrawDate)
-                .IsUnique()
-                .HasDatabaseName("IX_Draws_DrawDate");
+            entity.Property(e => e.LottoType)
+                .IsRequired()
+                .HasMaxLength(50);
 
-            // Index for tracking queries
-            entity.HasIndex(e => e.CreatedByUserId)
-                .HasDatabaseName("IX_Draws_CreatedByUserId");
+            entity.HasIndex(e => new { e.DrawDate, e.LottoType })
+                .IsUnique();
 
-            // Relationship with DrawNumbers
+            entity.HasIndex(e => e.CreatedByUserId);
+
+            entity.HasOne(e => e.CreatedByUser)
+                .WithMany(e => e.CreatedDraws)
+                .HasForeignKey(e => e.CreatedByUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
             entity.HasMany(e => e.Numbers)
                 .WithOne(e => e.Draw)
                 .HasForeignKey(e => e.DrawId)
@@ -264,18 +270,17 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Position)
                 .IsRequired();
 
-            // Unique constraint on (DrawId, Position)
             entity.HasIndex(e => new { e.DrawId, e.Position })
-                .IsUnique()
-                .HasDatabaseName("UQ_DrawNumbers_DrawPosition");
+                .IsUnique();
 
-            // Index for join optimization
-            entity.HasIndex(e => e.DrawId)
-                .HasDatabaseName("IX_DrawNumbers_DrawId");
+            entity.HasIndex(e => e.DrawId);
 
-            // Index for queries by number
-            entity.HasIndex(e => e.Number)
-                .HasDatabaseName("IX_DrawNumbers_Number");
+            entity.HasIndex(e => e.Number);
+
+            entity.HasOne(e => e.Draw)
+                .WithMany(e => e.Numbers)
+                .HasForeignKey(e => e.DrawId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

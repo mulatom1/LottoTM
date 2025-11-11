@@ -8,7 +8,6 @@ Endpoint służy do pobierania kompletnej listy zestawów liczb LOTTO należący
 - Wyświetlenie wszystkich zestawów użytkownika w interfejsie użytkownika
 - Zapewnienie bezpieczeństwa poprzez izolację danych (każdy użytkownik widzi tylko swoje zestawy)
 - Obsługa znormalizowanej struktury bazy danych (eager loading TicketNumbers)
-- Zwrócenie metadanych do wyświetlenia w UI (liczba zestawów, limit)
 
 ---
 
@@ -60,9 +59,6 @@ public class Contracts
     public record GetTicketsResponse(
         List<TicketDto> Tickets,
         int TotalCount,
-        int Page,
-        int PageSize,
-        int TotalPages,
         int Limit
     );
 
@@ -70,6 +66,7 @@ public class Contracts
     public record TicketDto(
         int Id,
         int UserId,
+        string GroupName,
         int[] Numbers,
         DateTime CreatedAt
     );
@@ -92,6 +89,7 @@ public class Ticket
 {
     public int Id { get; set; }
     public int UserId { get; set; }
+    public string GroupName { get; set; } = "";
     public DateTime CreatedAt { get; set; }
 
     // Navigation properties
@@ -124,20 +122,19 @@ public class TicketNumber
     {
       "id": 1,
       "userId": 123,
+      "groupName": "Ulubione",
       "numbers": [5, 14, 23, 29, 37, 41],
       "createdAt": "2025-10-25T10:00:00Z"
     },
     {
       "id": 2,
       "userId": 123,
+      "groupName": "",
       "numbers": [3, 12, 18, 25, 31, 44],
       "createdAt": "2025-10-24T15:30:00Z"
-    }
+    }    
   ],
   "totalCount": 42,
-  "page": 1,
-  "pageSize": 50,
-  "totalPages": 1,
   "limit": 100
 }
 ```
@@ -178,12 +175,7 @@ public class TicketNumber
 
 ```json
 {
-  "tickets": [],
-  "totalCount": 0,
-  "page": 1,
-  "pageSize": 50,
-  "totalPages": 0,
-  "limit": 100
+  "tickets": []
 }
 ```
 
@@ -321,16 +313,13 @@ public class TicketNumber
     var ticketDtos = tickets.Select(t => new TicketDto(
         t.Id,
         t.UserId,
+        t.GroupName,
         t.Numbers.OrderBy(n => n.Position).Select(n => n.Number).ToArray(),
         t.CreatedAt
     )).ToList();
     ```
-13. Kalkuluje metadane:
-    - `totalCount = tickets.Count`
-    - `page = 1` (brak paginacji w MVP)
-    - `pageSize = tickets.Count`
-    - `totalPages = 1`
-    - `limit = 100`
+13. Kalkuluje metadane: brak paginacji w MVP
+
 
 **Faza 6: Zwrot odpowiedzi**
 14. Handler zwraca `GetTicketsResponse` z danymi

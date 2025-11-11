@@ -520,7 +520,7 @@ CREATE INDEX IX_Tickets_UserId ON Tickets(UserId);
 ```
 
 **Efekt:** Zapytanie `WHERE Id = @id AND UserId = @userId` wykorzystuje:
-- Primary Key Index na `Id` (UNIQUEIDENTIFIER)
+- Primary Key Index na `Id` (INT)
 - Index IX_Tickets_UserId na `UserId`
 
 **Szacowany czas wykonania:**
@@ -950,11 +950,11 @@ Content-Type: application/json
 **Weryfikacja w bazie:**
 ```sql
 -- Sprawdź czy zestaw został usunięty
-SELECT * FROM Tickets WHERE Id = 'a3bb189e-8bf9-3888-9912-ace4e6543002';
+SELECT * FROM Tickets WHERE Id = 1;
 -- Wynik: 0 wierszy
 
 -- Sprawdź czy liczby zostały usunięte (CASCADE DELETE)
-SELECT * FROM TicketNumbers WHERE TicketId = 'a3bb189e-8bf9-3888-9912-ace4e6543002';
+SELECT * FROM TicketNumbers WHERE TicketId = 1;
 -- Wynik: 0 wierszy
 ```
 
@@ -966,7 +966,7 @@ SELECT * FROM TicketNumbers WHERE TicketId = 'a3bb189e-8bf9-3888-9912-ace4e65430
 
 **Żądanie:**
 ```http
-DELETE http://localhost:5000/api/tickets/a3bb189e-8bf9-3888-9912-ace4e6543002
+DELETE http://localhost:5000/api/tickets/1
 # Brak headera Authorization
 ```
 

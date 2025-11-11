@@ -11,6 +11,16 @@ const TicketItem: React.FC<TicketItemProps> = ({ ticket, onEdit, onDelete }) => 
   return (
     <div className="border rounded-lg p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:shadow-md transition-shadow">
       <div className="flex-1">
+        {/* Nazwa grupy (jeśli istnieje) */}
+        {ticket.groupName && (
+          <div className="mb-2">
+            <span className="inline-block px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs font-medium">
+              {ticket.groupName}
+            </span>
+          </div>
+        )}
+
+        {/* Liczby */}
         <div className="flex flex-wrap gap-2 mb-2">
           {ticket.numbers.map((num, index) => (
             <span
@@ -21,6 +31,8 @@ const TicketItem: React.FC<TicketItemProps> = ({ ticket, onEdit, onDelete }) => 
             </span>
           ))}
         </div>
+
+        {/* Data utworzenia */}
         <p className="text-sm text-gray-500">
           Utworzono: {formatDate(ticket.createdAt)}
         </p>

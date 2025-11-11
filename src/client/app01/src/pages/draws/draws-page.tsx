@@ -24,7 +24,7 @@ import type { DrawsUpdateRequest } from '../../services/contracts/draws-update-r
  * Features: list with pagination, filtering by date range, CRUD operations (admin only)
  */
 function DrawsPage() {
-  const { user, isLoggedIn, getApiService } = useAppContext();
+  const { user, getApiService } = useAppContext();
   const apiService = getApiService()!; // Non-null assertion - AppContext always provides ApiService
   const isAdmin = user?.isAdmin || false;
 
@@ -98,6 +98,16 @@ function DrawsPage() {
    * Handle filter application
    */
   const handleFilter = (dateFrom?: string, dateTo?: string) => {
+    // Inline validation: dateFrom must be <= dateTo
+    if (dateFrom && dateTo && dateFrom > dateTo) {
+      setModalState(prev => ({
+        ...prev,
+        isErrorOpen: true,
+        errorMessages: ["Data 'Od' musi być wcześniejsza lub równa 'Do'"]
+      }));
+      return;
+    }
+
     // Update filter state
     setFilterState({
       dateFrom: dateFrom || '',
@@ -106,8 +116,7 @@ function DrawsPage() {
     });
 
     // Fetch draws with new filter from page 1
-    // Note: we need to trigger fetchDraws after state update
-    // So we'll use a separate effect or call fetchDraws directly with new params
+    fetchDraws(1);
   };
 
   /**
@@ -119,6 +128,9 @@ function DrawsPage() {
       dateTo: '',
       isActive: false,
     });
+
+    // Refresh list without filter from page 1
+    fetchDraws(1);
   };
 
   /**
@@ -180,6 +192,7 @@ function DrawsPage() {
       if (modalState.formMode === 'add') {
         const request: DrawsCreateRequest = {
           drawDate: data.drawDate,
+          lottoType: data.lottoType,
           numbers,
         };
         await apiService.drawsCreate(request);
@@ -187,6 +200,7 @@ function DrawsPage() {
       } else if (modalState.editingDraw) {
         const request: DrawsUpdateRequest = {
           drawDate: data.drawDate,
+          lottoType: data.lottoType,
           numbers,
         };
         await apiService.drawsUpdate(modalState.editingDraw.id, request);
@@ -298,22 +312,8 @@ function DrawsPage() {
 
   // Effect: Initial load
   useEffect(() => {
-    console.log('[DrawsPage] Initial load effect - isLoggedIn:', isLoggedIn);
-    if (isLoggedIn) {
-      console.log('[DrawsPage] Fetching draws...');
-      fetchDraws(1);
-    }
-  }, [isLoggedIn]); // Only run on mount and when login state changes
-
-  // Effect: Fetch when filter changes
-  useEffect(() => {
-    console.log('[DrawsPage] Filter change effect - filter:', filterState);
-    if (isLoggedIn && filterState.isActive !== undefined) {
-      // Only fetch if filter state has been initialized (avoid double fetch on mount)
-      console.log('[DrawsPage] Fetching draws with filter...');
-      fetchDraws(1); // Reset to page 1 when filter changes
-    }
-  }, [filterState.isActive, filterState.dateFrom, filterState.dateTo]);
+    fetchDraws(1);
+  }, []); // Empty dependency array - run once on mount
 
   // Prepare initial values for edit form
   const getFormInitialValues = (): DrawFormData | undefined => {
@@ -324,6 +324,7 @@ function DrawsPage() {
 
     return {
       drawDate,
+      lottoType: modalState.editingDraw.lottoType,
       numbers: modalState.editingDraw.numbers as (number | '')[],
     };
   };

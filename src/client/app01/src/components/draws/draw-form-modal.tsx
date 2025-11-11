@@ -42,6 +42,7 @@ const DrawFormModal: React.FC<DrawFormModalProps> = ({
     }
     return {
       drawDate: '',
+      lottoType: 'LOTTO', // Default to LOTTO
       numbers: ['', '', '', '', '', ''],
     };
   };
@@ -66,6 +67,17 @@ const DrawFormModal: React.FC<DrawFormModalProps> = ({
     }
     if (date > todayDate) {
       return 'Data losowania nie może być w przyszłości';
+    }
+    return undefined;
+  };
+
+  // Validate lotto type
+  const validateLottoType = (type: string): string | undefined => {
+    if (!type) {
+      return 'Typ loterii jest wymagany';
+    }
+    if (type !== 'LOTTO' && type !== 'LOTTO PLUS') {
+      return 'Dozwolone wartości: LOTTO, LOTTO PLUS';
     }
     return undefined;
   };
@@ -115,6 +127,12 @@ const DrawFormModal: React.FC<DrawFormModalProps> = ({
       errors.drawDate = dateError;
     }
 
+    // Validate lotto type
+    const lottoTypeError = validateLottoType(formData.lottoType);
+    if (lottoTypeError) {
+      errors.lottoType = lottoTypeError;
+    }
+
     // Validate numbers (range)
     const numberErrors: string[] = [];
     formData.numbers.forEach((num, index) => {
@@ -138,7 +156,7 @@ const DrawFormModal: React.FC<DrawFormModalProps> = ({
     setFormErrors(errors);
 
     // Return true if no errors
-    return !errors.drawDate && !errors.numbers;
+    return !errors.drawDate && !errors.lottoType && !errors.numbers;
   };
 
   // Handle draw date change
@@ -148,6 +166,16 @@ const DrawFormModal: React.FC<DrawFormModalProps> = ({
     // Clear error when user types
     if (formErrors.drawDate) {
       setFormErrors((prev) => ({ ...prev, drawDate: undefined }));
+    }
+  };
+
+  // Handle lotto type change
+  const handleLottoTypeChange = (value: string) => {
+    setFormData((prev) => ({ ...prev, lottoType: value }));
+
+    // Clear error when user selects
+    if (formErrors.lottoType) {
+      setFormErrors((prev) => ({ ...prev, lottoType: undefined }));
     }
   };
 
@@ -205,6 +233,40 @@ const DrawFormModal: React.FC<DrawFormModalProps> = ({
           max={todayDate}
           required
         />
+
+        {/* Lotto Type - Radio Buttons */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Typ loterii <span className="text-red-600">*</span>
+          </label>
+          <div className="flex gap-4">
+            <label className="inline-flex items-center cursor-pointer">
+              <input
+                type="radio"
+                name="lottoType"
+                value="LOTTO"
+                checked={formData.lottoType === 'LOTTO'}
+                onChange={(e) => handleLottoTypeChange(e.target.value)}
+                className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+              />
+              <span className="ml-2 text-sm text-gray-700">LOTTO</span>
+            </label>
+            <label className="inline-flex items-center cursor-pointer">
+              <input
+                type="radio"
+                name="lottoType"
+                value="LOTTO PLUS"
+                checked={formData.lottoType === 'LOTTO PLUS'}
+                onChange={(e) => handleLottoTypeChange(e.target.value)}
+                className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+              />
+              <span className="ml-2 text-sm text-gray-700">LOTTO PLUS</span>
+            </label>
+          </div>
+          {formErrors.lottoType && (
+            <p className="mt-1 text-sm text-red-600">{formErrors.lottoType}</p>
+          )}
+        </div>
 
         {/* Numbers Grid */}
         <div>

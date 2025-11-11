@@ -11,6 +11,6 @@ public class Validator : AbstractValidator<Contracts.Request>
     {
         RuleFor(x => x.Id)
             .GreaterThan(0)
-            .WithMessage("ID musi być liczbą całkowitą większą od 0");
+            .WithMessage("ID musi być liczbą całkowitą większą od 0");       
     }
 }

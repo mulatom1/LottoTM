@@ -14,6 +14,11 @@ export interface DrawsGetByIdResponse {
   drawDate: string;
 
   /**
+   * Type of lottery game: "LOTTO" or "LOTTO PLUS"
+   */
+  lottoType: string;
+
+  /**
    * Array of 6 drawn numbers (1-49), sorted by position
    */
   numbers: number[];

@@ -26,11 +26,13 @@ public class Contracts
     /// DTO representing a single generated ticket.
     /// </summary>
     /// <param name="Id">Unique ticket identifier (int)</param>
+    /// <param name="GroupName">Group name for organizing tickets</param>
     /// <param name="Numbers">6 lottery numbers (sorted by position)</param>
     /// <param name="CreatedAt">UTC timestamp of creation</param>
     public record TicketDto(
         int Id,
-        List<int> Numbers,
+        string GroupName,
+        int[] Numbers,
         DateTime CreatedAt
     );
 }

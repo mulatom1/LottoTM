@@ -51,7 +51,7 @@ public class CreateTicketHandler : IRequestHandler<Contracts.CreateTicketRequest
         await ValidateTicketUniquenessAsync(userId, request.Numbers, cancellationToken);
 
         // 5. Create ticket in database transaction
-        var ticketId = await CreateTicketAsync(userId, request.Numbers, cancellationToken);
+        var ticketId = await CreateTicketAsync(userId, request.GroupName, request.Numbers, cancellationToken);
 
         _logger.LogInformation("Ticket {TicketId} created successfully for user {UserId}", ticketId, userId);
 
@@ -122,7 +122,7 @@ public class CreateTicketHandler : IRequestHandler<Contracts.CreateTicketRequest
     /// Creates a new ticket with associated numbers in a database transaction
     /// </summary>
     /// <returns>The ID of the created ticket</returns>
-    private async Task<int> CreateTicketAsync(int userId, int[] numbers, CancellationToken cancellationToken)
+    private async Task<int> CreateTicketAsync(int userId, string? groupName, int[] numbers, CancellationToken cancellationToken)
     {
         using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
         try
@@ -131,6 +131,7 @@ public class CreateTicketHandler : IRequestHandler<Contracts.CreateTicketRequest
             var ticket = new Ticket
             {
                 UserId = userId,
+                GroupName = groupName ?? string.Empty,
                 CreatedAt = DateTime.UtcNow
             };
 

@@ -60,6 +60,7 @@ public class Handler : IRequestHandler<Contracts.Request, Contracts.Response?>
         var response = new Contracts.Response(
             Id: draw.Id,
             DrawDate: draw.DrawDate.ToDateTime(TimeOnly.MinValue),
+            LottoType: draw.LottoType,
             Numbers: numbers,
             CreatedAt: draw.CreatedAt
         );

@@ -9,6 +9,13 @@ export interface DrawsUpdateRequest {
   drawDate: string;
 
   /**
+   * Type of lottery game
+   * Allowed values: "LOTTO", "LOTTO PLUS"
+   * Required field
+   */
+  lottoType: string;
+
+  /**
    * Array of 6 drawn numbers (1-49, unique)
    */
   numbers: number[];

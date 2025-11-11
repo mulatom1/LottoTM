@@ -56,7 +56,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         // Verify each ticket has 6 unique numbers
         foreach (var ticket in result.Tickets)
         {
-            Assert.Equal(6, ticket.Numbers.Count);
+            Assert.Equal(6, ticket.Numbers.Count());
             Assert.Equal(6, ticket.Numbers.Distinct().Count());
             Assert.All(ticket.Numbers, n => Assert.InRange(n, 1, 49));
         }
@@ -369,7 +369,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         foreach (var ticket in result.Tickets)
         {
             // Exactly 6 numbers
-            Assert.Equal(6, ticket.Numbers.Count);
+            Assert.Equal(6, ticket.Numbers.Count());
 
             // All numbers are unique within the ticket
             Assert.Equal(6, ticket.Numbers.Distinct().Count());
@@ -490,6 +490,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
             var ticket = new Ticket
             {
                 UserId = userId,
+                GroupName = $"Seeded Ticket {i + 1}",
                 CreatedAt = DateTime.UtcNow.AddMinutes(-i)
             };
 

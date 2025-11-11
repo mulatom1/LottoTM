@@ -52,6 +52,7 @@ public class Handler : IRequestHandler<Contracts.Request, Contracts.Response>
             {
                 UserId = request.UserId,
                 CreatedAt = createdAt,
+                GroupName = $"System9: {DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")}",
                 Numbers = numbers.Select((num, index) => new TicketNumber
                 {
                     Number = num,
@@ -89,7 +90,8 @@ public class Handler : IRequestHandler<Contracts.Request, Contracts.Response>
             9,
             tickets.Select(t => new Contracts.TicketDto(
                 t.Id,
-                t.Numbers.OrderBy(n => n.Position).Select(n => n.Number).ToList(),
+                t.GroupName,
+                t.Numbers.OrderBy(n => n.Position).Select(n => n.Number).ToArray(),
                 t.CreatedAt
             )).ToList()
         );

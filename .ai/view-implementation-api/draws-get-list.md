@@ -72,6 +72,7 @@ public record GetDrawsResponse(
 public record DrawDto(
     int Id,
     DateTime DrawDate,
+    string LottoType,
     int[] Numbers,
     DateTime CreatedAt
 );
@@ -84,6 +85,7 @@ public class Draw
 {
     public int Id { get; set; }
     public DateTime DrawDate { get; set; }
+    public string LottoType { get; set; } = "";
     public DateTime CreatedAt { get; set; }
     public int CreatedByUserId { get; set; }
 
@@ -116,12 +118,14 @@ public class DrawNumber
     {
       "id": 1,
       "drawDate": "2025-10-30",
+      "lottoType": "LOTTO",
       "numbers": [3, 12, 25, 31, 42, 48],
       "createdAt": "2025-10-30T18:30:00Z"
     },
     {
       "id": 2,
       "drawDate": "2025-10-28",
+      "lottoType": "LOTTO PLUS",
       "numbers": [5, 14, 23, 29, 37, 41],
       "createdAt": "2025-10-28T19:00:00Z"
     }

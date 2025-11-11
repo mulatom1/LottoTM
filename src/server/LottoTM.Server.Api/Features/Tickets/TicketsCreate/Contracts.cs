@@ -10,8 +10,9 @@ public class Contracts
     /// <summary>
     /// Request to create a new lottery ticket with 6 unique numbers
     /// </summary>
+    /// <param name="GroupName">Optional group name for organizing tickets (max 100 chars, defaults to empty string)</param>
     /// <param name="Numbers">Array of 6 unique numbers in range 1-49</param>
-    public record CreateTicketRequest(int[] Numbers) : IRequest<CreateTicketResponse>;
+    public record CreateTicketRequest(string? GroupName, int[] Numbers) : IRequest<CreateTicketResponse>;
 
     /// <summary>
     /// Response after successful ticket creation

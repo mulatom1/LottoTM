@@ -96,6 +96,7 @@ public class GetByIdHandler : IRequestHandler<Contracts.GetByIdRequest, Contract
         return new Contracts.GetByIdResponse(
             ticket.Id,
             ticket.UserId,
+            ticket.GroupName,
             numbers,
             ticket.CreatedAt
         );

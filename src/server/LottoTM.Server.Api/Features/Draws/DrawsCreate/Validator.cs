@@ -23,5 +23,11 @@ public class CreateDrawValidator : AbstractValidator<Contracts.CreateDrawRequest
                 .WithMessage("Liczby muszą być w zakresie 1-49")
             .Must(n => n != null && n.Distinct().Count() == n.Length)
                 .WithMessage("Liczby muszą być unikalne");
+
+        RuleFor(x => x.LottoType)
+           .NotEmpty()
+           .WithMessage("Typ loterii jest wymagany")
+           .Must(lt => lt == "LOTTO" || lt == "LOTTO PLUS")
+           .WithMessage("Dozwolone wartości: LOTTO, LOTTO PLUS");
     }
 }

@@ -10,6 +10,8 @@
 - Walidacja liczb (6 liczb w zakresie 1-49, wszystkie unikalne)
 - Tracking autora losowania przez pole `CreatedByUserId`
 - Opcjonalne nadpisanie istniejącego losowania na daną datę (decyzja biznesowa)
+- Tylko użytkownicy z uprawnieniami administratora mogą dodawać losowania (IsAdmin)
+- Jeśli losowanie o podanej dacie i typie już istnieje zwraca błąd (unikalny klucz)
 
 **Architektura:** Vertical Slice Architecture z MediatR
 
@@ -35,7 +37,8 @@ Brak
 ```json
 {
   "drawDate": "2025-10-30",
-  "numbers": [3, 12, 25, 31, 42, 48]
+  "numbers": [3, 12, 25, 31, 42, 48],
+  "lottoType": "LOTTO"
 }
 ```
 
@@ -43,8 +46,9 @@ Brak
 
 | Pole | Typ | Wymagane | Walidacja | Komunikaty błędów |
 |------|-----|----------|-----------|-------------------|
-| `drawDate` | DATE (YYYY-MM-DD) | Tak | - Format DATE<br>- Nie w przyszłości<br>- Unikalny globalnie | - "Data losowania jest wymagana"<br>- "Nieprawidłowy format daty"<br>- "Data losowania nie może być w przyszłości"<br>- "Losowanie z tą datą już istnieje" |
+| `drawDate` | DATE (YYYY-MM-DD) | Tak | - Format DATE<br>- Nie w przyszłości<br>- Unikalny globalnie (DrawDate + LottoType) | - "Data losowania jest wymagana"<br>- "Nieprawidłowy format daty"<br>- "Data losowania nie może być w przyszłości"<br>- "Losowanie z tą datą i typem gry już istnieje" |
 | `numbers` | Array<int> | Tak | - Dokładnie 6 elementów<br>- Każda liczba 1-49<br>- Wszystkie unikalne | - "Wymagane dokładnie 6 liczb"<br>- "Liczby muszą być w zakresie 1-49"<br>- "Liczby muszą być unikalne" |
+| `lottoType` | STRING | Tak | - Wymagane<br>- Tylko "LOTTO" lub "LOTTO PLUS" | - "Typ gry jest wymagany"<br>- "Dozwolone wartości: LOTTO, LOTTO PLUS" |
 
 ---
 
@@ -62,7 +66,8 @@ public class Contracts
 {
     public record CreateDrawRequest(
         DateOnly DrawDate,
-        int[] Numbers
+        int[] Numbers,
+        string LottoType
     ) : IRequest<CreateDrawResponse>;
 
     public record CreateDrawResponse(
@@ -79,6 +84,7 @@ public class Draw
 {
     public int Id { get; set; }
     public DateTime DrawDate { get; set; }
+    public string LottoType { get; set; } = string.Empty; // "LOTTO" lub "LOTTO PLUS"
     public DateTime CreatedAt { get; set; }
     public int CreatedByUserId { get; set; }
 
@@ -174,12 +180,12 @@ Content-Type: application/json
    ↓
 4. Handler (Handler.cs)
    - Pobiera UserId z JWT claims
-   - Sprawdza czy losowanie na daną datę już istnieje
-   - DECYZJA: Rzucić błąd vs. Nadpisać (MVP: rzucić błąd)
+   - Sprawdza czy losowanie na daną datę i typ już istnieje
+   - Jeśli tak, rzucić błąd
    ↓
 5. Database Transaction
    - BEGIN TRANSACTION
-   - INSERT do Draws (DrawDate, CreatedAt, CreatedByUserId)
+   - INSERT do Draws (DrawDate, LottoType, CreatedAt, CreatedByUserId)
    - Otrzymanie Draw.Id
    - INSERT 6 rekordów do DrawNumbers (DrawId, Number, Position)
    - COMMIT TRANSACTION
@@ -326,20 +332,25 @@ public class CreateDrawValidator : AbstractValidator<CreateDrawRequest>
                 .WithMessage("Liczby muszą być w zakresie 1-49")
             .Must(n => n.Distinct().Count() == 6)
                 .WithMessage("Liczby muszą być unikalne");
+
+        RuleFor(x => x.LottoType)
+            .NotEmpty().WithMessage("Typ gry jest wymagany")
+            .Must(lt => lt == "LOTTO" || lt == "LOTTO PLUS")
+                .WithMessage("Dozwolone wartości: LOTTO, LOTTO PLUS");
     }
 }
 ```
 
 **Warstwa 2: Business Logic (Handler.cs)**
 ```csharp
-// Sprawdzenie unikalności daty losowania
+// Sprawdzenie unikalności kombinacji DrawDate + LottoType
 var existingDraw = await _dbContext.Draws
-    .Where(d => d.DrawDate == request.DrawDate)
+    .Where(d => d.DrawDate == request.DrawDate && d.LottoType == request.LottoType)
     .AnyAsync(cancellationToken);
 
 if (existingDraw)
 {
-    throw new ValidationException("Losowanie z tą datą już istnieje");
+    throw new ValidationException("Losowanie z tą datą i typem gry już istnieje");
 }
 ```
 
@@ -476,16 +487,16 @@ public class CreateDrawHandler : IRequestHandler<CreateDrawRequest, CreateDrawRe
 
 | Wąskie gardło | Opis | Mitygacja |
 |---------------|------|-----------|
-| **Brak indeksu na DrawDate** | Sprawdzanie unikalności daty: O(n) table scan | ✅ Indeks `IX_Draws_DrawDate` (UNIQUE) |
+| **Brak indeksu na (DrawDate, LottoType)** | Sprawdzanie unikalności kombinacji: O(n) table scan | ✅ Indeks `IX_Draws_DrawDate_LottoType` (UNIQUE) |
 | **N+1 problem przy INSERT** | 6 osobnych INSERT do DrawNumbers | ✅ Bulk insert lub transakcja |
 | **Serializacja JSON** | Parsing dużych request body | ⚠️ Akceptowalne dla MVP (tylko 6 liczb) |
-| **Lock contention** | Wiele użytkowników dodaje losowania jednocześnie | ⚠️ Bardzo niskie ryzyko (1 losowanie/dzień) |
+| **Lock contention** | Wiele użytkowników dodaje losowania jednocześnie | ⚠️ Bardzo niskie ryzyko (1 losowanie/dzień/typ) |
 
 ### 8.2 Strategie optymalizacji
 
 **1. Indeksy bazy danych:**
 ```sql
-CREATE UNIQUE INDEX IX_Draws_DrawDate ON Draws(DrawDate);
+CREATE UNIQUE INDEX IX_Draws_DrawDate_LottoType ON Draws(DrawDate, LottoType);
 CREATE INDEX IX_DrawNumbers_DrawId ON DrawNumbers(DrawId);
 ```
 
@@ -499,6 +510,7 @@ try
     var draw = new Draw
     {
         DrawDate = request.DrawDate.ToDateTime(TimeOnly.MinValue),
+        LottoType = request.LottoType,
         CreatedAt = DateTime.UtcNow,
         CreatedByUserId = currentUserId
     };
@@ -575,7 +587,8 @@ public class Contracts
 {
     public record CreateDrawRequest(
         DateOnly DrawDate,
-        int[] Numbers
+        int[] Numbers,
+        string LottoType
     ) : IRequest<CreateDrawResponse>;
 
     public record CreateDrawResponse(

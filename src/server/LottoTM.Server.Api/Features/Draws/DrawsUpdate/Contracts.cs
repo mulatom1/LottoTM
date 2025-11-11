@@ -22,6 +22,8 @@ public class Contracts
         /// </summary>
         public DateOnly DrawDate { get; init; }
 
+        public string LottoType { get; init; } = string.Empty;
+
         /// <summary>
         /// New array of 6 drawn numbers (1-49, unique)
         /// </summary>

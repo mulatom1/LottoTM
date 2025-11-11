@@ -2,7 +2,7 @@
 // CheckResults Component - Container for verification results
 // ===================================================================
 
-import { AccordionItem } from './AccordionItem';
+import { AccordionItem } from './accordion-item';
 import type { TicketVerificationResult } from '../../services/contracts/verification-check-response';
 
 interface CheckResultsProps {
@@ -23,9 +23,11 @@ export function CheckResults({ results, totalTickets, totalDraws }: CheckResults
   const drawsMap = new Map<string, {
     drawId: number;
     drawDate: string;
+    lottoType: string;
     drawNumbers: number[];
     tickets: Array<{
       ticketId: number;
+      groupName: string;
       ticketNumbers: number[];
       hits: number;
       winningNumbers: number[];
@@ -41,6 +43,7 @@ export function CheckResults({ results, totalTickets, totalDraws }: CheckResults
         drawsMap.set(drawKey, {
           drawId: draw.drawId,
           drawDate: draw.drawDate,
+          lottoType: draw.lottoType,
           drawNumbers: draw.drawNumbers,
           tickets: []
         });
@@ -49,6 +52,7 @@ export function CheckResults({ results, totalTickets, totalDraws }: CheckResults
       const drawData = drawsMap.get(drawKey)!;
       drawData.tickets.push({
         ticketId: ticketResult.ticketId,
+        groupName: ticketResult.groupName,
         ticketNumbers: ticketResult.ticketNumbers,
         hits: draw.hits,
         winningNumbers: draw.winningNumbers
@@ -119,6 +123,7 @@ export function CheckResults({ results, totalTickets, totalDraws }: CheckResults
             key={draw.drawId}
             draw={{
               drawDate: draw.drawDate,
+              lottoType: draw.lottoType,
               drawNumbers: draw.drawNumbers
             }}
             tickets={draw.tickets}

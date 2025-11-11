@@ -13,6 +13,11 @@ export interface TicketDto {
   userId: number;
 
   /**
+   * Optional group name for organizing tickets
+   */
+  groupName: string;
+
+  /**
    * Array of 6 lottery numbers ordered by position (1-49)
    */
   numbers: number[];

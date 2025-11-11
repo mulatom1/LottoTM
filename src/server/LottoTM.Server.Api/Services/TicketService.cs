@@ -57,6 +57,7 @@ public class TicketService : ITicketService
         var ticket = new Ticket
         {
             UserId = userId,
+            GroupName = $"Random: {DateTime.Now:yyyy-MM-dd HH:mm:ss}",
             CreatedAt = DateTime.UtcNow
         };
 

@@ -12,9 +12,11 @@ const TicketFormModal: React.FC<TicketFormModalProps> = ({
   onClose,
   mode,
   initialNumbers,
+  initialGroupName,
   ticketId,
   onSubmit
 }) => {
+  const [groupName, setGroupName] = useState<string>(initialGroupName || '');
   const [numbers, setNumbers] = useState<(number | '')[]>(
     initialNumbers || ['', '', '', '', '', '']
   );
@@ -26,6 +28,7 @@ const TicketFormModal: React.FC<TicketFormModalProps> = ({
   // Reset form przy otwarciu modalu
   useEffect(() => {
     if (isOpen) {
+      setGroupName(initialGroupName || '');
       if (mode === 'edit' && initialNumbers) {
         setNumbers(initialNumbers);
       } else {
@@ -33,7 +36,7 @@ const TicketFormModal: React.FC<TicketFormModalProps> = ({
       }
       setInlineErrors([undefined, undefined, undefined, undefined, undefined, undefined]);
     }
-  }, [isOpen, mode, initialNumbers]);
+  }, [isOpen, mode, initialNumbers, initialGroupName]);
 
   const handleNumberChange = (index: number, value: number | '') => {
     const newNumbers = [...numbers];
@@ -57,6 +60,7 @@ const TicketFormModal: React.FC<TicketFormModalProps> = ({
   };
 
   const handleClear = () => {
+    setGroupName('');
     setNumbers(['', '', '', '', '', '']);
     setInlineErrors([undefined, undefined, undefined, undefined, undefined, undefined]);
   };
@@ -78,7 +82,7 @@ const TicketFormModal: React.FC<TicketFormModalProps> = ({
 
     setIsSubmitting(true);
     try {
-      await onSubmit(numbers as number[], ticketId);
+      await onSubmit(numbers as number[], groupName, ticketId);
       // Sukces - parent component zamyka modal i pokazuje toast
     } catch (error) {
       // Błędy obsługiwane w parent component
@@ -95,6 +99,26 @@ const TicketFormModal: React.FC<TicketFormModalProps> = ({
       size="lg"
     >
       <form onSubmit={handleSubmit}>
+        {/* Pole GroupName (opcjonalne) */}
+        <div className="mb-6">
+          <label htmlFor="groupName" className="block text-sm font-medium text-gray-700 mb-2">
+            Nazwa grupy (opcjonalne)
+          </label>
+          <input
+            id="groupName"
+            type="text"
+            value={groupName}
+            onChange={(e) => setGroupName(e.target.value.slice(0, 100))}
+            placeholder="np. Ulubione, Rodzina..."
+            maxLength={100}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <p className="mt-1 text-xs text-gray-500">
+            {groupName.length}/100 znaków
+          </p>
+        </div>
+
+        {/* Pola liczb */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           {[0, 1, 2, 3, 4, 5].map((index) => (
             <NumberInput

@@ -387,7 +387,7 @@ W MVP **całkowicie zrezygnowano z widoku Dashboard** (`/dashboard`). Po zalogow
      - Type: number, min="1", max="49", required
      - Inline validation: zakres 1-49, unikalność
    - Przyciski: [Wyczyść] | [Anuluj] [Zapisz]
-   - **Logika backend:** Jeśli losowanie na daną datę już istnieje → nadpisanie (UPDATE)
+   - **Logika backend:** Jeśli losowanie na daną datę i typ już istnieje, backend zwraca błąd z komunikatem "Wynik losowania na tę datę i typ już istnieje."
    - Po sukcesie: Toast "Wynik losowania zapisany pomyślnie", modal zamyka, aktualna strona odświeża
 
 2. **Modal edycji wyniku:**

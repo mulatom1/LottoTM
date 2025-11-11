@@ -95,6 +95,7 @@ public class Ticket
 {
     public int Id { get; set; }
     public int UserId { get; set; }
+    public string GroupName { get; set; } = string.Empty; // Pole grupujące zestawy
     public DateTime CreatedAt { get; set; }
     public User User { get; set; } = null!;
     public ICollection<TicketNumber> Numbers { get; set; } = new List<TicketNumber>();

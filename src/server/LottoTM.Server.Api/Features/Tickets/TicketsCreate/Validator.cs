@@ -5,6 +5,7 @@ namespace LottoTM.Server.Api.Features.Tickets.TicketsCreate;
 /// <summary>
 /// Validator for CreateTicketRequest using FluentValidation
 /// Validates that:
+/// - GroupName (if provided) is max 100 characters
 /// - Numbers field is not null
 /// - Exactly 6 numbers are provided
 /// - All numbers are in range 1-49
@@ -14,6 +15,10 @@ public class CreateTicketValidator : AbstractValidator<Contracts.CreateTicketReq
 {
     public CreateTicketValidator()
     {
+        RuleFor(x => x.GroupName)
+            .MaximumLength(100)
+            .WithMessage("Nazwa grupy nie może przekraczać 100 znaków");
+
         RuleFor(x => x.Numbers)
             .NotNull()
             .WithMessage("Pole 'numbers' jest wymagane");

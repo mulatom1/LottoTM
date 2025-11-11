@@ -83,6 +83,7 @@ public class Contracts
     /// </summary>
     public record TicketDto(
         int Id,
+        string GroupName,
         List<int> Numbers,
         DateTime CreatedAt
     );
@@ -98,7 +99,7 @@ public class Contracts
 ### 3.3 Entity Models (Database)
 - **Ticket** (z `Entities/Ticket.cs`)
   - `int Id` - Primary key
-  - `int UserId` - Foreign key to Users
+  - `int UserId` - Foreign key do Users
   - `DateTime CreatedAt` - UTC timestamp
   - `ICollection<TicketNumber> Numbers` - Navigation property
 
@@ -124,12 +125,12 @@ public class Contracts
   "generatedCount": 9,
   "tickets": [
     {
-      "id": "a3bb189e-8bf9-3888-9912-ace4e6543002",
+      "id": 1,
       "numbers": [7, 15, 23, 31, 39, 47],
       "createdAt": "2025-11-05T10:30:00Z"
     },
     {
-      "id": "b4cc289f-9cf0-4999-0023-bdf5f7654113",
+      "id": 2,
       "numbers": [2, 10, 18, 26, 34, 42],
       "createdAt": "2025-11-05T10:30:00Z"
     }
@@ -489,6 +490,7 @@ var response = new Response(
     9,
     tickets.Select(t => new TicketDto(
         t.Id,
+        t.GroupName,
         t.Numbers.OrderBy(n => n.Position).Select(n => n.Number).ToList(),
         t.CreatedAt
     )).ToList()
@@ -567,10 +569,12 @@ public class Contracts
     /// DTO representing a single generated ticket.
     /// </summary>
     /// <param name="Id">Unique ticket identifier (int)</param>
+    /// <param name="GroupName">Group name (max 100 characters, empty string by default)</param>
     /// <param name="Numbers">6 lottery numbers (sorted by position)</param>
     /// <param name="CreatedAt">UTC timestamp of creation</param>
     public record TicketDto(
         int Id,
+        string GroupName,
         List<int> Numbers,
         DateTime CreatedAt
     );
@@ -763,6 +767,7 @@ public class GenerateSystemTicketsHandler : IRequestHandler<Contracts.Request, C
             9,
             tickets.Select(t => new Contracts.TicketDto(
                 t.Id,
+                t.GroupName,
                 t.Numbers.OrderBy(n => n.Position).Select(n => n.Number).ToList(),
                 t.CreatedAt
             )).ToList()
@@ -1088,47 +1093,47 @@ curl -X POST "http://localhost:5000/api/tickets/generate-system" \
   "generatedCount": 9,
   "tickets": [
     {
-      "id": "a3bb189e-8bf9-3888-9912-ace4e6543002",
+      "id": 1,
       "numbers": [7, 15, 23, 31, 39, 47],
       "createdAt": "2025-11-05T10:30:00Z"
     },
     {
-      "id": "b4cc289f-9cf0-4999-0023-bdf5f7654113",
+      "id": 2,
       "numbers": [2, 10, 18, 26, 34, 42],
       "createdAt": "2025-11-05T10:30:00Z"
     },
     {
-      "id": "c5dd389g-0dg1-5000-1134-ceg6g8765224",
+      "id": 3,
       "numbers": [1, 9, 17, 25, 33, 41],
       "createdAt": "2025-11-05T10:30:00Z"
     },
     {
-      "id": "d6ee489h-1eh2-6111-2245-dfh7h9876335",
+      "id": 4,
       "numbers": [4, 12, 20, 28, 36, 44],
       "createdAt": "2025-11-05T10:30:00Z"
     },
     {
-      "id": "e7ff589i-2fi3-7222-3356-egi8i0987446",
+      "id": 5,
       "numbers": [6, 14, 22, 30, 38, 3],
       "createdAt": "2025-11-05T10:30:00Z"
     },
     {
-      "id": "f8gg689j-3gj4-8333-4467-fhj9j1098557",
+      "id": 6,
       "numbers": [8, 16, 24, 32, 40, 11],
       "createdAt": "2025-11-05T10:30:00Z"
     },
     {
-      "id": "g9hh789k-4hk5-9444-5578-gik0k2109668",
+      "id": 7,
       "numbers": [5, 13, 21, 29, 37, 19],
       "createdAt": "2025-11-05T10:30:00Z"
     },
     {
-      "id": "h0ii890l-5il6-0555-6689-hjl1l3210779",
+      "id": 8,
       "numbers": [49, 48, 46, 45, 43, 27],
       "createdAt": "2025-11-05T10:30:00Z"
     },
     {
-      "id": "i1jj901m-6jm7-1666-7790-ikm2m4321880",
+      "id": 9,
       "numbers": [35, 11, 19, 27, 35, 43],
       "createdAt": "2025-11-05T10:30:00Z"
     }

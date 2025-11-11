@@ -56,16 +56,21 @@ PUT /api/tickets/{id}
 
 ```json
 {
+  "groupName": "Rodzina",
   "numbers": [7, 15, 22, 33, 38, 45]
 }
 ```
 
 #### Struktura Request DTO
 ```csharp
-public record UpdateTicketRequest(int[] Numbers);
+public record UpdateTicketRequest(string? GroupName, int[] Numbers);
 ```
 
 #### Walidacja Request Body
+- `groupName`:
+  - **Wymagane:** Nie (opcjonalne)
+  - **Max długość:** 100 znaków
+  - **Domyślnie:** Pusty string jeśli nie podano
 - `numbers`: 
   - **Wymagane:** Nie może być null
   - **Długość:** Dokładnie 6 elementów
@@ -85,7 +90,7 @@ namespace LottoTM.Server.Api.Features.Tickets;
 public class UpdateTicketContracts
 {
     // Request zawiera ID z route i body z liczbami
-    public record Request(int TicketId, int[] Numbers) : IRequest<Response>;
+    public record Request(int TicketId, string? GroupName, int[] Numbers) : IRequest<Response>;
     
     // Response dla sukcesu
     public record Response(string Message);
@@ -440,9 +445,9 @@ if (ticket.UserId != currentUserId)
 - **Ochrona:** Używamy dedykowanych DTOs (Request/Response)
 - Użytkownik nie może modyfikować `UserId`, `CreatedAt`, `Id`
 
-#### GUID Enumeration
-- **Ochrona:** Używamy GUID zamiast INT dla `Ticket.Id`
-- Trudniejsze odgadnięcie ID innych zestawów (128-bit UUID)
+#### ID Enumeration Protection
+- **Ochrona:** Security by obscurity - zwracanie 403 zamiast 404 dla nieistniejących zasobów
+- Weryfikacja własności zasobu przed ujawnieniem informacji o istnieniu
 
 #### CSRF (Cross-Site Request Forgery)
 - **Ochrona:** JWT w header (nie w cookies)
@@ -603,13 +608,13 @@ WWW-Authenticate: Bearer error="invalid_token", error_description="The token exp
 
 **Logi:**
 ```
-[Warning] Użytkownik 123 próbował edytować cudzy zestaw a3bb189e-8bf9-3888-9912-ace4e6543002
+[Warning] Użytkownik 123 próbował edytować cudzy zestaw 1
 ```
 
 #### 7.2.4 Błędy zasobu (404 Not Found)
 
 ##### Nieistniejący zestaw
-**Request:** `PUT /api/tickets/99999999-9999-9999-9999-999999999999`
+**Request:** `PUT /api/tickets/123`
 
 **Response:**
 ```json
@@ -633,7 +638,7 @@ WWW-Authenticate: Bearer error="invalid_token", error_description="The token exp
 
 **Logi:**
 ```
-[Error] Błąd podczas aktualizacji zestawu a3bb189e-8bf9-3888-9912-ace4e6543002
+[Error] Błąd podczas aktualizacji zestawu 123
 Microsoft.Data.SqlClient.SqlException: A network-related or instance-specific error...
 ```
 
@@ -737,8 +742,8 @@ var existingTickets = await _context.Tickets
 
 #### 8.2.3 Compiled Queries (dla często używanych zapytań)
 ```csharp
-private static readonly Func<AppDbContext, Guid, Task<Ticket?>> GetTicketById =
-    EF.CompileAsyncQuery((AppDbContext context, Guid id) =>
+private static readonly Func<AppDbContext, int, Task<Ticket?>> GetTicketById =
+    EF.CompileAsyncQuery((AppDbContext context, int id) =>
         context.Tickets
             .Include(t => t.Numbers)
             .FirstOrDefault(t => t.Id == id)
@@ -842,7 +847,7 @@ public class Contracts
     /// Request do aktualizacji zestawu liczb.
     /// Zawiera ID zestawu (z route) i nowe liczby (z body).
     /// </summary>
-    public record Request(Guid TicketId, int[] Numbers) : IRequest<Response>;
+    public record Request(int TicketId, int[] Numbers) : IRequest<Response>;
     
     /// <summary>
     /// Response dla udanej aktualizacji.
@@ -898,10 +903,10 @@ public class Validator : AbstractValidator<Contracts.Request>
             .WithMessage("Liczby muszą być unikalne")
             .When(x => x.Numbers != null && x.Numbers.Length == 6);
         
-        // Walidacja GUID (TicketId)
+        // Walidacja ID zestawu
         RuleFor(x => x.TicketId)
-            .NotEmpty()
-            .WithMessage("ID zestawu jest wymagane");
+            .GreaterThan(0)
+            .WithMessage("ID zestawu musi być liczbą większą od 0");
     }
 }
 ```
@@ -1110,8 +1115,8 @@ public static class Endpoint
     /// </summary>
     public static void AddEndpoint(this IEndpointRouteBuilder app)
     {
-        app.MapPut("api/tickets/{id:guid}", async (
-            Guid id,
+        app.MapPut("api/tickets/{id:int}", async (
+            int id,
             UpdateTicketRequest body,
             IMediator mediator,
             CancellationToken cancellationToken) =>
@@ -1144,7 +1149,7 @@ public static class Endpoint
 ```
 
 **Wyjaśnienie:**
-- `{id:guid}` - route constraint dla GUID
+- `{id:int}` - route constraint dla INT
 - `RequireAuthorization()` - wymusza JWT authentication
 - `UpdateTicketRequest` - pomocniczy DTO dla deserializacji body
 - `Produces<T>()` - dokumentacja OpenAPI (Swagger)
@@ -1205,7 +1210,7 @@ public class UpdateTicketTests : IDisposable
     {
         // Arrange
         var validator = new Validator();
-        var request = new Contracts.Request(Guid.NewGuid(), null!);
+        var request = new Contracts.Request(1, null!);
 
         // Act
         var result = await validator.ValidateAsync(request);
@@ -1220,7 +1225,7 @@ public class UpdateTicketTests : IDisposable
     {
         // Arrange
         var validator = new Validator();
-        var request = new Contracts.Request(Guid.NewGuid(), new[] { 1, 2, 3, 4, 5 });
+        var request = new Contracts.Request(1, new[] { 1, 2, 3, 4, 5 });
 
         // Act
         var result = await validator.ValidateAsync(request);
@@ -1235,7 +1240,7 @@ public class UpdateTicketTests : IDisposable
     {
         // Arrange
         var validator = new Validator();
-        var request = new Contracts.Request(Guid.NewGuid(), new[] { 0, 2, 3, 4, 5, 50 });
+        var request = new Contracts.Request(1, new[] { 0, 2, 3, 4, 5, 50 });
 
         // Act
         var result = await validator.ValidateAsync(request);
@@ -1250,7 +1255,7 @@ public class UpdateTicketTests : IDisposable
     {
         // Arrange
         var validator = new Validator();
-        var request = new Contracts.Request(Guid.NewGuid(), new[] { 1, 2, 3, 3, 5, 6 });
+        var request = new Contracts.Request(1, new[] { 1, 2, 3, 3, 5, 6 });
 
         // Act
         var result = await validator.ValidateAsync(request);
@@ -1265,7 +1270,7 @@ public class UpdateTicketTests : IDisposable
     {
         // Arrange
         var validator = new Validator();
-        var request = new Contracts.Request(Guid.NewGuid(), new[] { 7, 15, 22, 33, 38, 45 });
+        var request = new Contracts.Request(1, new[] { 7, 15, 22, 33, 38, 45 });
 
         // Act
         var result = await validator.ValidateAsync(request);
@@ -1349,11 +1354,11 @@ public class UpdateTicketIntegrationTests : IClassFixture<WebApplicationFactory<
       }
     },
     "url": {
-      "raw": "https://localhost:7000/api/tickets/a3bb189e-8bf9-3888-9912-ace4e6543002",
+      "raw": "https://localhost:7000/api/tickets/123",
       "protocol": "https",
       "host": ["localhost"],
       "port": "7000",
-      "path": ["api", "tickets", "a3bb189e-8bf9-3888-9912-ace4e6543002"]
+      "path": ["api", "tickets", "123"]
     }
   }
 }

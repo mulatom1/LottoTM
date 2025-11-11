@@ -174,12 +174,14 @@
     {
       "id": 1,
       "drawDate": "2025-10-30",
+      "lottoType": "LOTTO",
       "numbers": [3, 12, 25, 31, 42, 48],
       "createdAt": "2025-10-30T18:30:00Z"
     },
     {
       "id": 2,
       "drawDate": "2025-10-28",
+      "lottoType": "LOTTO PLUS",
       "numbers": [5, 14, 23, 29, 37, 41],
       "createdAt": "2025-10-28T19:00:00Z"
     }
@@ -229,6 +231,7 @@
 {
   "id": 123,
   "drawDate": "2025-10-30",
+  "lottoType": "LOTTO",
   "numbers": [3, 12, 25, 31, 42, 48],
   "createdAt": "2025-10-30T18:30:00Z"
 }
@@ -264,6 +267,7 @@
 ```json
 {
   "drawDate": "2025-10-30",
+  "lottoType": "LOTTO",
   "numbers": [3, 12, 25, 31, 42, 48]
 }
 ```
@@ -276,10 +280,14 @@
 ```
 
 **Walidacja:**
-- `drawDate`: wymagane, format DATE (YYYY-MM-DD), nie może być w przyszłości, unikalny globalnie
+- `drawDate`: wymagane, format DATE (YYYY-MM-DD), nie może być w przyszłości
+- `lottoType`: wymagane, wartość "LOTTO" lub "LOTTO PLUS" (CHECK constraint)
 - `numbers`: wymagane, tablica 6 liczb INT
   - Każda liczba w zakresie 1-49 (CHECK constraint)
   - Liczby muszą być unikalne (walidacja backend)
+- Unikalne połączenie (drawDate, lottoType) - nie można dodać dwóch losowań tego samego typu w tym samym dniu
+- Tylko użytkownicy z uprawnieniami administratora mogą dodawać losowania (IsAdmin)
+- Jeśli losowanie o danym (drawDate, lottoType) już istnieje, powiadomienie że losowanie o danym (drawDate, lottoType) już istnieje.
 
 **Kody sukcesu:**
 - `201 Created` - Losowanie utworzone
@@ -290,8 +298,10 @@
   ```json
   {
     "errors": {
-      "drawDate": ["Data losowania nie może być w przyszłości", "Losowanie z tą datą już istnieje"],
-      "numbers": ["Wymagane dokładnie 6 liczb", "Liczby muszą być unikalne", "Liczby muszą być w zakresie 1-49"]
+      "drawDate": ["Data losowania nie może być w przyszłości"],
+      "lottoType": ["Wymagana wartość: LOTTO lub LOTTO PLUS"],
+      "numbers": ["Wymagane dokładnie 6 liczb", "Liczby muszą być unikalne", "Liczby muszą być w zakresie 1-49"],
+      "duplicate": ["Losowanie typu {lottoType} na datę {drawDate} już istnieje"]
     }
   }
   ```
@@ -300,11 +310,12 @@
 1. Pobranie `UserId` z JWT (dla CreatedByUserId)
 2. Walidacja:
    - `drawDate` ≤ dzisiejsza data
+   - `lottoType` IN ('LOTTO', 'LOTTO PLUS')
    - `numbers.length == 6`
    - Wszystkie liczby w zakresie 1-49
    - Liczby unikalne: `numbers.Distinct().Count() == 6`
-3. Sprawdzenie czy losowanie na daną datę już istnieje:
-   - Jeśli TAK: nadpisanie istniejącego (UPDATE Draws + DELETE/INSERT DrawNumbers)
+3. Sprawdzenie czy losowanie o danej (drawDate, lottoType) już istnieje (UNIQUE constraint):
+   - Jeśli TAK: zwrot błedu z komunikatem o istnieniu
    - Jeśli NIE: utworzenie nowego
 4. Transakcja: INSERT do `Draws` + 6x INSERT do `DrawNumbers` (Position 1-6)
 5. Zwrot komunikatu o sukcesie
@@ -359,6 +370,7 @@
 ```json
 {
   "drawDate": "2025-10-30",
+  "lottoType": "LOTTO",
   "numbers": [3, 12, 25, 31, 42, 48]
 }
 ```
@@ -372,6 +384,7 @@
 
 **Walidacja:**
 - `drawDate`: wymagane, format DATE (YYYY-MM-DD), nie może być w przyszłości
+- `lottoType`: wymagane, wartość "LOTTO" lub "LOTTO PLUS" (CHECK constraint)
 - `numbers`: wymagane, tablica 6 liczb INT
   - Każda liczba w zakresie 1-49 (CHECK constraint)
   - Liczby muszą być unikalne (walidacja backend)
@@ -388,6 +401,7 @@
   {
     "errors": {
       "drawDate": ["Data losowania nie może być w przyszłości"],
+      "lottoType": ["Wymagana wartość: LOTTO lub LOTTO PLUS"],
       "numbers": ["Wymagane dokładnie 6 liczb", "Liczby muszą być unikalne", "Liczby muszą być w zakresie 1-49"]
     }
   }
@@ -398,7 +412,7 @@
 2. Jeśli IsAdmin == false: zwróć 403 Forbidden
 3. Walidacja danych jak w POST /api/draws
 4. Sprawdzenie czy losowanie o podanym ID istnieje
-5. Transakcja: UPDATE `Draws.DrawDate` + DELETE wszystkich `DrawNumbers` + 6x INSERT nowych `DrawNumbers`
+5. Transakcja: UPDATE `Draws.DrawDate` i `Draws.LottoType` + DELETE wszystkich `DrawNumbers` + 6x INSERT nowych `DrawNumbers`
 6. Zwrot komunikatu o sukcesie
 
 ---
@@ -422,22 +436,21 @@
 {
   "tickets": [
     {
-      "id": "a3bb189e-8bf9-3888-9912-ace4e6543002",
+      "id": 1,
       "userId": 123,
+      "groupName": "Ulubione",
       "numbers": [5, 14, 23, 29, 37, 41],
       "createdAt": "2025-10-25T10:00:00Z"
     },
     {
-      "id": "b2cc289f-9cf0-4999-0023-bde5f7654113",
+      "id": 2,
       "userId": 123,
+      "groupName": "Niecodzienne",
       "numbers": [3, 12, 18, 25, 31, 44],
       "createdAt": "2025-10-24T15:30:00Z"
     }
   ],
   "totalCount": 42,
-  "page": 1,
-  "pageSize": 50,
-  "totalPages": 1,
   "limit": 100
 }
 ```
@@ -452,7 +465,7 @@
 1. Pobranie `UserId` z JWT
 2. Zapytanie: `SELECT * FROM Tickets WHERE UserId = @currentUserId ORDER BY CreatedAt DESC`
 3. Użycie indeksu IX_Tickets_UserId
-4. Zwrot listy + metadanych (totalCount, limit 100)
+4. Zwrot listy
 
 ---
 
@@ -472,6 +485,7 @@
 {
   "id": 123,
   "userId": 123,
+  "groupName": "Ulubione",
   "numbers": [5, 14, 23, 29, 37, 41],
   "createdAt": "2025-10-25T10:00:00Z"
 }
@@ -503,11 +517,13 @@
 **Payload żądania:**
 ```json
 {
+  "groupName": "Ulubione",
   "numbers": [5, 14, 23, 29, 37, 41]
 }
 ```
 
 **Walidacja:**
+- `groupName`: opcjonalne, string max 100 znaków (domyślnie pusty string jeśli nie podano)
 - `numbers`: wymagane, tablica 6 liczb INT
   - Każda liczba w zakresie 1-49 (CHECK constraint)
   - Liczby muszą być unikalne
@@ -568,11 +584,13 @@
 **Payload żądania:**
 ```json
 {
+  "groupName": "Rodzina",
   "numbers": [7, 15, 22, 33, 38, 45]
 }
 ```
 
 **Walidacja:**
+- `groupName`: opcjonalne, string max 100 znaków (domyślnie pusty string jeśli nie podano)
 - `numbers`: wymagane, tablica 6 liczb INT
   - Każda liczba w zakresie 1-49 (CHECK constraint)
   - Liczby muszą być unikalne
@@ -810,12 +828,13 @@
 {
   "results": [
     {
-      "ticketId": "a3bb189e-8bf9-3888-9912-ace4e6543002",
+      "ticketId": 1,
       "numbers": [3, 12, 25, 31, 42, 48],
       "draws": [
         {
           "drawId": 123,
           "drawDate": "2025-10-28",
+          "lottoType": "LOTTO",
           "drawNumbers": [12, 18, 25, 31, 40, 49],
           "matchCount": 3,
           "matchedNumbers": [12, 25, 31]
@@ -823,7 +842,7 @@
       ]
     },
     {
-      "ticketId": "b2cc289f-9cf0-4999-0023-bde5f7654113",
+      "ticketId": 2,
       "numbers": [1, 2, 3, 4, 5, 6],
       "draws": []
     }
@@ -1070,8 +1089,10 @@ public class RegisterRequestValidator : AbstractValidator<RegisterRequest>
 
 | Pole | Walidacja | Komunikat błędu |
 |------|-----------|----------------|
-| `drawDate` | - Wymagane<br>- Format DATE (YYYY-MM-DD)<br>- Nie może być w przyszłości<br>- Unikalny globalnie | - "Data losowania jest wymagana"<br>- "Nieprawidłowy format daty"<br>- "Data losowania nie może być w przyszłości"<br>- "Losowanie z tą datą już istnieje" |
+| `drawDate` | - Wymagane<br>- Format DATE (YYYY-MM-DD)<br>- Nie może być w przyszłości | - "Data losowania jest wymagana"<br>- "Nieprawidłowy format daty"<br>- "Data losowania nie może być w przyszłości" |
+| `lottoType` | - Wymagane<br>- Wartość "LOTTO" lub "LOTTO PLUS" (CHECK constraint) | - "LottoType jest wymagany"<br>- "Wymagana wartość: LOTTO lub LOTTO PLUS" |
 | `numbers` | - Wymagane<br>- Tablica 6 liczb INT<br>- Każda liczba w zakresie 1-49 (CHECK constraint)<br>- Liczby unikalne | - "Wymagane dokładnie 6 liczb"<br>- "Liczby muszą być w zakresie 1-49"<br>- "Liczby muszą być unikalne" |
+| **Kombinacja** | - Unikalność (drawDate, lottoType) globalnie | - "Losowanie typu {lottoType} na datę {drawDate} już istnieje" |
 
 **Implementacja (FluentValidation):**
 ```csharp
@@ -1083,6 +1104,10 @@ public class DrawRequestValidator : AbstractValidator<DrawRequest>
             .NotEmpty().WithMessage("Data losowania jest wymagana")
             .LessThanOrEqualTo(DateTime.Today).WithMessage("Data losowania nie może być w przyszłości");
 
+        RuleFor(x => x.LottoType)
+            .NotEmpty().WithMessage("LottoType jest wymagany")
+            .Must(lt => lt == "LOTTO" || lt == "LOTTO PLUS").WithMessage("Wymagana wartość: LOTTO lub LOTTO PLUS");
+
         RuleFor(x => x.Numbers)
             .NotEmpty().WithMessage("Liczby są wymagane")
             .Must(n => n.Count == 6).WithMessage("Wymagane dokładnie 6 liczb")
@@ -1092,16 +1117,16 @@ public class DrawRequestValidator : AbstractValidator<DrawRequest>
 }
 ```
 
-**Walidacja unikalności daty (backend logic):**
+**Walidacja unikalności (drawDate, lottoType) (backend logic):**
 ```csharp
 var exists = await db.Draws
-    .Where(d => d.DrawDate == request.DrawDate)
+    .Where(d => d.DrawDate == request.DrawDate && d.LottoType == request.LottoType)
     .AnyAsync();
 
 // Draws jest globalny, więc nie filtrujemy po UserId
 // Przy POST: jeśli exists, możemy nadpisać (UPDATE) lub zwrócić błąd (decyzja biznesowa)
 if (exists)
-    return BadRequest(new { errors = new { drawDate = new[] { "Losowanie z tą datą już istnieje" } } });
+    return BadRequest(new { errors = new { duplicate = new[] { $"Losowanie typu {request.LottoType} na datę {request.DrawDate} już istnieje" } } });
 ```
 
 ---
@@ -1366,7 +1391,7 @@ public List<int[]> GenerateSystemTickets()
 4. **Tickets.Id jako INT** - Auto-increment integer dla prostoty i wydajności w MVP
 5. **Opcja C dla edycji** - nadpisanie bez historii weryfikacji (db-plan.md)
 6. **Weryfikacja on-demand** - brak tabeli TicketVerifications w MVP
-7. **Paginacja dla list** - wszystkie endpointy GET zwracające listy (draws, tickets)
+7. **Paginacja dla list** - endpointy GET zwracające list losowań (Draws)
 8. **IsAdmin flaga** - uprawnienia administratora dla zarządzania losowaniami (dodawanie/edycja/usuwanie)
 9. **Indeksy** - IX_Users_Email, IX_Tickets_UserId, IX_Draws_DrawDate, IX_DrawNumbers_DrawId, IX_TicketNumbers_TicketId dla wydajności
 10. **Walidacja w 2 warstwach** - FluentValidation (request DTOs) + logika biznesowa (limity, unikalność)

@@ -46,6 +46,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var request = new
         {
+            lottoType = "LOTTO",
             drawDate = "2025-01-20",
             numbers = new[] { 3, 12, 25, 31, 42, 48 }
         };
@@ -110,6 +111,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var request = new
         {
+            lottoType = "LOTTO",
             drawDate = "2025-01-20",
             numbers = new[] { 3, 12, 25, 31, 42, 48 }
         };
@@ -139,6 +141,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var request = new
         {
+            lottoType = "LOTTO",
             drawDate = "2025-01-20",
             numbers = new[] { 3, 12, 25, 31, 42, 48 }
         };
@@ -323,6 +326,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var request = new
         {
+            lottoType = "LOTTO",
             drawDate = "2025-01-15", // ta sama data
             numbers = new[] { 3, 12, 25, 31, 42, 48 } // tylko liczby się zmieniają
         };
@@ -424,6 +428,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         var draw = new Draw
         {
             DrawDate = drawDate,
+            LottoType = "LOTTO",
             CreatedAt = DateTime.UtcNow,
             CreatedByUserId = userId
         };
