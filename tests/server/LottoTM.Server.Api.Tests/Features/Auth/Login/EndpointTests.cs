@@ -65,7 +65,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var result = await response.Content.ReadFromJsonAsync<Contracts.LoginResponse>();
+        var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
         Assert.NotNull(result);
         Assert.NotEmpty(result.Token);
         Assert.Equal("test@example.com", result.Email);
@@ -99,7 +99,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var result = await response.Content.ReadFromJsonAsync<Contracts.LoginResponse>();
+        var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
         Assert.NotNull(result);
         Assert.NotEmpty(result.Token);
         Assert.Equal("admin@example.com", result.Email);

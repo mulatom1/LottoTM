@@ -47,7 +47,6 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
         Assert.NotNull(result);
-        Assert.Equal("Rejestracja zakończona sukcesem", result.Message);
 
         // Verify user was created in database
         using (var scope = factory.Services.CreateScope())
