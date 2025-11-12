@@ -228,7 +228,7 @@ function TicketsPage() {
   /**
    * Handler: Zapisz wygenerowany losowy zestaw
    */
-  const handleSaveGeneratedRandom = async (numbers: number[]) => {
+  const handleSaveGeneratedRandom = async (numbers: number[], groupName: string) => {
     if (!apiService) return;
 
     // Sprawdzenie limitu ponownie (race condition)
@@ -240,7 +240,7 @@ function TicketsPage() {
     }
 
     try {
-      await apiService.ticketsCreate({ numbers });
+      await apiService.ticketsCreate({ numbers, groupName });
       setToastMessage('Zestaw wygenerowany i zapisany');
       setToastVariant('success');
       setIsGeneratorPreviewOpen(false);
@@ -281,7 +281,7 @@ function TicketsPage() {
   /**
    * Handler: Zapisz 9 wygenerowanych zestawów systemowych
    */
-  const handleSaveGeneratedSystem = async () => {
+  const handleSaveGeneratedSystem = async (systemTickets: number[][], groupName: string) => {
     if (!apiService) return;
 
     const available = 100 - totalCount;
@@ -297,8 +297,15 @@ function TicketsPage() {
     }
 
     try {
-      await apiService.ticketsGenerateSystem();
-      setToastMessage('9 zestawów wygenerowanych i zapisanych');
+      // Zapisz każdy zestaw osobno z tą samą nazwą grupy
+      for (const numbers of systemTickets) {
+        await apiService.ticketsCreate({
+          numbers,
+          groupName: groupName || undefined
+        });
+      }
+
+      setToastMessage('9 zestawów systemowych zapisanych pomyślnie');
       setToastVariant('success');
       setIsGeneratorPreviewOpen(false);
       await fetchTickets();

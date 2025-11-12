@@ -14,13 +14,14 @@ const GeneratorSystemPreviewModal: React.FC<GeneratorSystemPreviewModalProps> = 
   onSaveAll
 }) => {
   const [isSaving, setIsSaving] = React.useState(false);
+  const [groupName, setGroupName] = React.useState('');
 
   const handleSaveAll = async () => {
     setIsSaving(true);
     try {
-      await onSaveAll();
+      await onSaveAll(tickets, groupName);
       // Sukces - parent component zamyka modal i pokazuje toast
-    } catch (error) {
+    } catch {
       // Błędy obsługiwane w parent component
     } finally {
       setIsSaving(false);
@@ -39,6 +40,19 @@ const GeneratorSystemPreviewModal: React.FC<GeneratorSystemPreviewModalProps> = 
           Generator tworzy 9 zestawów pokrywających wszystkie liczby od 1 do 49.
           Każda liczba pojawia się minimum raz.
         </p>
+        <div className="mt-3">
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Nazwa grupy (opcjonalna)
+          </label>
+          <input
+            type="text"
+            value={groupName}
+            onChange={(e) => setGroupName(e.target.value)}
+            placeholder="np. System marzec 2024"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            disabled={isSaving}
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 max-h-[60vh] overflow-y-auto">

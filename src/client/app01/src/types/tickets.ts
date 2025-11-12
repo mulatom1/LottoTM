@@ -108,7 +108,7 @@ export interface GeneratorPreviewModalProps {
   onClose: () => void;
   numbers: number[];
   onRegenerate: () => void;
-  onSave: (numbers: number[]) => Promise<void>;
+  onSave: (numbers: number[], groupName: string) => Promise<void>;
 }
 
 export interface GeneratorSystemPreviewModalProps {
@@ -116,7 +116,7 @@ export interface GeneratorSystemPreviewModalProps {
   onClose: () => void;
   tickets: number[][];
   onRegenerate: () => void;
-  onSaveAll: () => Promise<void>;
+  onSaveAll: (tickets: number[][], groupName: string) => Promise<void>;
 }
 
 export interface DeleteConfirmModalProps {

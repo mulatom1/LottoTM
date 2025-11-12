@@ -14,11 +14,19 @@ const GeneratorPreviewModal: React.FC<GeneratorPreviewModalProps> = ({
   onSave
 }) => {
   const [isSaving, setIsSaving] = React.useState(false);
+  const [groupName, setGroupName] = React.useState('');
+
+  // Reset groupName when modal opens or numbers change (regenerate)
+  React.useEffect(() => {
+    if (isOpen) {
+      setGroupName('');
+    }
+  }, [isOpen, numbers]);
 
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await onSave(numbers);
+      await onSave(numbers, groupName);
       // Sukces - parent component zamyka modal i pokazuje toast
     } catch (error) {
       // Błędy obsługiwane w parent component
@@ -41,6 +49,21 @@ const GeneratorPreviewModal: React.FC<GeneratorPreviewModalProps> = ({
             </span>
           ))}
         </div>
+      </div>
+
+      <div className="mb-6">
+        <label htmlFor="groupName" className="block text-sm font-medium text-gray-700 mb-2">
+          Nazwa zestawu (opcjonalnie)
+        </label>
+        <input
+          id="groupName"
+          type="text"
+          value={groupName}
+          onChange={(e) => setGroupName(e.target.value)}
+          placeholder="Podaj nazwę zestawu..."
+          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          disabled={isSaving}
+        />
       </div>
 
       <div className="flex flex-col sm:flex-row justify-between gap-2">
