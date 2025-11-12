@@ -7,7 +7,7 @@ public class Contracts
     /// <summary>
     /// Login request containing user credentials
     /// </summary>
-    public record LoginRequest : IRequest<LoginResponse>
+    public record Request : IRequest<Response>
     {
         /// <summary>
         /// User's email address
@@ -28,7 +28,7 @@ public class Contracts
     /// <param name="Email">User's email address</param>
     /// <param name="IsAdmin">Flag indicating if user has admin privileges</param>
     /// <param name="ExpiresAt">Token expiration timestamp (UTC)</param>
-    public record LoginResponse(
+    public record Response(
         string Token,
         int UserId,
         string Email,

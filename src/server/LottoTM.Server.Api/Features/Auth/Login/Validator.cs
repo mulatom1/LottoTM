@@ -5,7 +5,7 @@ namespace LottoTM.Server.Api.Features.Auth.Login;
 /// <summary>
 /// Validator for login request input data
 /// </summary>
-public class Validator : AbstractValidator<Contracts.LoginRequest>
+public class Validator : AbstractValidator<Contracts.Request>
 {
     public Validator()
     {

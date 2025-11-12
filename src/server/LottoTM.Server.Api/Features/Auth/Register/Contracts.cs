@@ -20,8 +20,18 @@ public class Contracts
     ) : IRequest<Response>;
 
     /// <summary>
-    /// Registration response with success message
+    /// Registration response containing JWT token and user information
     /// </summary>
-    /// <param name="Message">Success message</param>
-    public record Response(string Message);
+    /// <param name="Token">JWT bearer token for authentication</param>
+    /// <param name="UserId">Unique user identifier</param>
+    /// <param name="Email">User's email address</param>
+    /// <param name="IsAdmin">Flag indicating if user has admin privileges</param>
+    /// <param name="ExpiresAt">Token expiration timestamp (UTC)</param>
+    public record Response(
+         string Token,
+         int UserId,
+         string Email,
+         bool IsAdmin,
+         DateTime ExpiresAt
+     );
 }

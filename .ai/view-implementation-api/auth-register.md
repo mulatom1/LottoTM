@@ -51,7 +51,13 @@ public class Contracts
         string ConfirmPassword
     ) : IRequest<Response>;
 
-    public record Response(string Message);
+    public record Response(
+        string Token,
+        int UserId,
+        string Email,
+        bool IsAdmin,
+        DateTime ExpiresAt
+    );
 }
 ```
 
@@ -80,7 +86,11 @@ public class User
 
 ```json
 {
-  "message": "Rejestracja zakończona sukcesem"
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "userId": 123,
+  "email": "user@example.com",
+  "isAdmin": false,
+  "expiresAt": "2025-11-04T10:30:00Z"
 }
 ```
 
@@ -205,8 +215,9 @@ public class User
        ▼
 ┌─────────────────────────────────────┐
 │         Handler.cs                  │
+│  Generate JWT Token                 │
 │  Return Response                    │
-│  { message: "..." }                 │
+│  { token, userId, email, ... }      │
 └──────┬──────────────────────────────┘
        │
        │ 201 Created or 400 Bad Request
@@ -239,11 +250,15 @@ public class User
      - CreatedAt = DateTime.UtcNow
    - Dodaje użytkownika do DbContext
    - Zapisuje zmiany w bazie danych
-6. **Obsługa błędów bazy danych:**
+6. **Generowanie JWT tokenu (automatyczne logowanie):**
+   - Generowanie tokenu JWT (ważność 24h)
+   - Claims: UserId, Email, IsAdmin
+   - Zwrot tokenu wraz z danymi użytkownika
+7. **Obsługa błędów bazy danych:**
    - UNIQUE constraint violation → 400 Bad Request
    - Inne błędy → 500 Internal Server Error
-7. **Zwrócenie odpowiedzi:**
-   - 201 Created z komunikatem sukcesu
+8. **Zwrócenie odpowiedzi:**
+   - 201 Created z tokenem JWT i danymi użytkownika (automatyczne logowanie po rejestracji)
 
 ## 6. Względy bezpieczeństwa
 
@@ -395,6 +410,7 @@ app.UseMiddleware<ExceptionHandlingMiddleware>();
   "Message": "User registered successfully",
   "Properties": {
     "Email": "user@example.com",
+    "UserId": 123,
     "Endpoint": "POST /api/auth/register",
     "SourceContext": "LottoTM.Server.Api.Features.Auth.Register.Handler"
   }
@@ -465,7 +481,13 @@ public class Contracts
         string ConfirmPassword
     ) : IRequest<Response>;
 
-    public record Response(string Message);
+    public record Response(
+        string Token,
+        int UserId,
+        string Email,
+        bool IsAdmin,
+        DateTime ExpiresAt
+    );
 }
 ```
 
@@ -554,15 +576,18 @@ public class RegisterHandler : IRequestHandler<Contracts.Request, Contracts.Resp
 {
     private readonly AppDbContext _dbContext;
     private readonly IValidator<Contracts.Request> _validator;
+    private readonly IJwtService _jwtService;
     private readonly ILogger<RegisterHandler> _logger;
 
     public RegisterHandler(
         AppDbContext dbContext,
         IValidator<Contracts.Request> validator,
+        IJwtService jwtService,
         ILogger<RegisterHandler> logger)
     {
         _dbContext = dbContext;
         _validator = validator;
+        _jwtService = jwtService;
         _logger = logger;
     }
 
@@ -593,13 +618,23 @@ public class RegisterHandler : IRequestHandler<Contracts.Request, Contracts.Resp
         _dbContext.Users.Add(user);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        // 5. Logowanie sukcesu
+        // 5. Generowanie JWT tokenu (automatyczne logowanie)
+        var token = _jwtService.GenerateToken(user.Id, user.Email, user.IsAdmin);
+        var expiresAt = DateTime.UtcNow.AddHours(24);
+
+        // 6. Logowanie sukcesu
         _logger.LogInformation(
             "User registered successfully: {Email}",
             request.Email);
 
-        // 6. Zwrócenie odpowiedzi
-        return new Contracts.Response("Rejestracja zakończona sukcesem");
+        // 7. Zwrócenie odpowiedzi z tokenem JWT
+        return new Contracts.Response(
+            Token: token,
+            UserId: user.Id,
+            Email: user.Email,
+            IsAdmin: user.IsAdmin,
+            ExpiresAt: expiresAt
+        );
     }
 }
 ```
@@ -725,7 +760,11 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
         result.Should().NotBeNull();
-        result!.Message.Should().Be("Rejestracja zakończona sukcesem");
+        result!.Token.Should().NotBeEmpty();
+        result!.UserId.Should().BeGreaterThan(0);
+        result!.Email.Should().Be("test@example.com");
+        result!.IsAdmin.Should().BeFalse();
+        result!.ExpiresAt.Should().BeAfter(DateTime.UtcNow);
     }
 
     [Fact]

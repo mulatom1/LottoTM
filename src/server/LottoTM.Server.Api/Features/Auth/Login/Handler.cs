@@ -10,17 +10,17 @@ namespace LottoTM.Server.Api.Features.Auth.Login;
 /// Handler for processing login requests
 /// Validates credentials and generates JWT token
 /// </summary>
-public class LoginHandler : IRequestHandler<Contracts.LoginRequest, Contracts.LoginResponse>
+public class LoginHandler : IRequestHandler<Contracts.Request, Contracts.Response>
 {
     private readonly AppDbContext _dbContext;
     private readonly IJwtService _jwtService;
-    private readonly IValidator<Contracts.LoginRequest> _validator;
+    private readonly IValidator<Contracts.Request> _validator;
     private readonly ILogger<LoginHandler> _logger;
 
     public LoginHandler(
         AppDbContext dbContext,
         IJwtService jwtService,
-        IValidator<Contracts.LoginRequest> validator,
+        IValidator<Contracts.Request> validator,
         ILogger<LoginHandler> logger)
     {
         _dbContext = dbContext;
@@ -35,9 +35,10 @@ public class LoginHandler : IRequestHandler<Contracts.LoginRequest, Contracts.Lo
     /// 2. Finding user by email
     /// 3. Verifying password with BCrypt
     /// 4. Generating JWT token
+    /// 5. Utworzenie odpowiedzi
     /// </summary>
-    public async Task<Contracts.LoginResponse> Handle(
-        Contracts.LoginRequest request,
+    public async Task<Contracts.Response> Handle(
+        Contracts.Request request,
         CancellationToken cancellationToken)
     {
         // 1. Walidacja danych wejściowych
@@ -83,7 +84,7 @@ public class LoginHandler : IRequestHandler<Contracts.LoginRequest, Contracts.Lo
         );
 
         // 5. Utworzenie odpowiedzi
-        return new Contracts.LoginResponse(
+        return new Contracts.Response(
             Token: token,
             UserId: user.Id,
             Email: user.Email,

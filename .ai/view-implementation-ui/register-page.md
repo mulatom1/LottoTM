@@ -2,7 +2,7 @@
 
 ## 1. Przegląd
 
-Widok rejestracji umożliwia nowym użytkownikom utworzenie konta w systemie LottoTM. Formularz rejestracyjny zbiera podstawowe dane (email, hasło, potwierdzenie hasła) i po pomyślnej walidacji tworzy nowe konto użytkownika. W MVP nie ma wymaganej weryfikacji adresu email - użytkownik po rejestracji zostaje automatycznie przekierowany na stronę logowania.
+Widok rejestracji umożliwia nowym użytkownikom utworzenie konta w systemie LottoTM. Formularz rejestracyjny zbiera podstawowe dane (email, hasło, potwierdzenie hasła) i po pomyślnej walidacji tworzy nowe konto użytkownika. W MVP nie ma wymaganej weryfikacji adresu email - użytkownik po rejestracji zostaje automatycznie zalogowany (backend zwraca token JWT) i przekierowany do aplikacji (`/tickets`).
 
 ## 2. Routing widoku
 
@@ -10,7 +10,7 @@ Widok rejestracji umożliwia nowym użytkownikom utworzenie konta w systemie Lot
 
 **Dostęp:** Publiczny (niezalogowani użytkownicy)
 
-**Redirect po sukcesie:** `/login` (użytkownik musi się zalogować po rejestracji)
+**Redirect po sukcesie:** `/tickets` (automatyczne logowanie - backend zwraca token JWT)
 
 ## 3. Struktura komponentów
 
@@ -214,7 +214,11 @@ interface RegisterRequest {
 
 // Response z POST /api/auth/register (sukces)
 interface RegisterResponse {
-  message: string; // "Rejestracja zakończona sukcesem"
+  token: string;
+  userId: number;
+  email: string;
+  isAdmin: boolean;
+  expiresAt: string; // ISO 8601 datetime
 }
 
 // Response z POST /api/auth/register (błąd walidacji)
@@ -307,7 +311,11 @@ X-TOKEN: <VITE_APP_TOKEN>
 **Response (sukces - 201 Created):**
 ```json
 {
-  "message": "Rejestracja zakończona sukcesem"
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "userId": 123,
+  "email": "user@example.com",
+  "isAdmin": false,
+  "expiresAt": "2025-11-04T10:30:00Z"
 }
 ```
 
@@ -336,8 +344,16 @@ const apiService = useAppContext().getApiService();
 
 try {
   const response = await apiService.register(formData);
-  // Sukces: redirect /login
-  navigate('/login');
+  // Sukces: automatyczne logowanie
+  login({
+    id: response.userId,
+    email: response.email,
+    isAdmin: response.isAdmin,
+    token: response.token,
+    expiresAt: response.expiresAt,
+  });
+  // Redirect do aplikacji
+  navigate('/tickets');
 } catch (error) {
   if (error instanceof ApiError) {
     if (error.status === 400 && error.data.errors) {
@@ -393,9 +409,10 @@ try {
 4. Frontend validation: sprawdzenie wszystkich pól
 5. Wszystkie pola poprawne → wywołanie API
 6. `isSubmitting` ustawione na true (przycisk disabled, opcjonalnie spinner)
-7. API zwraca 201 Created
-8. Redirect → `/login`
-9. Użytkownik widzi stronę logowania (może się teraz zalogować)
+7. API zwraca 201 Created z tokenem JWT i danymi użytkownika
+8. Automatyczne logowanie: `AppContext.login(userData)` → token zapisany w localStorage
+9. Redirect → `/tickets`
+10. Użytkownik widzi stronę zarządzania zestawami (zalogowany)
 
 ### 8.3 Submit formularza - błąd walidacji backend
 
@@ -419,7 +436,7 @@ try {
 7. Użytkownik klika [Zamknij] w modalu
 8. Modal się zamyka, użytkownik wraca do formularza
 9. Poprawia email na inny
-10. Ponownie submit → sukces → redirect `/login`
+10. Ponownie submit → sukces → automatyczne logowanie → redirect `/tickets`
 
 ### 8.4 Submit formularza - błąd serwera
 
@@ -634,7 +651,9 @@ Formularz rejestracji zawsze wyświetla pola do wypełnienia. Nie ma scenariusza
   - Jeśli błędy inline → return (nie wywołuj API)
   - setIsSubmitting(true)
   - Wywołanie apiService.register(formData)
-  - Sukces (201): redirect `/login` (useNavigate z react-router)
+  - Sukces (201):
+    - Automatyczne logowanie: `login({ id: response.userId, email: response.email, isAdmin: response.isAdmin, token: response.token, expiresAt: response.expiresAt })`
+    - Redirect `/tickets` (useNavigate z react-router)
   - Błąd (400 z errors): mapowanie do apiErrors, otwarcie ErrorModal
   - Błąd (5xx / network): generyczny komunikat w ErrorModal
   - finally: setIsSubmitting(false)
@@ -678,7 +697,7 @@ Formularz rejestracji zawsze wyświetla pola do wypełnienia. Nie ma scenariusza
 - Upewnij się, że route `/register` jest publiczny (brak ProtectedRoute wrapper)
 
 ### Krok 9: Testy manualne
-- Test 1: Wypełnienie formularza z poprawnymi danymi → sukces → redirect `/login`
+- Test 1: Wypełnienie formularza z poprawnymi danymi → sukces → automatyczne logowanie → redirect `/tickets`
 - Test 2: Email nieprawidłowy format → inline błąd "Nieprawidłowy format email"
 - Test 3: Hasło za krótkie → inline błąd "Hasło musi mieć min. 8 znaków"
 - Test 4: Hasło brak wielkiej litery → inline błąd "Hasło musi zawierać wielką literę"

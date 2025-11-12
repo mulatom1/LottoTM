@@ -127,7 +127,7 @@ W MVP **całkowicie zrezygnowano z widoku Dashboard** (`/dashboard`). Po zalogow
 
 **Dostęp:** Publiczny
 
-**Główny cel:** Utworzenie nowego konta użytkownika
+**Główny cel:** Utworzenie nowego konta użytkownika z automatycznym logowaniem
 
 **Kluczowe informacje do wyświetlenia:**
 - Formularz rejestracji (email, hasło, potwierdzenie hasła)
@@ -164,7 +164,7 @@ W MVP **całkowicie zrezygnowano z widoku Dashboard** (`/dashboard`). Po zalogow
 - **UX:**
   - Inline validation w czasie rzeczywistym (visual feedback natychmiastowy)
   - Po kliknięciu "Zarejestruj się": wszystkie błędy zbierane i wyświetlane w ErrorModal
-  - Po sukcesie: automatyczne logowanie (wywołanie `POST /api/auth/login`) + redirect `/login`
+  - Po sukcesie: automatyczne logowanie (backend zwraca token JWT) + redirect `/tickets`
   - Auto-focus na email przy otwarciu
 - **Dostępność:**
   - Labels powiązane z inputs
@@ -551,7 +551,7 @@ Struktura accordion - każde losowanie jako rozwijalna sekcja:
 - Klika "Zarejestruj się"
 - Scenariusz sukcesu:
   - API call: `POST /api/auth/register`
-  - Automatyczne logowanie: `POST /api/auth/login`
+  - Backend zwraca token JWT + dane użytkownika (automatyczne logowanie)
   - AppContext.login(userData) → token zapisany w localStorage
   - Redirect → `/tickets`
 - Scenariusz błędu:

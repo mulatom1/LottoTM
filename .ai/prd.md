@@ -107,25 +107,23 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 **Endpointy API:**
 - `POST /api/auth/register`
   - Body: `{ "email": "string", "password": "string", "confirmPassword": "string" }`
-  - Response: `{ "message": "Rejestracja zakończona sukcesem" }`
+  - Response: `{ "token": "string", "userId": "number", "email": "string", "expiresAt": "datetime" }`
 
 #### F-AUTH-002: Logowanie użytkownika
 **Priorytet:** Must Have
-**Opis:** Zarejestrowany użytkownik może zalogować się do systemu.
+**Opis:** Zarejestrowany użytkownik ma dostęp do systemu.
 
 **Kryteria akceptacji:**
 - Formularz zawiera pola: email, hasło
 - Walidacja poprawności credentials
 - Po pomyślnym logowaniu zwracany jest token JWT z czasem wygaśnięcia
-- Token jest przechowywany w local storage / session storage
+- Token jest przechowywany w local storage / session storage /context w aplikacji frontendowej
 - Nieprawidłowe dane → komunikat błędu
 
 **Endpointy API:**
 - `POST /api/auth/login`
   - Body: `{ "email": "string", "password": "string" }`
   - Response: `{ "token": "string", "userId": "number", "email": "string", "expiresAt": "datetime" }`
-
-#### F-AUTH-003: Wylogowanie użytkownika
 **Priorytet:** Must Have
 **Opis:** Zalogowany użytkownik może się wylogować.
 
@@ -133,20 +131,6 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 - Przycisk wylogowania dostępny w UI
 - Po wylogowaniu token JWT jest usuwany z przeglądarki
 - Przekierowanie na stronę logowania
-- Opcjonalnie: blacklisting tokenu po stronie serwera
-
-**Endpointy API:**
-- `POST /api/auth/logout`
-  - Response: `{ "message": "Logged out successfully" }`
-
-#### F-AUTH-004: Izolacja danych użytkowników
-**Priorytet:** Must Have (Security)
-**Opis:** Każdy użytkownik ma dostęp wyłącznie do swoich danych.
-
-**Kryteria akceptacji:**
-- Wszystkie endpointy API wymagają uwierzytelnionego tokenu JWT
-- Operacje na zestawach/weryfikacjach filtrują dane po `UserId` z tokenu
-- Próba dostępu do cudzych danych → HTTP 403 Forbidden
 
 ---
 
@@ -432,7 +416,6 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 - **NFR-008:** Ochrona przed SQL Injection (Entity Framework Core z parametryzowanymi zapytaniami)
 - **NFR-009:** Ochrona przed XSS (React domyślnie escapuje dane, dodatkowa walidacja inputów)
 - **NFR-010:** Ochrona przed CSRF (tokeny CSRF lub SameSite cookies)
-- **NFR-011:** Rate limiting dla endpointów logowania/rejestracji (np. 5 prób/minutę/IP)
 
 ### 4.3 Niezawodność
 - **NFR-012:** System dostępny 99% czasu (dopuszczalny downtime: ~7 godz./miesiąc)
@@ -477,8 +460,8 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 - Formularz rejestracji z polami: email, hasło, potwierdzenie hasła
 - Walidacja formatu email i siły hasła
 - Utworzenie konta użytkownika w systemie
-- Komunikat potwierdzenia rejestracji
-- Przekierowanie na stronę logowania
+- Otrzymanie tokenu JWT po pomyślnej rejestracji
+- Przekierowanie na dashboard/stronę główną aplikacji (automatyczne zalogowanie po rejestracji)
 
 **Priorytet:** Must Have
 **Story Points:** 3

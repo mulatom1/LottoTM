@@ -41,7 +41,11 @@
 **Payload odpowiedzi (sukces):**
 ```json
 {
-  "message": "Rejestracja zakończona sukcesem"
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "userId": 123,
+  "email": "user@example.com",
+  "isAdmin": false,
+  "expiresAt": "2025-11-04T10:30:00Z"
 }
 ```
 
@@ -70,6 +74,8 @@
 2. Sprawdzenie unikalności email w bazie (UNIQUE constraint)
 3. Haszowanie hasła (bcrypt, min. 10 rounds)
 4. Zapis użytkownika do tabeli `Users`
+5. Generowanie JWT tokenu (ważność 24h, claims: UserId, Email, IsAdmin)
+6. Zwrot tokenu + danych użytkownika (automatyczne logowanie po rejestracji)
 
 ---
 

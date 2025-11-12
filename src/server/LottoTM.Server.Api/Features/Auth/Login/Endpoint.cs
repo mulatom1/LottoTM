@@ -14,7 +14,7 @@ public static class Endpoint
     public static void AddEndpoint(this IEndpointRouteBuilder app)
     {
         app.MapPost("api/auth/login", async (
-            Contracts.LoginRequest request,
+            Contracts.Request request,
             IMediator mediator) =>
         {
             try
@@ -33,7 +33,7 @@ public static class Endpoint
         })
         .WithName("AuthLogin")
         .WithTags("Auth")
-        .Produces<Contracts.LoginResponse>(StatusCodes.Status200OK)
+        .Produces<Contracts.Response>(StatusCodes.Status200OK)
         .Produces<object>(StatusCodes.Status400BadRequest)
         .Produces<object>(StatusCodes.Status401Unauthorized)
         .AllowAnonymous()

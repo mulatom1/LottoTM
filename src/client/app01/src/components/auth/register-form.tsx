@@ -20,7 +20,7 @@ interface RegisterFormErrors {
 
 function RegisterForm() {
   const navigate = useNavigate();
-  const { getApiService } = useAppContext();
+  const { getApiService, login } = useAppContext();
   const apiService = getApiService();
 
   // Stan formularza
@@ -158,10 +158,19 @@ function RegisterForm() {
         confirmPassword: formData.confirmPassword
       };
 
-      await apiService.authRegister(request);
+      const response = await apiService.authRegister(request);
 
-      // Sukces: redirect do logowania
-      navigate('/login');
+      // Automatyczne logowanie - zapisanie tokenu i danych użytkownika
+      login({
+        id: response.userId,
+        email: response.email,
+        isAdmin: response.isAdmin,
+        token: response.token,
+        expiresAt: response.expiresAt,
+      });
+
+      // Sukces: redirect do tickets (użytkownik już zalogowany)
+      navigate('/tickets');
     } catch (error) {
       // Obsługa błędów
       if (error instanceof Error) {

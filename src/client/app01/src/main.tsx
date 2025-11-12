@@ -13,7 +13,7 @@ import ChecksPage from './pages/checks/checks-page';
 
 createRoot(document.getElementById('root')!).render(
   <AppContextProvider>
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <Navbar />
       <Routes>
         <Route index element={<HomePage />} />
