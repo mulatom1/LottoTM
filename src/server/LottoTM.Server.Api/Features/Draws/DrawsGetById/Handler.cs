@@ -10,18 +10,18 @@ namespace LottoTM.Server.Api.Features.Draws.DrawsGetById;
 /// </summary>
 public class Handler : IRequestHandler<Contracts.Request, Contracts.Response?>
 {
-    private readonly AppDbContext _dbContext;
-    private readonly IValidator<Contracts.Request> _validator;
     private readonly ILogger<Handler> _logger;
+    private readonly IValidator<Contracts.Request> _validator;
+    private readonly AppDbContext _dbContext;
 
     public Handler(
         AppDbContext dbContext,
         IValidator<Contracts.Request> validator,
         ILogger<Handler> logger)
     {
-        _dbContext = dbContext;
-        _validator = validator;
         _logger = logger;
+        _validator = validator;
+        _dbContext = dbContext;
     }
 
     public async Task<Contracts.Response?> Handle(

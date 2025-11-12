@@ -29,7 +29,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
     /// Test successful generation of 9 system tickets
     /// </summary>
     [Fact]
-    public async Task GenerateSystemTickets_WithValidUser_Returns201With9Tickets()
+    public async Task GenerateSystemTickets_WithValidUser_Returns200With9Tickets()
     {
         // Arrange
         var testDbName = "TestDb_GenerateSystem_Success_" + Guid.NewGuid();
@@ -45,12 +45,10 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         var response = await client.PostAsync("/api/tickets/generate-system", null);
 
         // Assert
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
         Assert.NotNull(result);
-        Assert.Equal("9 zestawów wygenerowanych i zapisanych pomyślnie", result.Message);
-        Assert.Equal(9, result.GeneratedCount);
         Assert.Equal(9, result.Tickets.Count);
 
         // Verify each ticket has 6 unique numbers
@@ -66,169 +64,11 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         Assert.Equal(49, allNumbers.Count);
         Assert.Equal(1, allNumbers.First());
         Assert.Equal(49, allNumbers.Last());
-
-        // Verify in database
-        using var scope = factory.Services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-        var ticketsInDb = await dbContext.Tickets
-            .Include(t => t.Numbers)
-            .Where(t => t.UserId == userId)
-            .ToListAsync();
-
-        Assert.Equal(9, ticketsInDb.Count);
-        Assert.All(ticketsInDb, t => Assert.Equal(6, t.Numbers.Count));
     }
 
-    /// <summary>
-    /// Test that all numbers 1-49 are covered by the generated tickets
-    /// </summary>
-    [Fact]
-    public async Task GenerateSystemTickets_CoversAllNumbers1To49()
-    {
-        // Arrange
-        var testDbName = "TestDb_GenerateSystem_Coverage_" + Guid.NewGuid();
-        var factory = CreateTestFactory(testDbName);
+    
 
-        var userId = SeedTestUser(testDbName, "user@example.com", "Password123!", false);
-
-        var client = factory.CreateClient();
-        var token = GenerateTestToken(factory, userId, "user@example.com", false);
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-        // Act
-        var response = await client.PostAsync("/api/tickets/generate-system", null);
-
-        // Assert
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-
-        var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
-        Assert.NotNull(result);
-
-        // Collect all numbers from all tickets
-        var allNumbers = result.Tickets
-            .SelectMany(t => t.Numbers)
-            .Distinct()
-            .OrderBy(n => n)
-            .ToList();
-
-        // Verify complete coverage
-        Assert.Equal(49, allNumbers.Count);
-        var expectedNumbers = Enumerable.Range(1, 49).ToList();
-        Assert.Equal(expectedNumbers, allNumbers);
-    }
-
-    /// <summary>
-    /// Test multiple generations create different ticket sets
-    /// </summary>
-    [Fact]
-    public async Task GenerateSystemTickets_CalledTwice_CreatesDifferentSets()
-    {
-        // Arrange
-        var testDbName = "TestDb_GenerateSystem_Different_" + Guid.NewGuid();
-        var factory = CreateTestFactory(testDbName);
-
-        var userId = SeedTestUser(testDbName, "user@example.com", "Password123!", false);
-
-        var client = factory.CreateClient();
-        var token = GenerateTestToken(factory, userId, "user@example.com", false);
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-        // Act - Generate first set
-        var response1 = await client.PostAsync("/api/tickets/generate-system", null);
-        Assert.Equal(HttpStatusCode.Created, response1.StatusCode);
-        var result1 = await response1.Content.ReadFromJsonAsync<Contracts.Response>();
-
-        // Act - Generate second set
-        var response2 = await client.PostAsync("/api/tickets/generate-system", null);
-        Assert.Equal(HttpStatusCode.Created, response2.StatusCode);
-        var result2 = await response2.Content.ReadFromJsonAsync<Contracts.Response>();
-
-        // Assert - Ticket IDs should be different
-        Assert.NotNull(result1);
-        Assert.NotNull(result2);
-
-        var ids1 = result1.Tickets.Select(t => t.Id).OrderBy(id => id).ToList();
-        var ids2 = result2.Tickets.Select(t => t.Id).OrderBy(id => id).ToList();
-
-        Assert.NotEqual(ids1, ids2);
-
-        // Verify database has 18 tickets total
-        using var scope = factory.Services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-        var totalTickets = await dbContext.Tickets.CountAsync(t => t.UserId == userId);
-        Assert.Equal(18, totalTickets);
-    }
-
-    /// <summary>
-    /// Test limit enforcement - user with 92 tickets cannot generate 9 more
-    /// </summary>
-    [Fact]
-    public async Task GenerateSystemTickets_WhenOver91Tickets_Returns400()
-    {
-        // Arrange
-        var testDbName = "TestDb_GenerateSystem_Limit_" + Guid.NewGuid();
-        var factory = CreateTestFactory(testDbName);
-
-        var userId = SeedTestUser(testDbName, "user@example.com", "Password123!", false);
-
-        // Seed 92 tickets (over the limit of 91)
-        SeedTestTickets(factory, userId, 92);
-
-        var client = factory.CreateClient();
-        var token = GenerateTestToken(factory, userId, "user@example.com", false);
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-        // Act
-        var response = await client.PostAsync("/api/tickets/generate-system", null);
-
-        // Assert
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-
-        var content = await response.Content.ReadAsStringAsync();
-        Assert.Contains("limit", content.ToLower());
-        Assert.Contains("92", content);
-        Assert.Contains("100", content);
-    }
-
-    /// <summary>
-    /// Test user with exactly 91 tickets can still generate 9 more
-    /// </summary>
-    [Fact]
-    public async Task GenerateSystemTickets_WithExactly91Tickets_Returns201()
-    {
-        // Arrange
-        var testDbName = "TestDb_GenerateSystem_91Tickets_" + Guid.NewGuid();
-        var factory = CreateTestFactory(testDbName);
-
-        var userId = SeedTestUser(testDbName, "user@example.com", "Password123!", false);
-
-        // Seed exactly 91 tickets (boundary case)
-        SeedTestTickets(factory, userId, 91);
-
-        var client = factory.CreateClient();
-        var token = GenerateTestToken(factory, userId, "user@example.com", false);
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-        // Act
-        var response = await client.PostAsync("/api/tickets/generate-system", null);
-
-        // Assert
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-
-        var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
-        Assert.NotNull(result);
-        Assert.Equal(9, result.GeneratedCount);
-
-        // Verify total count is now 100 (91 + 9)
-        using var scope = factory.Services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-        var totalCount = await dbContext.Tickets.CountAsync(t => t.UserId == userId);
-        Assert.Equal(100, totalCount);
-    }
-
+    
     /// <summary>
     /// Test without authentication returns 401
     /// </summary>
@@ -265,138 +105,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         // Assert
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
-
-    /// <summary>
-    /// Test that different users can generate their own system tickets independently
-    /// </summary>
-    [Fact]
-    public async Task GenerateSystemTickets_DifferentUsers_CreatesSeparateSets()
-    {
-        // Arrange
-        var testDbName = "TestDb_GenerateSystem_MultiUser_" + Guid.NewGuid();
-        var factory = CreateTestFactory(testDbName);
-
-        var user1Id = SeedTestUser(testDbName, "user1@example.com", "Password123!", false);
-        var user2Id = SeedTestUser(testDbName, "user2@example.com", "Password123!", false);
-
-        var client = factory.CreateClient();
-
-        // Act - User 1 generates system tickets
-        var token1 = GenerateTestToken(factory, user1Id, "user1@example.com", false);
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token1);
-        var response1 = await client.PostAsync("/api/tickets/generate-system", null);
-        Assert.Equal(HttpStatusCode.Created, response1.StatusCode);
-
-        // Act - User 2 generates system tickets
-        var token2 = GenerateTestToken(factory, user2Id, "user2@example.com", false);
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token2);
-        var response2 = await client.PostAsync("/api/tickets/generate-system", null);
-        Assert.Equal(HttpStatusCode.Created, response2.StatusCode);
-
-        // Assert - Verify in database
-        using var scope = factory.Services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-        var user1Tickets = await dbContext.Tickets.CountAsync(t => t.UserId == user1Id);
-        var user2Tickets = await dbContext.Tickets.CountAsync(t => t.UserId == user2Id);
-
-        Assert.Equal(9, user1Tickets);
-        Assert.Equal(9, user2Tickets);
-    }
-
-    /// <summary>
-    /// Test that CreatedAt timestamps are properly set
-    /// </summary>
-    [Fact]
-    public async Task GenerateSystemTickets_SetsProperTimestamps()
-    {
-        // Arrange
-        var testDbName = "TestDb_GenerateSystem_Timestamps_" + Guid.NewGuid();
-        var factory = CreateTestFactory(testDbName);
-
-        var userId = SeedTestUser(testDbName, "user@example.com", "Password123!", false);
-
-        var client = factory.CreateClient();
-        var token = GenerateTestToken(factory, userId, "user@example.com", false);
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-        var beforeCall = DateTime.UtcNow;
-
-        // Act
-        var response = await client.PostAsync("/api/tickets/generate-system", null);
-
-        var afterCall = DateTime.UtcNow;
-
-        // Assert
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-
-        var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
-        Assert.NotNull(result);
-
-        // All tickets should have the same CreatedAt timestamp
-        var timestamps = result.Tickets.Select(t => t.CreatedAt).Distinct().ToList();
-        Assert.Single(timestamps);
-
-        var createdAt = timestamps.First();
-        Assert.True(createdAt >= beforeCall && createdAt <= afterCall);
-    }
-
-    /// <summary>
-    /// Test that numbers in each ticket are in valid range and unique
-    /// </summary>
-    [Fact]
-    public async Task GenerateSystemTickets_EachTicketHasValidNumbers()
-    {
-        // Arrange
-        var testDbName = "TestDb_GenerateSystem_ValidNumbers_" + Guid.NewGuid();
-        var factory = CreateTestFactory(testDbName);
-
-        var userId = SeedTestUser(testDbName, "user@example.com", "Password123!", false);
-
-        var client = factory.CreateClient();
-        var token = GenerateTestToken(factory, userId, "user@example.com", false);
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-        // Act
-        var response = await client.PostAsync("/api/tickets/generate-system", null);
-
-        // Assert
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-
-        var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
-        Assert.NotNull(result);
-
-        foreach (var ticket in result.Tickets)
-        {
-            // Exactly 6 numbers
-            Assert.Equal(6, ticket.Numbers.Count());
-
-            // All numbers are unique within the ticket
-            Assert.Equal(6, ticket.Numbers.Distinct().Count());
-
-            // All numbers in range 1-49
-            Assert.All(ticket.Numbers, n => Assert.InRange(n, 1, 49));
-        }
-
-        // Verify all tickets in database with positions
-        using var scope = factory.Services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-        var ticketsInDb = await dbContext.Tickets
-            .Include(t => t.Numbers)
-            .Where(t => t.UserId == userId)
-            .ToListAsync();
-
-        Assert.Equal(9, ticketsInDb.Count);
-
-        foreach (var ticketInDb in ticketsInDb)
-        {
-            Assert.Equal(6, ticketInDb.Numbers.Count);
-
-            var positions = ticketInDb.Numbers.Select(n => n.Position).OrderBy(p => p).ToList();
-            Assert.Equal(new byte[] { 1, 2, 3, 4, 5, 6 }, positions);
-        }
-    }
+    
 
     /// <summary>
     /// Creates a test factory with in-memory database

@@ -1,6 +1,7 @@
 using FluentValidation;
 using LottoTM.Server.Api.Entities;
 using LottoTM.Server.Api.Repositories;
+using LottoTM.Server.Api.Services;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -12,21 +13,22 @@ namespace LottoTM.Server.Api.Features.Tickets.TicketsUpdate;
 /// </summary>
 public class Handler : IRequestHandler<Contracts.Request, IResult>
 {
-    private readonly AppDbContext _context;
-    private readonly IValidator<Contracts.Request> _validator;
     private readonly ILogger<Handler> _logger;
-    private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IValidator<Contracts.Request> _validator;
+    private readonly AppDbContext _context;
+    private readonly IJwtService _jwtService;
 
     public Handler(
-        AppDbContext context,
-        IValidator<Contracts.Request> validator,
         ILogger<Handler> logger,
-        IHttpContextAccessor httpContextAccessor)
+        IValidator<Contracts.Request> validator,
+        AppDbContext context,
+        IJwtService jwtService
+        )
     {
-        _context = context;
-        _validator = validator;
         _logger = logger;
-        _httpContextAccessor = httpContextAccessor;
+        _validator = validator;
+        _context = context;
+        _jwtService = jwtService;
     }
 
     public async Task<IResult> Handle(Contracts.Request request, CancellationToken cancellationToken)
@@ -52,18 +54,7 @@ public class Handler : IRequestHandler<Contracts.Request, IResult>
         }
 
         // 2. Get UserId from JWT
-        var httpContext = _httpContextAccessor.HttpContext;
-        if (httpContext?.User?.Identity?.IsAuthenticated != true)
-        {
-            return Results.Unauthorized();
-        }
-
-        var userIdClaim = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (!int.TryParse(userIdClaim, out int currentUserId))
-        {
-            _logger.LogError("Nie można sparsować UserId z JWT: {UserIdClaim}", userIdClaim);
-            return Results.Unauthorized();
-        }
+        var currentUserId = await _jwtService.GetUserIdFromJwt();
 
         // 3. Check if ticket exists with eager loading of numbers
         var ticket = await _context.Tickets

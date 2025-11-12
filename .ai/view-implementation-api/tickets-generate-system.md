@@ -1,7 +1,7 @@
 # Plan Wdrożenia Endpointu API: POST /api/tickets/generate-system
 
-**Data:** 2025-11-05  
-**Wersja:** 1.0  
+**Data:** 2025-11-12  
+**Wersja:** 1.1  
 **Endpoint:** POST /api/tickets/generate-system  
 **Moduł:** Tickets (Zestawy)
 
@@ -10,17 +10,17 @@
 ## 1. Przegląd punktu końcowego
 
 ### Opis
-Endpoint generuje 9 zestawów liczb LOTTO (po 6 liczb każdy) według algorytmu systemowego, który gwarantuje pokrycie wszystkich liczb od 1 do 49. Wygenerowane zestawy są automatycznie zapisywane do bazy danych i przypisywane do użytkownika.
+Endpoint generuje 9 zestawów liczb LOTTO (po 6 liczb każdy) według algorytmu systemowego, który gwarantuje pokrycie wszystkich liczb od 1 do 49. Wygenerowane zestawy są zwracane jako **propozycja** (bez zapisu do bazy danych).
 
 ### Cel biznesowy
-Umożliwienie użytkownikom szybkiego wygenerowania zestawów systemowych, które zapewniają pełne pokrycie przestrzeni liczb LOTTO (1-49) w minimalnej liczbie zestawów (9).
+Umożliwienie użytkownikom szybkiego wygenerowania zestawów systemowych, które zapewniają pełne pokrycie przestrzeni liczb LOTTO (1-49) w minimalnej liczbie zestawów (9). Użytkownik może zobaczyć podgląd i zdecydować czy zapisać zestawy.
 
 ### Charakterystyka
 - **Metoda HTTP:** POST
 - **Ścieżka:** `/api/tickets/generate-system`
 - **Autoryzacja:** Wymagany JWT Bearer token
 - **Payload żądania:** Brak (empty body)
-- **Atomowość:** Wszystkie 9 zestawów zapisywane w jednej transakcji (all-or-nothing)
+- **Zwrot:** Propozycja 9 zestawów (bez zapisu do bazy)
 - **Idempotentność:** Nie - każde wywołanie generuje nowe, losowe zestawy
 
 ---
@@ -70,23 +70,16 @@ public class Contracts
     public record Request : IRequest<Response>;
     
     /// <summary>
-    /// Response containing success message and generated ticket details.
+    /// Response containing array of 9 generated tickets (preview/proposal).
+    /// Each ticket contains 6 numbers.
+    /// User must manually save using POST /api/tickets if they want to keep them.
     /// </summary>
-    public record Response(
-        string Message,
-        int GeneratedCount,
-        List<TicketDto> Tickets
-    );
+    public record Response(List<TicketDto> Tickets);
     
     /// <summary>
-    /// DTO representing a single generated ticket.
+    /// DTO representing a single generated ticket with only numbers.
     /// </summary>
-    public record TicketDto(
-        int Id,
-        string GroupName,
-        List<int> Numbers,
-        DateTime CreatedAt
-    );
+    public record TicketDto(List<int> Numbers);
 }
 ```
 
@@ -113,31 +106,30 @@ public class Contracts
 
 ## 4. Szczegóły odpowiedzi
 
-### 4.1 Odpowiedź sukcesu (201 Created)
+### 4.1 Odpowiedź sukcesu (200 OK)
 
 #### Status Code
-`201 Created`
+`200 OK`
 
 #### Response Body
 ```json
 {
-  "message": "9 zestawów wygenerowanych i zapisanych pomyślnie",
-  "generatedCount": 9,
   "tickets": [
     {
-      "id": 1,
-      "numbers": [7, 15, 23, 31, 39, 47],
-      "createdAt": "2025-11-05T10:30:00Z"
+      "numbers": [7, 15, 23, 31, 39, 47]
     },
     {
-      "id": 2,
-      "numbers": [2, 10, 18, 26, 34, 42],
-      "createdAt": "2025-11-05T10:30:00Z"
+      "numbers": [2, 10, 18, 26, 34, 42]
+    },
+    {
+      "numbers": [3, 11, 19, 27, 35, 43]
     }
-    // ... pozostałe 7 zestawów
+    // ... pozostałe 6 zestawów
   ]
 }
 ```
+
+**Uwaga:** To jest tylko **propozycja** - zestawy nie są zapisane do bazy. Użytkownik musi ręcznie zapisać każdy zestaw używając `POST /api/tickets` jeśli chce je zachować.
 
 ### 4.2 Odpowiedzi błędów
 
@@ -152,23 +144,8 @@ public class Contracts
 }
 ```
 
-#### 400 Bad Request - Brak miejsca na zestawy
-**Przyczyna:** Użytkownik ma > 91 zestawów (brak miejsca na 9 nowych)
-
-```json
-{
-  "status": 400,
-  "title": "Bad Request",
-  "errors": {
-    "limit": [
-      "Brak miejsca na 9 zestawów. Masz 95/100 zestawów. Usuń co najmniej 4 zestawy."
-    ]
-  }
-}
-```
-
 #### 500 Internal Server Error
-**Przyczyna:** Błąd bazy danych lub algorytmu generowania
+**Przyczyna:** Błąd algorytmu generowania
 
 ```json
 {
@@ -177,6 +154,8 @@ public class Contracts
   "detail": "Wystąpił nieoczekiwany błąd podczas generowania zestawów"
 }
 ```
+
+**Uwaga:** Usunięto błąd 400 Bad Request (limit) - endpoint nie sprawdza limitu, tylko generuje propozycję.
 
 ---
 
@@ -486,13 +465,8 @@ await _context.SaveChangesAsync();  // Jedna roundtrip
 // Przy zwracaniu Response - nie trzeba osobnych zapytań o Numbers
 // EF Core już ma je w pamięci po AddRange
 var response = new Response(
-    "9 zestawów wygenerowanych i zapisanych pomyślnie",
-    9,
     tickets.Select(t => new TicketDto(
-        t.Id,
-        t.GroupName,
-        t.Numbers.OrderBy(n => n.Position).Select(n => n.Number).ToList(),
-        t.CreatedAt
+        t.Numbers.OrderBy(n => n.Position).Select(n => n.Number).ToList()
     )).ToList()
 );
 ```
@@ -720,56 +694,15 @@ public class GenerateSystemTicketsHandler : IRequestHandler<Contracts.Request, C
         // Validate coverage (all numbers 1-49 must appear)
         ValidateCoverage(generatedNumbers);
 
-        // Create Ticket entities
-        var tickets = new List<Ticket>();
-        var createdAt = DateTime.UtcNow;
+        _logger.LogInformation(
+            "Generated 9 system tickets for UserId={UserId}",
+            userId
+        );
 
-        foreach (var numbers in generatedNumbers)
-        {
-            var ticket = new Ticket
-            {
-                UserId = userId,
-                CreatedAt = createdAt,
-                Numbers = numbers.Select((num, index) => new TicketNumber
-                {
-                    Number = num,
-                    Position = (byte)(index + 1) // Positions 1-6
-                }).ToList()
-            };
-
-            tickets.Add(ticket);
-        }
-
-        // Save to database in transaction
-        using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
-        try
-        {
-            await _context.Tickets.AddRangeAsync(tickets, cancellationToken);
-            await _context.SaveChangesAsync(cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
-
-            _logger.LogInformation(
-                "Generated 9 system tickets for UserId={UserId}. TicketIds={TicketIds}",
-                userId,
-                string.Join(", ", tickets.Select(t => t.Id))
-            );
-        }
-        catch (DbUpdateException ex)
-        {
-            await transaction.RollbackAsync(cancellationToken);
-            _logger.LogError(ex, "Database error generating system tickets for UserId={UserId}", userId);
-            throw new InvalidOperationException("Wystąpił błąd podczas zapisywania zestawów", ex);
-        }
-
-        // Build response
+        // Build response with generated numbers only (no database save)
         var response = new Contracts.Response(
-            "9 zestawów wygenerowanych i zapisanych pomyślnie",
-            9,
-            tickets.Select(t => new Contracts.TicketDto(
-                t.Id,
-                t.GroupName,
-                t.Numbers.OrderBy(n => n.Position).Select(n => n.Number).ToList(),
-                t.CreatedAt
+            generatedNumbers.Select(numbers => new Contracts.TicketDto(
+                numbers.ToList()
             )).ToList()
         );
 

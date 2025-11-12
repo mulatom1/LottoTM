@@ -1,7 +1,7 @@
 # Plan Wdrożenia Endpointa API: POST /api/tickets/generate-random
 
-**Wersja:** 1.0  
-**Data:** 2025-11-05  
+**Wersja:** 1.1  
+**Data:** 2025-11-12  
 **Moduł:** Tickets (Zestawy)  
 **Architektura:** Vertical Slice (MediatR + FluentValidation)
 
@@ -10,17 +10,16 @@
 ## 1. Przegląd punktu końcowego
 
 **Cel:**  
-Generowanie pojedynczego losowego zestawu 6 unikalnych liczb z zakresu 1-49 i automatyczny zapis w bazie danych jako nowy ticket użytkownika.
+Generowanie pojedynczego losowego zestawu 6 unikalnych liczb z zakresu 1-49 i zwrócenie jako **propozycja** (bez zapisu do bazy danych).
 
 **Funkcjonalność:**
 - Weryfikacja autoryzacji użytkownika (JWT)
-- Sprawdzenie limitu 100 zestawów na użytkownika
 - Generowanie 6 losowych, unikalnych liczb (1-49)
-- Transakcyjny zapis do bazy: 1 rekord `Tickets` + 6 rekordów `TicketNumbers`
-- Zwrot komunikatu o sukcesie lub błędzie
+- Zwrot liczb jako propozycja - użytkownik może zdecydować czy zapisać
+- **NIE zapisuje do bazy danych** - tylko generuje i zwraca
 
 **Kontekst biznesowy:**  
-Użytkownik chce szybko wygenerować losowy zestaw liczb LOTTO bez ręcznego wyboru. System zapewnia, że liczby są losowe, unikalne i spełniają reguły gry (6 liczb, zakres 1-49).
+Użytkownik chce szybko wygenerować losowy zestaw liczb LOTTO bez ręcznego wyboru. System zwraca propozycję, którą użytkownik może zaakceptować i zapisać ręcznie używając `POST /api/tickets`.
 
 ---
 
@@ -81,9 +80,10 @@ public class Contracts
     public record Request(int UserId) : IRequest<Response>;
 
     /// <summary>
-    /// Response with success message and generated ticket ID.
+    /// Response with generated numbers array (preview/proposal).
+    /// User must manually save using POST /api/tickets if they want to keep it.
     /// </summary>
-    public record Response(string Message, int TicketId);
+    public record Response(int[] Numbers);
 }
 ```
 
@@ -123,43 +123,35 @@ namespace LottoTM.Server.Api.Services;
 public interface ITicketService
 {
     /// <summary>
-    /// Gets the count of tickets owned by a user.
-    /// </summary>
-    Task<int> GetUserTicketCountAsync(int userId, CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Generates 6 random unique numbers in range 1-49.
     /// </summary>
     int[] GenerateRandomNumbers();
-
-    /// <summary>
-    /// Creates a ticket with associated numbers in a transaction.
-    /// </summary>
-    Task<int> CreateTicketWithNumbersAsync(int userId, int[] numbers, CancellationToken cancellationToken = default);
 }
 ```
+
+**Uwaga:** Usunięto metody związane z zapisem do bazy - generator tylko zwraca propozycję.
 
 ---
 
 ## 4. Szczegóły odpowiedzi
 
-### 4.1 Sukces (201 Created)
+### 4.1 Sukces (200 OK)
 
-**Status:** `201 Created`
+**Status:** `200 OK`
 
 **Body:**
 ```json
 {
-  "message": "Zestaw wygenerowany pomyślnie",
-  "ticketId": 123
+  "numbers": [7, 19, 22, 33, 38, 45]
 }
 ```
 
 **Headers:**
 ```
 Content-Type: application/json; charset=utf-8
-Location: /api/tickets/123
 ```
+
+**Uwaga:** To jest tylko **propozycja** - liczby nie są zapisane do bazy. Użytkownik musi ręcznie zapisać używając `POST /api/tickets` jeśli chce zachować ten zestaw.
 
 ### 4.2 Błąd: Brak autoryzacji (401 Unauthorized)
 
@@ -174,22 +166,7 @@ Location: /api/tickets/123
 
 **Scenariusz:** Brak tokenu JWT lub token nieprawidłowy/wygasły.
 
-### 4.3 Błąd: Limit osiągnięty (400 Bad Request)
-
-**Status:** `400 Bad Request`
-
-**Body:**
-```json
-{
-  "errors": {
-    "limit": ["Osiągnięto limit 100 zestawów. Usuń istniejące zestawy, aby wygenerować nowe."]
-  }
-}
-```
-
-**Scenariusz:** Użytkownik ma już 100 zestawów (maksymalny limit).
-
-### 4.4 Błąd: Błąd serwera (500 Internal Server Error)
+### 4.3 Błąd: Błąd serwera (500 Internal Server Error)
 
 **Status:** `500 Internal Server Error`
 
@@ -199,6 +176,8 @@ Location: /api/tickets/123
   "message": "An error occurred while processing your request."
 }
 ```
+
+**Scenariusz:** Nieoczekiwany błąd podczas generowania liczb.
 
 **Scenariusz:** Błąd bazy danych, błąd generatora liczb, inne nieoczekiwane wyjątki.
 
@@ -338,20 +317,17 @@ Wszystkie operacje INSERT w jednej transakcji (EF Core SaveChangesAsync z implic
 ### 6.3 Walidacja danych
 
 **Walidacja wejścia (Validator.cs):**
+**Walidacja żądania (Endpoint.cs):**
 - Brak parametrów do walidacji (Request pusty oprócz UserId)
 - Opcjonalnie: sprawdzenie czy `UserId > 0`
 
 **Walidacja biznesowa (Handler.cs):**
-- Sprawdzenie limitu 100 zestawów
 - Walidacja wygenerowanych liczb:
   - Dokładnie 6 liczb
-  - Wszystkie w zakresie 1-49 (CHECK constraint w bazie)
+  - Wszystkie w zakresie 1-49
   - Wszystkie unikalne (algorytm zapewnia)
 
-**Zabezpieczenia bazy:**
-- CHECK constraint: `Number BETWEEN 1 AND 49`
-- UNIQUE constraint: `(TicketId, Position)` - zapobiega duplikatom pozycji
-- Foreign Key constraint: `TicketId → Tickets.Id` z CASCADE DELETE
+**Uwaga:** Brak sprawdzenia limitu zestawów - endpoint tylko generuje propozycję, nie zapisuje do bazy.
 
 ### 6.4 Ochrona przed atakami
 
@@ -381,41 +357,24 @@ Wszystkie operacje INSERT w jednej transakcji (EF Core SaveChangesAsync z implic
 | **Brak JWT tokenu** | 401 | - (middleware) | "Unauthorized" | Info |
 | **Token nieprawidłowy** | 401 | - (middleware) | "Invalid token" | Warning |
 | **Token wygasły** | 401 | - (middleware) | "Token expired" | Info |
-| **Limit 100 osiągnięty** | 400 | `ValidationException` | "Osiągnięto limit 100 zestawów..." | Info |
-| **Błąd bazy danych** | 500 | `DbUpdateException` | "An error occurred..." | Error + stack trace |
 | **Błąd generatora** | 500 | `Exception` | "An error occurred..." | Error + stack trace |
-| **Transakcja rollback** | 500 | `DbUpdateException` | "An error occurred..." | Error + stack trace |
 
 ### 7.2 Implementacja w Handler
 
-**Walidacja limitu:**
+**Generowanie i zwrot:**
 ```csharp
-var ticketCount = await _ticketService.GetUserTicketCountAsync(request.UserId, cancellationToken);
+// Generate random numbers
+var numbers = _ticketService.GenerateRandomNumbers();
 
-if (ticketCount >= 100)
-{
-    throw new ValidationException(
-        new[] { new ValidationFailure("limit", 
-            "Osiągnięto limit 100 zestawów. Usuń istniejące zestawy, aby wygenerować nowe.") 
-        });
-}
+_logger.LogInformation(
+    "Generated random numbers for user {UserId}: {Numbers}",
+    request.UserId, string.Join(", ", numbers));
+
+// Return as preview/proposal
+return new Contracts.Response(numbers);
 ```
 
-**Obsługa błędów bazy:**
-```csharp
-try
-{
-    var ticketId = await _ticketService.CreateTicketWithNumbersAsync(
-        request.UserId, numbers, cancellationToken);
-    
-    return new Contracts.Response("Zestaw wygenerowany pomyślnie", ticketId);
-}
-catch (DbUpdateException ex)
-{
-    _logger.LogError(ex, "Failed to create ticket for user {UserId}", request.UserId);
-    throw; // ExceptionHandlingMiddleware obsłuży
-}
-```
+**Uwaga:** Usunięto logikę sprawdzania limitu i zapisu do bazy - to tylko generator propozycji.
 
 ### 7.3 Globalna obsługa (ExceptionHandlingMiddleware)
 
@@ -811,52 +770,29 @@ public class Handler : IRequestHandler<Contracts.Request, Contracts.Response>
             throw new ValidationException(validationResult.Errors);
         }
 
-        // 2. Sprawdzenie limitu 100 zestawów
-        var ticketCount = await _ticketService.GetUserTicketCountAsync(
-            request.UserId, 
-            cancellationToken);
+        // Logowanie UserId dla audytu
+        _logger.LogInformation(
+            "Generating random numbers for user {UserId}",
+            request.UserId);
 
-        if (ticketCount >= 100)
-        {
-            _logger.LogWarning(
-                "User {UserId} attempted to generate ticket but reached limit of 100 (current: {Count})",
-                request.UserId, ticketCount);
-
-            throw new ValidationException(
-                new[] { 
-                    new FluentValidation.Results.ValidationFailure("limit", 
-                        "Osiągnięto limit 100 zestawów. Usuń istniejące zestawy, aby wygenerować nowe.") 
-                });
-        }
-
-        // 3. Generowanie losowych liczb
+        // Generowanie losowych liczb
         var numbers = _ticketService.GenerateRandomNumbers();
 
         _logger.LogInformation(
             "Generated random numbers for user {UserId}: {Numbers}",
             request.UserId, string.Join(", ", numbers));
 
-        // 4. Zapis do bazy danych (transakcja)
-        try
-        {
-            var ticketId = await _ticketService.CreateTicketWithNumbersAsync(
-                request.UserId, 
-                numbers, 
-                cancellationToken);
+        // Zwrócenie liczb jako propozycja (bez zapisu do bazy)
+        return new Contracts.Response(numbers);
+    }
+}
+```
 
-            _logger.LogInformation(
-                "Successfully created random ticket {TicketId} for user {UserId}",
-                ticketId, request.UserId);
-
-            return new Contracts.Response("Zestaw wygenerowany pomyślnie", ticketId);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, 
-                "Failed to create random ticket for user {UserId}", 
-                request.UserId);
-            throw; // ExceptionHandlingMiddleware obsłuży
-        }
+**Uwagi:**
+- Brak walidacji limitu - to tylko generator propozycji
+- Brak zapisu do bazy - użytkownik zdecyduje czy zapisać
+- Logowanie dla audytu i monitorowania
+- Prosta implementacja - tylko generowanie i zwrot
     }
 }
 ```

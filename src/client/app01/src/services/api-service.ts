@@ -722,10 +722,11 @@ export class ApiService {
     }
 
     /**
-     * Generate a random lottery ticket with 6 unique numbers
+     * Generate a random lottery ticket with 6 unique numbers (preview/proposal)
      * POST /api/tickets/generate-random
-     * @returns Promise<TicketsGenerateRandomResponse> - Success message and generated ticket ID
-     * @throws Error if unauthorized (401), validation fails (400), limit reached (400), or server error occurs (500)
+     * Returns a proposal without saving to database. User must manually save using POST /api/tickets.
+     * @returns Promise<TicketsGenerateRandomResponse> - Generated numbers (200 OK)
+     * @throws Error if unauthorized (401) or server error occurs (500)
      */
     public async ticketsGenerateRandom(): Promise<TicketsGenerateRandomResponse> {
       const response = await fetch(`${this.apiUrl}/api/tickets/generate-random`, {
@@ -737,28 +738,6 @@ export class ApiService {
         // Handle different error scenarios
         if (response.status === 401) {
           throw new Error('Brak autoryzacji. Wymagany token JWT.');
-        }
-
-        if (response.status === 400) {
-          const errorData = await response.json();
-
-          // Extract validation errors from the response
-          if (errorData.errors) {
-            const errorMessages = Object.entries(errorData.errors)
-              .map(([field, messages]) => {
-                const msgArray = messages as string[];
-                return `${field}: ${msgArray.join(', ')}`;
-              })
-              .join('; ');
-            throw new Error(errorMessages);
-          }
-
-          // Handle specific business logic errors (e.g., limit reached)
-          if (errorData.detail) {
-            throw new Error(errorData.detail);
-          }
-
-          throw new Error('Błąd walidacji danych wejściowych');
         }
 
         if (response.status === 500) {
@@ -774,10 +753,11 @@ export class ApiService {
     }
 
     /**
-     * Generate 9 system lottery tickets covering all numbers 1-49
+     * Generate 9 system lottery tickets covering all numbers 1-49 (preview/proposal)
      * POST /api/tickets/generate-system
-     * @returns Promise<TicketsGenerateSystemResponse> - Success message and details of 9 generated tickets
-     * @throws Error if unauthorized (401), validation fails (400), limit reached (400), or server error occurs (500)
+     * Returns a proposal without saving to database. User must manually save using POST /api/tickets.
+     * @returns Promise<TicketsGenerateSystemResponse> - 9 generated tickets with numbers (200 OK)
+     * @throws Error if unauthorized (401) or server error occurs (500)
      */
     public async ticketsGenerateSystem(): Promise<TicketsGenerateSystemResponse> {
       const response = await fetch(`${this.apiUrl}/api/tickets/generate-system`, {
@@ -789,28 +769,6 @@ export class ApiService {
         // Handle different error scenarios
         if (response.status === 401) {
           throw new Error('Brak autoryzacji. Wymagany token JWT.');
-        }
-
-        if (response.status === 400) {
-          const errorData = await response.json();
-
-          // Extract validation errors from the response
-          if (errorData.errors) {
-            const errorMessages = Object.entries(errorData.errors)
-              .map(([field, messages]) => {
-                const msgArray = messages as string[];
-                return `${field}: ${msgArray.join(', ')}`;
-              })
-              .join('; ');
-            throw new Error(errorMessages);
-          }
-
-          // Handle specific business logic errors (e.g., limit reached)
-          if (errorData.detail) {
-            throw new Error(errorData.detail);
-          }
-
-          throw new Error('Błąd walidacji danych wejściowych');
         }
 
         if (response.status === 500) {

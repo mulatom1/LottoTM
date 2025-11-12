@@ -24,7 +24,6 @@ builder.Services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
 
 // Register services
 builder.Services.AddScoped<IJwtService, JwtService>();
-builder.Services.AddScoped<ITicketService, TicketService>();
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddEndpointsApiExplorer();

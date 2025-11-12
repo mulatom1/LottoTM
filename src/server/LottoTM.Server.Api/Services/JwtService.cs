@@ -6,31 +6,17 @@ using Microsoft.IdentityModel.Tokens;
 namespace LottoTM.Server.Api.Services;
 
 /// <summary>
-/// Interface for JWT token generation service
-/// </summary>
-public interface IJwtService
-{
-    /// <summary>
-    /// Generates a JWT token for authenticated user
-    /// </summary>
-    /// <param name="userId">User's unique identifier</param>
-    /// <param name="email">User's email address</param>
-    /// <param name="isAdmin">Admin privilege flag</param>
-    /// <param name="expiresAt">Output parameter - token expiration timestamp</param>
-    /// <returns>JWT token string</returns>
-    string GenerateToken(int userId, string email, bool isAdmin, out DateTime expiresAt);
-}
-
-/// <summary>
 /// Service for generating JWT tokens for authentication
 /// </summary>
 public class JwtService : IJwtService
 {
     private readonly IConfiguration _configuration;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
-    public JwtService(IConfiguration configuration)
+    public JwtService(IConfiguration configuration, IHttpContextAccessor httpContextAccessor)
     {
         _configuration = configuration;
+        _httpContextAccessor = httpContextAccessor;
     }
 
     /// <inheritdoc/>
@@ -66,5 +52,35 @@ public class JwtService : IJwtService
         );
 
         return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    public async Task<int> GetUserIdFromJwt()
+    {
+        var userIdClaim = _httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
+        {
+            throw new UnauthorizedAccessException("Nie mo¿na zidentyfikowaæ identyfikatora u¿ytkownika");
+        }
+        return await Task.FromResult(userId);
+    }
+
+    public async Task<string> GetEmailFromJwt()
+    {
+        var emailClaim = _httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.Email)?.Value;
+        if (string.IsNullOrEmpty(emailClaim))
+        {
+            throw new UnauthorizedAccessException("Nie mo¿na zidentyfikowaæ email u¿ytkownika");
+        }
+        return await Task.FromResult(emailClaim);
+    }
+
+    public async Task<bool> GetIsAdminFromJwt()
+    {
+        var isAdminClaim = _httpContextAccessor.HttpContext?.User.FindFirst("isAdmin")?.Value;
+        if (string.IsNullOrEmpty(isAdminClaim) || !bool.TryParse(isAdminClaim, out var isAdmin))
+        {
+            throw new UnauthorizedAccessException("Nie mo¿na zidentyfikowaæ uprawnieñ u¿ytkownika");
+        }
+        return await Task.FromResult(isAdmin);
     }
 }

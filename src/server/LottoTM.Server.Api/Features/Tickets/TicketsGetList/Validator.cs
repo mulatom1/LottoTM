@@ -6,7 +6,7 @@ namespace LottoTM.Server.Api.Features.Tickets.TicketsGetList;
 /// Validator for GetListRequest
 /// Since the request has no parameters, this validator is empty but kept for architecture consistency
 /// </summary>
-public class GetListValidator : AbstractValidator<Contracts.GetListRequest>
+public class GetListValidator : AbstractValidator<Contracts.Request>
 {
     public GetListValidator()
     {

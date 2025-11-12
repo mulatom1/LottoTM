@@ -11,23 +11,17 @@ public class Contracts
     /// Request to get list of tickets for authenticated user
     /// No parameters needed - returns all tickets for current user
     /// </summary>
-    public record GetListRequest : IRequest<GetListResponse>;
+    public record Request : IRequest<Response>;
 
     /// <summary>
     /// Response containing list of tickets with pagination metadata
     /// </summary>
     /// <param name="Tickets">List of tickets belonging to the user</param>
-    /// <param name="TotalCount">Total number of tickets for the user</param>
-    /// <param name="Page">Current page number (always 1 in MVP - no pagination)</param>
-    /// <param name="PageSize">Number of items per page (equals TotalCount in MVP)</param>
-    /// <param name="TotalPages">Total number of pages (always 0 or 1 in MVP)</param>
+    /// <param name="TotalCount">Total number of pages (always 0 or 1 in MVP)</param>
     /// <param name="Limit">Maximum tickets allowed per user (100)</param>
-    public record GetListResponse(
+    public record Response(
         List<TicketDto> Tickets,
         int TotalCount,
-        int Page,
-        int PageSize,
-        int TotalPages,
         int Limit
     );
 

@@ -14,7 +14,7 @@ public static class Endpoint
     public static void AddEndpoint(this IEndpointRouteBuilder app)
     {
         app.MapPost("api/draws", async (
-            Contracts.CreateDrawRequest request,
+            Contracts.Request request,
             IMediator mediator) =>
         {
             var result = await mediator.Send(request);
@@ -23,7 +23,7 @@ public static class Endpoint
         .RequireAuthorization()
         .WithName("DrawsCreate")
         .WithTags("Draws")
-        .Produces<Contracts.CreateDrawResponse>(StatusCodes.Status201Created)
+        .Produces<Contracts.Response>(StatusCodes.Status201Created)
         .Produces(StatusCodes.Status401Unauthorized)
         .ProducesValidationProblem(StatusCodes.Status400BadRequest)
         .WithOpenApi();

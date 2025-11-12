@@ -1,6 +1,7 @@
 using FluentValidation;
 using LottoTM.Server.Api.Exceptions;
 using LottoTM.Server.Api.Repositories;
+using LottoTM.Server.Api.Services;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -9,21 +10,22 @@ namespace LottoTM.Server.Api.Features.Tickets.TicketsDelete;
 
 public class DeleteTicketHandler : IRequestHandler<Contracts.Request, Contracts.Response>
 {
-    private readonly AppDbContext _dbContext;
-    private readonly IValidator<Contracts.Request> _validator;
-    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger<DeleteTicketHandler> _logger;
+    private readonly IValidator<Contracts.Request> _validator;
+    private readonly AppDbContext _dbContext;
+    private readonly IJwtService _jwtService;
 
     public DeleteTicketHandler(
-        AppDbContext dbContext,
+        ILogger<DeleteTicketHandler> logger,
         IValidator<Contracts.Request> validator,
-        IHttpContextAccessor httpContextAccessor,
-        ILogger<DeleteTicketHandler> logger)
+        AppDbContext dbContext,
+        IJwtService jwtService
+        )
     {
+        _logger = logger;
         _dbContext = dbContext;
         _validator = validator;
-        _httpContextAccessor = httpContextAccessor;
-        _logger = logger;
+        _jwtService = jwtService;
     }
 
     public async Task<Contracts.Response> Handle(Contracts.Request request, CancellationToken cancellationToken)
@@ -35,17 +37,8 @@ public class DeleteTicketHandler : IRequestHandler<Contracts.Request, Contracts.
             throw new ValidationException(validationResult.Errors);
         }
 
-        // 2. Pobranie UserId z JWT tokenu
-        var httpContext = _httpContextAccessor.HttpContext
-            ?? throw new InvalidOperationException("HttpContext is not available");
-
-        var userIdClaim = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? throw new UnauthorizedAccessException("User ID not found in token");
-
-        if (!int.TryParse(userIdClaim, out var userId))
-        {
-            throw new UnauthorizedAccessException("Invalid User ID format in token");
-        }
+        // 2. Extract UserId from JWT token
+        var userId = await _jwtService.GetUserIdFromJwt();
 
         // 3. Znalezienie zestawu z weryfikacją własności
         // Jedno zapytanie SQL: WHERE Id = @id AND UserId = @userId

@@ -1,6 +1,8 @@
 using FluentValidation;
+using LottoTM.Server.Api.Entities;
 using LottoTM.Server.Api.Exceptions;
 using LottoTM.Server.Api.Repositories;
+using LottoTM.Server.Api.Services;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -11,27 +13,27 @@ namespace LottoTM.Server.Api.Features.Tickets.TicketsGetById;
 /// Handler for GetByIdRequest - implements business logic for retrieving a ticket by ID
 /// Validates ownership (security by obscurity) and returns ticket details with numbers
 /// </summary>
-public class GetByIdHandler : IRequestHandler<Contracts.GetByIdRequest, Contracts.GetByIdResponse>
+public class GetByIdHandler : IRequestHandler<Contracts.Request, Contracts.Response>
 {
-    private readonly AppDbContext _dbContext;
-    private readonly IValidator<Contracts.GetByIdRequest> _validator;
-    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger<GetByIdHandler> _logger;
+    private readonly IValidator<Contracts.Request> _validator;
+    private readonly AppDbContext _dbContext;
+    private readonly IJwtService _jwtService;
 
     public GetByIdHandler(
+        ILogger<GetByIdHandler> logger,
+        IValidator<Contracts.Request> validator,
         AppDbContext dbContext,
-        IValidator<Contracts.GetByIdRequest> validator,
-        IHttpContextAccessor httpContextAccessor,
-        ILogger<GetByIdHandler> logger)
+        IJwtService jwtService)
     {
-        _dbContext = dbContext;
-        _validator = validator;
-        _httpContextAccessor = httpContextAccessor;
         _logger = logger;
+        _validator = validator;
+        _dbContext = dbContext;
+        _jwtService = jwtService;
     }
 
-    public async Task<Contracts.GetByIdResponse> Handle(
-        Contracts.GetByIdRequest request,
+    public async Task<Contracts.Response> Handle(
+        Contracts.Request request,
         CancellationToken cancellationToken)
     {
         // 1. Validate request using FluentValidation
@@ -42,7 +44,7 @@ public class GetByIdHandler : IRequestHandler<Contracts.GetByIdRequest, Contract
         }
 
         // 2. Extract UserId from JWT token
-        var currentUserId = GetUserIdFromJwt();
+        var currentUserId = await _jwtService.GetUserIdFromJwt();
 
         _logger.LogInformation(
             "Pobieranie zestawu {TicketId} dla użytkownika {UserId}",
@@ -93,26 +95,12 @@ public class GetByIdHandler : IRequestHandler<Contracts.GetByIdRequest, Contract
             .Select(n => n.Number)
             .ToArray();
 
-        return new Contracts.GetByIdResponse(
+        return new Contracts.Response(
             ticket.Id,
             ticket.UserId,
             ticket.GroupName,
             numbers,
             ticket.CreatedAt
         );
-    }
-
-    /// <summary>
-    /// Extracts the UserId from JWT token claims
-    /// </summary>
-    /// <exception cref="UnauthorizedAccessException">Thrown when user cannot be identified</exception>
-    private int GetUserIdFromJwt()
-    {
-        var userIdClaim = _httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
-        {
-            throw new UnauthorizedAccessException("Brak autoryzacji");
-        }
-        return userId;
     }
 }

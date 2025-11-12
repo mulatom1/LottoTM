@@ -11,7 +11,7 @@ namespace LottoTM.Server.Api.Features.Tickets.TicketsCreate;
 /// - All numbers are in range 1-49
 /// - All numbers are unique within the set
 /// </summary>
-public class CreateTicketValidator : AbstractValidator<Contracts.CreateTicketRequest>
+public class CreateTicketValidator : AbstractValidator<Contracts.Request>
 {
     public CreateTicketValidator()
     {

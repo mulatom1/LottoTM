@@ -10,31 +10,20 @@ public static class Endpoint
     public static void AddEndpoint(this IEndpointRouteBuilder app)
     {
         app.MapPost("api/tickets/generate-random",
-            [Authorize] async (HttpContext httpContext, IMediator mediator) =>
+            [Authorize] async (IMediator mediator) =>
             {
-                // Pobranie UserId z JWT claims
-                var userIdClaim = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-                if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
-                {
-                    return Results.Unauthorized();
-                }
-
                 // Utworzenie żądania
-                var request = new Contracts.Request(userId);
-
+                var request = new Contracts.Request();
                 // Wysłanie do MediatR
                 var result = await mediator.Send(request);
 
-                // Zwrot 201 Created z Location header
-                return Results.Created(
-                    $"/api/tickets/{result.TicketId}",
-                    result);
+                // Zwrot 200 OK
+                return Results.Ok(result);
             })
         .RequireAuthorization() // Wymaga JWT tokenu
         .WithName("TicketsGenerateRandom")
         .WithTags("Tickets")
-        .Produces<Contracts.Response>(StatusCodes.Status201Created)
+        .Produces<Contracts.Response>(StatusCodes.Status200OK)
         .Produces(StatusCodes.Status401Unauthorized)
         .Produces<ValidationProblemDetails>(StatusCodes.Status400BadRequest)
         .Produces(StatusCodes.Status500InternalServerError)

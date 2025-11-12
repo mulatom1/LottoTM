@@ -21,7 +21,7 @@ public static class Endpoint
             IMediator mediator) =>
         {
             // Apply default values if parameters are not provided or are zero
-            var request = new Contracts.GetDrawsRequest(
+            var request = new Contracts.Request(
                 page ?? 1,
                 pageSize ?? 20,
                 string.IsNullOrWhiteSpace(sortBy) ? "drawDate" : sortBy,
@@ -34,7 +34,7 @@ public static class Endpoint
         .RequireAuthorization() // JWT authentication required
         .WithName("DrawsGetList")
         .WithTags("Draws")
-        .Produces<Contracts.GetDrawsResponse>(StatusCodes.Status200OK)
+        .Produces<Contracts.Response>(StatusCodes.Status200OK)
         .Produces(StatusCodes.Status401Unauthorized)
         .Produces<ValidationProblemDetails>(StatusCodes.Status400BadRequest)
         .WithOpenApi(operation =>

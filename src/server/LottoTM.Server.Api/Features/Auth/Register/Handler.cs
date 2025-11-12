@@ -14,20 +14,20 @@ namespace LottoTM.Server.Api.Features.Auth.Register;
 /// </summary>
 public class RegisterHandler : IRequestHandler<Contracts.Request, Contracts.Response>
 {
-    private readonly AppDbContext _dbContext;
-    private readonly IValidator<Contracts.Request> _validator;
     private readonly ILogger<RegisterHandler> _logger;
+    private readonly IValidator<Contracts.Request> _validator;
+    private readonly AppDbContext _dbContext;
     private readonly IJwtService _jwtService;
 
     public RegisterHandler(
-        AppDbContext dbContext,
-        IValidator<Contracts.Request> validator,
         ILogger<RegisterHandler> logger,
+        IValidator<Contracts.Request> validator,
+        AppDbContext dbContext,
         IJwtService jwtService)
     {
-        _dbContext = dbContext;
-        _validator = validator;
         _logger = logger;
+        _validator = validator;
+        _dbContext = dbContext;
         _jwtService = jwtService;
     }
 

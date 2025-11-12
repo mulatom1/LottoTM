@@ -679,7 +679,7 @@
 
 #### **POST /api/tickets/generate-random**
 
-**Opis:** Generowanie pojedynczego losowego zestawu 6 liczb (1-49)
+**Opis:** Generowanie pojedynczego losowego zestawu 6 liczb (1-49) jako propozycja (bez zapisu do bazy)
 
 **Autoryzacja:** Wymagany JWT
 
@@ -690,29 +690,19 @@
 **Payload odpowiedzi (sukces):**
 ```json
 {
-  "message": "Zestaw wygenerowany pomyślnie"
+  "numbers": [7, 19, 22, 33, 38, 45]
 }
 ```
 
 **Kody sukcesu:**
-- `201 Created` - Zestaw wygenerowany i zapisany
+- `200 OK` - Zestaw wygenerowany (propozycja)
 
 **Kody błędów:**
 - `401 Unauthorized` - Brak tokenu
-- `400 Bad Request` - Limit osiągnięty
-  ```json
-  {
-    "errors": {
-      "limit": ["Osiągnięto limit 100 zestawów. Usuń istniejące zestawy, aby wygenerować nowe."]
-    }
-  }
-  ```
 
 **Logika biznesowa:**
-1. Pobranie `UserId` z JWT
-2. Sprawdzenie limitu: `SELECT COUNT(*) FROM Tickets WHERE UserId = @userId`
-   - Jeśli ≥ 100: zwróć 400
-3. **Algorytm generowania:**
+1. Pobranie `UserId` z JWT (dla logowania/audytu)
+2. **Algorytm generowania:**
    ```csharp
    var random = new Random();
    var numbers = Enumerable.Range(1, 49)
@@ -721,14 +711,14 @@
        .OrderBy(x => x) // Sortowanie dla czytelności
        .ToArray();
    ```
-4. Zapis do tabeli `Tickets`
-5. Zwrot komunikatu o sukcesie
+3. Zwrot wygenerowanych liczb jako propozycja
+4. **Uwaga:** Użytkownik musi ręcznie zapisać zestaw używając `POST /api/tickets` jeśli chce go zachować
 
 ---
 
 #### **POST /api/tickets/generate-system**
 
-**Opis:** Generowanie 9 zestawów pokrywających wszystkie liczby 1-49 (generator systemowy)
+**Opis:** Generowanie 9 zestawów pokrywających wszystkie liczby 1-49 jako propozycja (bez zapisu do bazy)
 
 **Autoryzacja:** Wymagany JWT
 
@@ -739,29 +729,29 @@
 **Payload odpowiedzi (sukces):**
 ```json
 {
-  "message": "9 zestawów wygenerowanych i zapisanych pomyślnie"
+  "tickets": [
+    { "numbers": [1, 7, 13, 19, 25, 31] },
+    { "numbers": [2, 8, 14, 20, 26, 32] },
+    { "numbers": [3, 9, 15, 21, 27, 33] },
+    { "numbers": [4, 10, 16, 22, 28, 34] },
+    { "numbers": [5, 11, 17, 23, 29, 35] },
+    { "numbers": [6, 12, 18, 24, 30, 36] },
+    { "numbers": [37, 38, 39, 40, 41, 42] },
+    { "numbers": [43, 44, 45, 46, 47, 48] },
+    { "numbers": [49, 1, 2, 3, 4, 5] }
+  ]
 }
 ```
 
 **Kody sukcesu:**
-- `201 Created` - 9 zestawów wygenerowanych i zapisanych
+- `200 OK` - 9 zestawów wygenerowanych (propozycja)
 
 **Kody błędów:**
 - `401 Unauthorized` - Brak tokenu
-- `400 Bad Request` - Brak miejsca na 9 zestawów
-  ```json
-  {
-    "errors": {
-      "limit": ["Brak miejsca na 9 zestawów. Dostępne: 3 zestawy. Usuń istniejące zestawy, aby kontynuować."]
-    }
-  }
-  ```
 
 **Logika biznesowa:**
-1. Pobranie `UserId` z JWT
-2. Sprawdzenie limitu: `SELECT COUNT(*) FROM Tickets WHERE UserId = @userId`
-   - Jeśli > 91 (czyli brak miejsca na 9): zwróć 400 z komunikatem o dostępnych miejscach
-3. **Algorytm generowania systemowego (z db-plan.md, linie 374-422):**
+1. Pobranie `UserId` z JWT (dla logowania/audytu)
+2. **Algorytm generowania systemowego (z db-plan.md, linie 374-422):**
    ```csharp
    var tickets = new List<int[]>();
    var random = new Random();
@@ -799,8 +789,8 @@
        Array.Sort(tickets[i]);
    }
    ```
-4. Zapis 9 zestawów do tabeli `Tickets` (bulk insert)
-5. Zwrot komunikatu o sukcesie
+3. Zwrot wygenerowanych zestawów jako propozycja
+4. **Uwaga:** Użytkownik musi ręcznie zapisać zestawy używając `POST /api/tickets` (wielokrotnie) jeśli chce je zachować
 
 ---
 
@@ -835,6 +825,7 @@
   "results": [
     {
       "ticketId": 1,
+      "groupName": "Ulubione",
       "numbers": [3, 12, 25, 31, 42, 48],
       "draws": [
         {
@@ -849,6 +840,7 @@
     },
     {
       "ticketId": 2,
+      "groupName": "",
       "numbers": [1, 2, 3, 4, 5, 6],
       "draws": []
     }
@@ -928,6 +920,7 @@
 
        results.Add(new VerificationResult {
            TicketId = ticket.Id,
+           GroupName = ticket.GroupName,
            Numbers = ticketNumbers,
            Draws = ticketDraws
        });

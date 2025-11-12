@@ -12,12 +12,12 @@ public class Contracts
     /// </summary>
     /// <param name="GroupName">Optional group name for organizing tickets (max 100 chars, defaults to empty string)</param>
     /// <param name="Numbers">Array of 6 unique numbers in range 1-49</param>
-    public record CreateTicketRequest(string? GroupName, int[] Numbers) : IRequest<CreateTicketResponse>;
+    public record Request(string? GroupName, int[] Numbers) : IRequest<Response>;
 
     /// <summary>
     /// Response after successful ticket creation
     /// </summary>
     /// <param name="Id">ID of the created ticket</param>
     /// <param name="Message">Success message</param>
-    public record CreateTicketResponse(int Id, string Message);
+    public record Response(int Id, string Message);
 }

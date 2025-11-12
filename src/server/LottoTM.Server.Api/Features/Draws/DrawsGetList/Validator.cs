@@ -5,7 +5,7 @@ namespace LottoTM.Server.Api.Features.Draws.DrawsGetList;
 /// <summary>
 /// Validator for GetDrawsRequest ensuring valid pagination and sorting parameters
 /// </summary>
-public class GetDrawsValidator : AbstractValidator<Contracts.GetDrawsRequest>
+public class GetDrawsValidator : AbstractValidator<Contracts.Request>
 {
     public GetDrawsValidator()
     {

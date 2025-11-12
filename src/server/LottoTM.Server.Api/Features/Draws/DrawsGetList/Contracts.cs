@@ -14,12 +14,12 @@ public class Contracts
     /// <param name="PageSize">Number of items per page (1-100, default: 20)</param>
     /// <param name="SortBy">Field to sort by: "drawDate" or "createdAt" (default: "drawDate")</param>
     /// <param name="SortOrder">Sort order: "asc" or "desc" (default: "desc")</param>
-    public record GetDrawsRequest(
+    public record Request(
         int Page = 1,
         int PageSize = 20,
         string SortBy = "drawDate",
         string SortOrder = "desc"
-    ) : IRequest<GetDrawsResponse>;
+    ) : IRequest<Response>;
 
     /// <summary>
     /// Response containing paginated list of draws with metadata
@@ -29,7 +29,7 @@ public class Contracts
     /// <param name="Page">Current page number</param>
     /// <param name="PageSize">Items per page</param>
     /// <param name="TotalPages">Total number of pages</param>
-    public record GetDrawsResponse(
+    public record Response(
         List<DrawDto> Draws,
         int TotalCount,
         int Page,

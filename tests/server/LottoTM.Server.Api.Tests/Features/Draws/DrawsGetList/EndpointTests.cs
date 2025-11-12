@@ -49,7 +49,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var result = await response.Content.ReadFromJsonAsync<Contracts.GetDrawsResponse>();
+        var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
         Assert.NotNull(result);
         Assert.NotNull(result.Draws);
         Assert.Equal(5, result.TotalCount);
@@ -88,7 +88,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var result = await response.Content.ReadFromJsonAsync<Contracts.GetDrawsResponse>();
+        var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
         Assert.NotNull(result);
         Assert.Equal(1, result.Page); // Default page
         Assert.Equal(20, result.PageSize); // Default pageSize
@@ -117,7 +117,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var result = await response.Content.ReadFromJsonAsync<Contracts.GetDrawsResponse>();
+        var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
         Assert.NotNull(result);
         Assert.Equal(2, result.Page);
         Assert.Equal(10, result.PageSize);
@@ -149,7 +149,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var result = await response.Content.ReadFromJsonAsync<Contracts.GetDrawsResponse>();
+        var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
         Assert.NotNull(result);
         Assert.True(result.Draws.Count > 0);
 
@@ -292,7 +292,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var result = await response.Content.ReadFromJsonAsync<Contracts.GetDrawsResponse>();
+        var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
         Assert.NotNull(result);
         Assert.Empty(result.Draws);
         Assert.Equal(0, result.TotalCount);

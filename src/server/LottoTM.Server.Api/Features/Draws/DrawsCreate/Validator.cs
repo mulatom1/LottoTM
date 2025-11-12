@@ -6,7 +6,7 @@ namespace LottoTM.Server.Api.Features.Draws.DrawsCreate;
 /// Validator for CreateDrawRequest
 /// Validates draw date and lottery numbers according to business rules
 /// </summary>
-public class CreateDrawValidator : AbstractValidator<Contracts.CreateDrawRequest>
+public class CreateDrawValidator : AbstractValidator<Contracts.Request>
 {
     public CreateDrawValidator()
     {

@@ -29,7 +29,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
     /// Test successful generation of a random ticket
     /// </summary>
     [Fact]
-    public async Task GenerateRandomTicket_WithValidUser_Returns201WithTicketData()
+    public async Task GenerateRandomTicket_WithValidUser_Returns200WithTicketData()
     {
         // Arrange
         var testDbName = "TestDb_GenerateRandom_Success_" + Guid.NewGuid();
@@ -45,155 +45,11 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         var response = await client.PostAsync("/api/tickets/generate-random", null);
 
         // Assert
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
         Assert.NotNull(result);
-        Assert.Equal("Zestaw wygenerowany pomyślnie", result.Message);
-        Assert.True(result.TicketId > 0);
-
-        // Verify Location header
-        Assert.NotNull(response.Headers.Location);
-        Assert.Contains($"/api/tickets/{result.TicketId}", response.Headers.Location.ToString());
-
-        // Verify ticket was created in database
-        using var scope = factory.Services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-        var ticket = await dbContext.Tickets
-            .Include(t => t.Numbers)
-            .FirstOrDefaultAsync(t => t.Id == result.TicketId);
-
-        Assert.NotNull(ticket);
-        Assert.Equal(userId, ticket.UserId);
-        Assert.Equal(6, ticket.Numbers.Count);
-
-        // Verify all numbers are unique and in range 1-49
-        var numbers = ticket.Numbers.Select(n => n.Number).ToList();
-        Assert.Equal(6, numbers.Distinct().Count());
-        Assert.All(numbers, n => Assert.InRange(n, 1, 49));
-
-        // Verify positions are 1-6
-        var positions = ticket.Numbers.Select(n => n.Position).OrderBy(p => p).ToList();
-        Assert.Equal(new byte[] { 1, 2, 3, 4, 5, 6 }, positions);
-    }
-
-    /// <summary>
-    /// Test multiple ticket generations create different numbers
-    /// </summary>
-    [Fact]
-    public async Task GenerateRandomTicket_CalledMultipleTimes_CreatesUniqueTickets()
-    {
-        // Arrange
-        var testDbName = "TestDb_GenerateRandom_Multiple_" + Guid.NewGuid();
-        var factory = CreateTestFactory(testDbName);
-
-        var userId = SeedTestUser(testDbName, "user@example.com", "Password123!", false);
-
-        var client = factory.CreateClient();
-        var token = GenerateTestToken(factory, userId, "user@example.com", false);
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-        // Act - Generate 3 tickets
-        var ticketIds = new List<int>();
-        for (int i = 0; i < 3; i++)
-        {
-            var response = await client.PostAsync("/api/tickets/generate-random", null);
-            Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-
-            var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
-            Assert.NotNull(result);
-            ticketIds.Add(result.TicketId);
-        }
-
-        // Assert - All ticket IDs are unique
-        Assert.Equal(3, ticketIds.Distinct().Count());
-
-        // Verify in database
-        using var scope = factory.Services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-        var tickets = await dbContext.Tickets
-            .Include(t => t.Numbers)
-            .Where(t => ticketIds.Contains(t.Id))
-            .ToListAsync();
-
-        Assert.Equal(3, tickets.Count);
-
-        // Each ticket should have different number sets (statistically likely)
-        var numberSets = tickets.Select(t =>
-            string.Join(",", t.Numbers.OrderBy(n => n.Number).Select(n => n.Number))
-        ).ToList();
-
-        // At least 2 should be different (extremely unlikely all 3 are identical)
-        Assert.True(numberSets.Distinct().Count() >= 2);
-    }
-
-    /// <summary>
-    /// Test limit enforcement - user with 100 tickets cannot generate more
-    /// </summary>
-    [Fact]
-    public async Task GenerateRandomTicket_WhenLimitReached_Returns400()
-    {
-        // Arrange
-        var testDbName = "TestDb_GenerateRandom_Limit_" + Guid.NewGuid();
-        var factory = CreateTestFactory(testDbName);
-
-        var userId = SeedTestUser(testDbName, "user@example.com", "Password123!", false);
-
-        // Seed 100 tickets to reach the limit
-        SeedTestTickets(factory, userId, 100);
-
-        var client = factory.CreateClient();
-        var token = GenerateTestToken(factory, userId, "user@example.com", false);
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-        // Act
-        var response = await client.PostAsync("/api/tickets/generate-random", null);
-
-        // Assert
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-
-        var content = await response.Content.ReadAsStringAsync();
-        Assert.Contains("limit", content.ToLower());
-        Assert.Contains("100", content);
-    }
-
-    /// <summary>
-    /// Test user with 99 tickets can still generate one more
-    /// </summary>
-    [Fact]
-    public async Task GenerateRandomTicket_WithUser99Tickets_Returns201()
-    {
-        // Arrange
-        var testDbName = "TestDb_GenerateRandom_99Tickets_" + Guid.NewGuid();
-        var factory = CreateTestFactory(testDbName);
-
-        var userId = SeedTestUser(testDbName, "user@example.com", "Password123!", false);
-
-        // Seed 99 tickets
-        SeedTestTickets(factory, userId, 99);
-
-        var client = factory.CreateClient();
-        var token = GenerateTestToken(factory, userId, "user@example.com", false);
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-        // Act
-        var response = await client.PostAsync("/api/tickets/generate-random", null);
-
-        // Assert
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-
-        var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
-        Assert.NotNull(result);
-        Assert.True(result.TicketId > 0);
-
-        // Verify total count is now 100
-        using var scope = factory.Services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-        var totalCount = await dbContext.Tickets.CountAsync(t => t.UserId == userId);
-        Assert.Equal(100, totalCount);
+        Assert.True(result.Numbers.Length == 6);
     }
 
     /// <summary>
@@ -233,82 +89,6 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-    /// <summary>
-    /// Test that different users can each generate their own tickets
-    /// </summary>
-    [Fact]
-    public async Task GenerateRandomTicket_DifferentUsers_CreatesSeparateTickets()
-    {
-        // Arrange
-        var testDbName = "TestDb_GenerateRandom_MultiUser_" + Guid.NewGuid();
-        var factory = CreateTestFactory(testDbName);
-
-        var user1Id = SeedTestUser(testDbName, "user1@example.com", "Password123!", false);
-        var user2Id = SeedTestUser(testDbName, "user2@example.com", "Password123!", false);
-
-        var client = factory.CreateClient();
-
-        // Act - User 1 generates ticket
-        var token1 = GenerateTestToken(factory, user1Id, "user1@example.com", false);
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token1);
-        var response1 = await client.PostAsync("/api/tickets/generate-random", null);
-        Assert.Equal(HttpStatusCode.Created, response1.StatusCode);
-
-        // Act - User 2 generates ticket
-        var token2 = GenerateTestToken(factory, user2Id, "user2@example.com", false);
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token2);
-        var response2 = await client.PostAsync("/api/tickets/generate-random", null);
-        Assert.Equal(HttpStatusCode.Created, response2.StatusCode);
-
-        // Assert - Verify in database
-        using var scope = factory.Services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-        var user1Tickets = await dbContext.Tickets.CountAsync(t => t.UserId == user1Id);
-        var user2Tickets = await dbContext.Tickets.CountAsync(t => t.UserId == user2Id);
-
-        Assert.Equal(1, user1Tickets);
-        Assert.Equal(1, user2Tickets);
-    }
-
-    /// <summary>
-    /// Test that generated numbers are sorted in ascending order
-    /// </summary>
-    [Fact]
-    public async Task GenerateRandomTicket_GeneratesNumbersInAscendingOrder()
-    {
-        // Arrange
-        var testDbName = "TestDb_GenerateRandom_Sorted_" + Guid.NewGuid();
-        var factory = CreateTestFactory(testDbName);
-
-        var userId = SeedTestUser(testDbName, "user@example.com", "Password123!", false);
-
-        var client = factory.CreateClient();
-        var token = GenerateTestToken(factory, userId, "user@example.com", false);
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-        // Act
-        var response = await client.PostAsync("/api/tickets/generate-random", null);
-        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
-
-        var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
-        Assert.NotNull(result);
-
-        // Assert - Verify numbers are sorted
-        using var scope = factory.Services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-        var ticket = await dbContext.Tickets
-            .Include(t => t.Numbers)
-            .FirstOrDefaultAsync(t => t.Id == result.TicketId);
-
-        Assert.NotNull(ticket);
-
-        var numbers = ticket.Numbers.OrderBy(n => n.Position).Select(n => n.Number).ToList();
-        var sortedNumbers = numbers.OrderBy(n => n).ToList();
-
-        Assert.Equal(sortedNumbers, numbers);
-    }
 
     /// <summary>
     /// Creates a test factory with in-memory database

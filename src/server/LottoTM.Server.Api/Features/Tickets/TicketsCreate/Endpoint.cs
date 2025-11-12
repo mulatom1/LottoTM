@@ -15,7 +15,7 @@ public static class Endpoint
     public static void AddEndpoint(this IEndpointRouteBuilder app)
     {
         app.MapPost("api/tickets", [Authorize] async (
-            Contracts.CreateTicketRequest request,
+            Contracts.Request request,
             IMediator mediator) =>
         {
             var result = await mediator.Send(request);
@@ -24,7 +24,7 @@ public static class Endpoint
         .RequireAuthorization() // Wymaga JWT tokenu
         .WithName("TicketsCreate")
         .WithTags("Tickets")
-        .Produces<Contracts.CreateTicketResponse>(StatusCodes.Status201Created)
+        .Produces<Contracts.Response>(StatusCodes.Status201Created)
         .Produces(StatusCodes.Status400BadRequest)
         .Produces(StatusCodes.Status401Unauthorized)
         .WithOpenApi();

@@ -1,9 +1,11 @@
-using System.Security.Claims;
 using FluentValidation;
 using LottoTM.Server.Api.Entities;
+using LottoTM.Server.Api.Exceptions;
 using LottoTM.Server.Api.Repositories;
+using LottoTM.Server.Api.Services;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace LottoTM.Server.Api.Features.Draws.DrawsUpdate;
 
@@ -13,21 +15,21 @@ namespace LottoTM.Server.Api.Features.Draws.DrawsUpdate;
 /// </summary>
 public class UpdateDrawHandler : IRequestHandler<Contracts.Request, IResult>
 {
-    private readonly AppDbContext _dbContext;
-    private readonly IValidator<Contracts.Request> _validator;
-    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger<UpdateDrawHandler> _logger;
+    private readonly IValidator<Contracts.Request> _validator;
+    private readonly AppDbContext _dbContext;
+    private readonly IJwtService _jwtService;
 
     public UpdateDrawHandler(
-        AppDbContext dbContext,
+        ILogger<UpdateDrawHandler> logger,
         IValidator<Contracts.Request> validator,
-        IHttpContextAccessor httpContextAccessor,
-        ILogger<UpdateDrawHandler> logger)
+        AppDbContext dbContext,
+        IJwtService jwtService)
     {
-        _dbContext = dbContext;
-        _validator = validator;
-        _httpContextAccessor = httpContextAccessor;
         _logger = logger;
+        _validator = validator;
+        _dbContext = dbContext;
+        _jwtService = jwtService;
     }
 
     /// <summary>
@@ -48,42 +50,18 @@ public class UpdateDrawHandler : IRequestHandler<Contracts.Request, IResult>
             throw new ValidationException(validationResult.Errors);
         }
 
-        // 2. Pobranie użytkownika z JWT claims
-        var httpContext = _httpContextAccessor.HttpContext;
-        if (httpContext?.User == null)
-        {
-            return Results.Problem(
-                statusCode: StatusCodes.Status401Unauthorized,
-                title: "Unauthorized",
-                detail: "Brak tokenu JWT"
-            );
-        }
-
-        var userIdClaim = httpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var isAdminClaim = httpContext.User.FindFirst("IsAdmin")?.Value;
-
-        if (!int.TryParse(userIdClaim, out var userId))
-        {
-            return Results.Problem(
-                statusCode: StatusCodes.Status401Unauthorized,
-                title: "Unauthorized",
-                detail: "Nieprawidłowy token JWT"
-            );
-        }
-
-        var isAdmin = bool.TryParse(isAdminClaim, out var adminResult) && adminResult;
+        // 2. Get UserId from JWT claims
+        var userId = await _jwtService.GetUserIdFromJwt();
+        var isAdmin = await _jwtService.GetIsAdminFromJwt();
 
         // 3. Sprawdzenie uprawnień administratora
         if (!isAdmin)
         {
-            _logger.LogWarning("User {UserId} attempted to update draw {DrawId} without admin privileges",
-                userId, request.Id);
-
-            return Results.Problem(
-                statusCode: StatusCodes.Status403Forbidden,
-                title: "Forbidden",
-                detail: "Brak uprawnień administratora. Tylko administratorzy mogą edytować losowania."
+            _logger.LogWarning(
+                "Użytkownik {UserId} próbował aktualizować losowanie bez uprawnień administratora",
+                userId
             );
+            throw new ForbiddenException("Brak uprawnień do aktualizacji losowań");
         }
 
         // 4. Pobranie losowania z bazy danych (z eager loading liczb)
@@ -132,6 +110,9 @@ public class UpdateDrawHandler : IRequestHandler<Contracts.Request, IResult>
 
             // Update LottoType
             draw.LottoType = request.LottoType;
+
+            // Update userID
+            draw.CreatedByUserId = userId;
 
             // Delete old numbers (EF Core tracking handles CASCADE)
             _dbContext.DrawNumbers.RemoveRange(draw.Numbers);

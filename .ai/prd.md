@@ -84,7 +84,7 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 6. **Limit zestawów:** Maksymalnie 100 zestawów na użytkownika
 7. **Weryfikacja:** Elastyczny date range picker do wyboru zakresu dat
 8. **Powiadomienia:** Tylko wizualny wskaźnik w UI (brak email/push)
-9. **Losowania per użytkownik:** Każdy użytkownik wprowadza wyniki losowań do globalnej tabeli Draws
+9. **Losowania globalne dla każdego usera:** Losowania są przechowywane globalnie i dostępne dla wszystkich użytkowników. Wprowadzać i modyfikować mogą tylko użytkownicy uprzywilejowani (admini).
 10. **Unikalność zestawów:** System blokuje duplikaty zestawów dla tego samego użytkownika
 
 ---
@@ -313,12 +313,7 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 **Kryteria akceptacji:**
 - Przycisk "Generuj losowy zestaw"
 - Algorytm generuje 6 unikalnych liczb z zakresu 1-49
-- Użytkownik widzi nowy wygenerowany zestaw
-- Opcje:
-  - "Zapisz" → zapis zestawu
-  - "Generuj ponownie" → nowy losowy zestaw
-  - "Anuluj" → powrót bez zapisu
-- Walidacja limitu 100 zestawów przed zapisem
+- Użytkownik widzi nowy wygenerowany zestaw do akceptacji przed zapisem
 
 **Endpointy API:**
 - `POST /api/tickets/generate-random`
@@ -335,13 +330,10 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 3. 54 pozycje - 49 liczb = 5 wolnych pozycji
 4. 5 wolnych pozycji jest losowo dopełnionych powtórzeniami liczb 1-49
 
+
 **Kryteria akceptacji:**
 - Przycisk "Generuj zestawy systemowe"
-- Tooltip/wyjaśnienie funkcji (edukacyjny charakter - nie zwiększa matematycznie szans na wygraną, ale zapewnia pełne pokrycie)
-- Użytkownik widzi podgląd 9 zestawów przed zapisem
-- Użytkownik możne zapisać wszystkie zestawy
-- Walidacja limitu: czy użytkownik ma miejsce na 9 nowych zestawów (max 100 - aktualna liczba ≥ 9)
-- Po zapisie: komunikat sukcesu + odświeżenie listy
+- Użytkownik widzi nowe wygenerowane zestawy do akceptacji przed zapisem
 
 **Endpointy API:**
 - `POST /api/tickets/generate-system`
@@ -371,7 +363,7 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 **Endpointy API:**
 - `POST /api/verification/check`
   - Body: `{ "dateFrom": "2025-10-01", "dateTo": "2025-10-30" }`
-  - Response: `{ "results": [ { "ticketId": "1", "ticketName": "string", "numbers": [...], "draws": [ { "drawId": "2", "drawDate": "date", "drawNumbers": [...], "matchCount": 3, "matchedNumbers": [5, 14, 29] } ] } ], "totalTickets": 42, "totalDraws": 8, "executionTimeMs": 1234 }`
+  - Response: `{ "results": [ { "ticketId": "1", "groupName": "string", "numbers": [...], "draws": [ { "drawId": "2", "drawDate": "date", "drawNumbers": [...], "matchCount": 3, "matchedNumbers": [5, 14, 29] } ] } ], "totalTickets": 42, "totalDraws": 8, "executionTimeMs": 1234 }`
 
 #### F-VERIFY-002: Prezentacja wyników weryfikacji
 **Priorytet:** Must Have
@@ -531,7 +523,6 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 - Przycisk "Generuj losowy zestaw"
 - Wyświetlenie podglądu wygenerowanych liczb
 - Opcja ponownego generowania lub zapisu
-- Walidacja limitu 100 zestawów
 
 **Priorytet:** Must Have
 **Story Points:** 3
@@ -540,15 +531,14 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 
 #### US-TICKETS-04: Generowanie zestawów systemowych
 **Jako** użytkownik
-**Chcę** wygenerować 9 zestawów pokrywających wszystkie liczby od 1 do 49
+**Chcę** wygenerować do podglądu 9 zestawów pokrywających wszystkie liczby od 1 do 49
 **Aby** mieć pełne pokrycie zakresu
 
 **Kryteria akceptacji:**
 - Przycisk "Generuj zestawy systemowe"
-- Tooltip wyjaśniający funkcję i algorytm
 - Algorytm pokrycia 1-49 + losowe dopełnienie (5 pozycji)
-- Zapis 9 zestawów do konta użytkownika
-- Walidacja: czy użytkownik ma miejsce na 9 zestawów (limit 100)
+- Wyświetlenie podglądu wygenerowanych liczb
+- Opcja ponownego generowania lub zapisu
 
 **Priorytet:** Must Have
 **Story Points:** 8
@@ -905,7 +895,7 @@ CREATE INDEX IX_Tickets_GroupName ON Tickets(GroupName);
 ```sql
 CREATE TABLE TicketNumbers (
     Id INT PRIMARY KEY IDENTITY,
-    TicketId UNIQUEIDENTIFIER NOT NULL,
+    TicketId INT NOT NULL,
     Number INT NOT NULL CHECK (Number BETWEEN 1 AND 49),
     Position TINYINT NOT NULL CHECK (Position BETWEEN 1 AND 6),
     CONSTRAINT FK_TicketNumbers_Tickets FOREIGN KEY (TicketId) REFERENCES Tickets(Id) ON DELETE CASCADE,
@@ -935,7 +925,7 @@ CREATE TABLE Draws (
     CONSTRAINT FK_Draws_Users FOREIGN KEY (CreatedByUserId) REFERENCES Users(Id) ON DELETE CASCADE
 );
 
-CREATE INDEX IX_Draws_Date ON Draws(DrawDate);
+CREATE INDEX IX_Draws_Date_LottoType ON Draws(DrawDate, LottoType);
 CREATE INDEX IX_Draws_CreatedByUserId ON Draws(CreatedByUserId);
 CREATE INDEX IX_Draws_LottoType ON Draws(LottoType);
 ```
@@ -1430,34 +1420,25 @@ Response:
 {
   "results": [
     {
-      "drawId": "1",
-      "drawDate": "2025-10-28",
-      "lottoType": "LOTTO",
-      "drawNumbers": [12, 18, 25, 31, 40, 49],
-      "tickets": [
+      "ticketId": 1,
+      "groupName": "Ulubione",
+      "numbers": [3, 12, 25, 31, 42, 48],
+      "draws": [
         {
-          "ticketId": "1",
-          "groupName": "Ulubione",
-          "numbers": [3, 12, 25, 31, 42, 48],
+          "drawId": 123,
+          "drawDate": "2025-10-28",
+          "lottoType": "LOTTO",
+          "drawNumbers": [12, 18, 25, 31, 40, 49],
           "matchCount": 3,
           "matchedNumbers": [12, 25, 31]
         }
       ]
     },
     {
-      "drawId": "2",
-      "drawDate": "2025-10-15",
-      "lottoType": "LOTTO PLUS",
-      "drawNumbers": [5, 11, 22, 33, 44, 49],
-      "tickets": [
-        {
-          "ticketId": "2",
-          "groupName": "",
-          "numbers": [1, 2, 3, 4, 5, 6],
-          "matchCount": 1,
-          "matchedNumbers": [5]
-        }
-      ]
+      "ticketId": 2,
+      "groupName": "",
+      "numbers": [1, 2, 3, 4, 5, 6],
+      "draws": []
     }
   ],
   "totalTickets": 42,

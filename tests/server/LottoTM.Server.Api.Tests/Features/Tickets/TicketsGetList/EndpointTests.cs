@@ -49,13 +49,10 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var result = await response.Content.ReadFromJsonAsync<Contracts.GetListResponse>();
+        var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
         Assert.NotNull(result);
         Assert.NotNull(result.Tickets);
         Assert.Equal(5, result.TotalCount);
-        Assert.Equal(1, result.Page);
-        Assert.Equal(5, result.PageSize);
-        Assert.Equal(1, result.TotalPages);
         Assert.Equal(100, result.Limit);
         Assert.Equal(5, result.Tickets.Count);
 
@@ -90,7 +87,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var result = await response.Content.ReadFromJsonAsync<Contracts.GetListResponse>();
+        var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
         Assert.NotNull(result);
         Assert.True(result.Tickets.Count > 1);
 
@@ -161,13 +158,10 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var result = await response.Content.ReadFromJsonAsync<Contracts.GetListResponse>();
+        var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
         Assert.NotNull(result);
         Assert.Empty(result.Tickets);
         Assert.Equal(0, result.TotalCount);
-        Assert.Equal(0, result.TotalPages);
-        Assert.Equal(1, result.Page);
-        Assert.Equal(0, result.PageSize);
         Assert.Equal(100, result.Limit);
     }
 
@@ -197,7 +191,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var result = await response.Content.ReadFromJsonAsync<Contracts.GetListResponse>();
+        var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
         Assert.NotNull(result);
         Assert.Equal(3, result.TotalCount); // Only user1's tickets
         Assert.All(result.Tickets, ticket => Assert.Equal(user1Id, ticket.UserId));
@@ -226,7 +220,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var result = await response.Content.ReadFromJsonAsync<Contracts.GetListResponse>();
+        var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
         Assert.NotNull(result);
         Assert.Equal(100, result.TotalCount);
         Assert.Equal(100, result.Tickets.Count);
@@ -281,7 +275,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var result = await response.Content.ReadFromJsonAsync<Contracts.GetListResponse>();
+        var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
         Assert.NotNull(result);
         Assert.Single(result.Tickets);
         Assert.Equal(expectedNumbers, result.Tickets[0].Numbers);

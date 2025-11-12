@@ -1,17 +1,12 @@
 /**
  * Response from POST /api/tickets/generate-random
- * Contains success message and generated ticket ID
+ * Contains generated numbers as a preview/proposal
+ * User must manually save using POST /api/tickets to persist
  */
 export interface TicketsGenerateRandomResponse {
   /**
-   * Success message
-   * @example "Zestaw wygenerowany pomyślnie"
+   * Array of 6 generated lottery numbers (1-49)
+   * @example [7, 19, 22, 33, 38, 45]
    */
-  message: string;
-
-  /**
-   * ID of the generated ticket
-   * @example 123
-   */
-  ticketId: number;
+  numbers: number[];
 }

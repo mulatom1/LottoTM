@@ -8,24 +8,25 @@ namespace LottoTM.Server.Api.Features.Draws.DrawsGetList;
 /// <summary>
 /// Handler for GetDrawsRequest - retrieves paginated list of draws with sorting
 /// </summary>
-public class GetDrawsHandler : IRequestHandler<Contracts.GetDrawsRequest, Contracts.GetDrawsResponse>
+public class GetDrawsHandler : IRequestHandler<Contracts.Request, Contracts.Response>
 {
-    private readonly AppDbContext _dbContext;
-    private readonly IValidator<Contracts.GetDrawsRequest> _validator;
     private readonly ILogger<GetDrawsHandler> _logger;
+    private readonly IValidator<Contracts.Request> _validator;
+    private readonly AppDbContext _dbContext;
 
     public GetDrawsHandler(
-        AppDbContext dbContext,
-        IValidator<Contracts.GetDrawsRequest> validator,
-        ILogger<GetDrawsHandler> logger)
+        ILogger<GetDrawsHandler> logger,        
+        IValidator<Contracts.Request> validator,
+        AppDbContext dbContext
+        )
     {
-        _dbContext = dbContext;
-        _validator = validator;
         _logger = logger;
+        _validator = validator;
+        _dbContext = dbContext;
     }
 
-    public async Task<Contracts.GetDrawsResponse> Handle(
-        Contracts.GetDrawsRequest request,
+    public async Task<Contracts.Response> Handle(
+        Contracts.Request request,
         CancellationToken cancellationToken)
     {
         // 1. Validate request parameters
@@ -84,7 +85,7 @@ public class GetDrawsHandler : IRequestHandler<Contracts.GetDrawsRequest, Contra
                 "Pobrano {Count} losowań (strona {Page}/{TotalPages})",
                 drawDtos.Count, request.Page, totalPages);
 
-            return new Contracts.GetDrawsResponse(
+            return new Contracts.Response(
                 drawDtos,
                 totalCount,
                 request.Page,

@@ -35,10 +35,10 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         var factory = CreateTestFactory(testDbName);
 
         // Seed database with a user
-        var userId = SeedTestUser(testDbName, "user@example.com", "Password123!", false);
+        var userId = SeedTestUser(testDbName, "user@example.com", "Password123!", true);
 
         var client = factory.CreateClient();
-        var token = GenerateTestToken(factory, userId, "user@example.com", false);
+        var token = GenerateTestToken(factory, userId, "user@example.com", true);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         var request = new

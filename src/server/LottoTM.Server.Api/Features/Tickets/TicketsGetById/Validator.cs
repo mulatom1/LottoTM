@@ -5,7 +5,7 @@ namespace LottoTM.Server.Api.Features.Tickets.TicketsGetById;
 /// <summary>
 /// Validator for GetByIdRequest - validates ticket ID
 /// </summary>
-public class GetByIdValidator : AbstractValidator<Contracts.GetByIdRequest>
+public class GetByIdValidator : AbstractValidator<Contracts.Request>
 {
     public GetByIdValidator()
     {

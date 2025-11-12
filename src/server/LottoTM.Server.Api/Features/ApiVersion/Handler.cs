@@ -1,17 +1,24 @@
 ﻿using FluentValidation;
+using LottoTM.Server.Api.Features.Auth.Register;
+using LottoTM.Server.Api.Features.Draws.DrawsCreate;
 using MediatR;
 
 namespace LottoTM.Server.Api.Features.ApiVersion;
 
 public class ApiVersionHandler : IRequestHandler<Contracts.Request, Contracts.Response>
 {
-    private readonly IConfiguration _configuration;
+    private readonly ILogger<ApiVersionHandler> _logger;
     private readonly IValidator<Contracts.Request> _validator;
+    private readonly IConfiguration _configuration;
+    
 
-    public ApiVersionHandler(IConfiguration configuration, IValidator<Contracts.Request> validator)
+    public ApiVersionHandler(
+        ILogger<ApiVersionHandler> logger,
+        IValidator<Contracts.Request> validator, IConfiguration configuration)
     {
+        _logger = logger;
+        _validator = validator;
         _configuration = configuration;
-        _validator = validator; 
     }
 
     public async Task<Contracts.Response> Handle(Contracts.Request request, CancellationToken cancellationToken)
@@ -19,13 +26,12 @@ public class ApiVersionHandler : IRequestHandler<Contracts.Request, Contracts.Re
         var validationResult = await _validator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
         {
-            // Jeśli są błędy, rzucamy wyjątek ValidationException,
-            // który zawiera wszystkie błędy.
-            // Można go później obsłużyć globalnie w middleware.
             throw new ValidationException(validationResult.Errors);
         }
 
         var apiVersion = _configuration.GetValue<string>("ApiVersion");
+        _logger.LogInformation("Retrieved API version: {ApiVersion}", apiVersion);
+        
         return await Task.FromResult(new Contracts.Response(apiVersion ?? "Version not found"));
     }
 }

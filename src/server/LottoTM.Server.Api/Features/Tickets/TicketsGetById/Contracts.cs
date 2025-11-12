@@ -11,7 +11,7 @@ public class Contracts
     /// Request to get a ticket by ID
     /// </summary>
     /// <param name="Id">ID of the ticket to retrieve (must be > 0)</param>
-    public record GetByIdRequest(int Id) : IRequest<GetByIdResponse>;
+    public record Request(int Id) : IRequest<Response>;
 
     /// <summary>
     /// Response containing ticket details
@@ -21,7 +21,7 @@ public class Contracts
     /// <param name="GroupName">Optional group name for organizing tickets</param>
     /// <param name="Numbers">Array of 6 lottery numbers in order by position</param>
     /// <param name="CreatedAt">UTC timestamp when ticket was created</param>
-    public record GetByIdResponse(
+    public record Response(
         int Id,
         int UserId,
         string GroupName,

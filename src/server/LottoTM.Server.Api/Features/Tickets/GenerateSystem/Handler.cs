@@ -1,6 +1,6 @@
 using FluentValidation;
 using LottoTM.Server.Api.Entities;
-using LottoTM.Server.Api.Repositories;
+using LottoTM.Server.Api.Services;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,18 +13,19 @@ namespace LottoTM.Server.Api.Features.Tickets.GenerateSystem;
 /// </summary>
 public class Handler : IRequestHandler<Contracts.Request, Contracts.Response>
 {
-    private readonly AppDbContext _context;
-    private readonly IValidator<Contracts.Request> _validator;
     private readonly ILogger<Handler> _logger;
+    private readonly IValidator<Contracts.Request> _validator;
+    private readonly IJwtService _jwtService;
 
     public Handler(
-        AppDbContext context,
+        ILogger<Handler> logger,
         IValidator<Contracts.Request> validator,
-        ILogger<Handler> logger)
+        IJwtService jwtService
+    )
     {
-        _context = context;
-        _validator = validator;
         _logger = logger;
+        _validator = validator;
+        _jwtService = jwtService;
     }
 
     public async Task<Contracts.Response> Handle(Contracts.Request request, CancellationToken cancellationToken)
@@ -35,6 +36,9 @@ public class Handler : IRequestHandler<Contracts.Request, Contracts.Response>
         {
             throw new ValidationException(validationResult.Errors);
         }
+
+        // Extract UserId from JWT
+        var userId = await _jwtService.GetUserIdFromJwt();
 
         // Generate 9 system tickets
         var generatedNumbers = GenerateSystemTickets();
@@ -50,9 +54,6 @@ public class Handler : IRequestHandler<Contracts.Request, Contracts.Response>
         {
             var ticket = new Ticket
             {
-                UserId = request.UserId,
-                CreatedAt = createdAt,
-                GroupName = $"System9: {DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")}",
                 Numbers = numbers.Select((num, index) => new TicketNumber
                 {
                     Number = num,
@@ -63,36 +64,10 @@ public class Handler : IRequestHandler<Contracts.Request, Contracts.Response>
             tickets.Add(ticket);
         }
 
-        // Save to database in transaction
-        using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
-        try
-        {
-            await _context.Tickets.AddRangeAsync(tickets, cancellationToken);
-            await _context.SaveChangesAsync(cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
-
-            _logger.LogInformation(
-                "Generated 9 system tickets for UserId={UserId}. TicketIds={TicketIds}",
-                request.UserId,
-                string.Join(", ", tickets.Select(t => t.Id))
-            );
-        }
-        catch (DbUpdateException ex)
-        {
-            await transaction.RollbackAsync(cancellationToken);
-            _logger.LogError(ex, "Database error generating system tickets for UserId={UserId}", request.UserId);
-            throw new InvalidOperationException("Wystąpił błąd podczas zapisywania zestawów", ex);
-        }
-
         // Build response
         var response = new Contracts.Response(
-            "9 zestawów wygenerowanych i zapisanych pomyślnie",
-            9,
             tickets.Select(t => new Contracts.TicketDto(
-                t.Id,
-                t.GroupName,
-                t.Numbers.OrderBy(n => n.Position).Select(n => n.Number).ToArray(),
-                t.CreatedAt
+                t.Numbers.OrderBy(n => n.Position).Select(n => n.Number).ToArray()
             )).ToList()
         );
 

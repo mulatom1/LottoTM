@@ -888,60 +888,50 @@ CREATE INDEX IX_TicketVerifications_DrawId ON TicketVerifications(DrawId);
 
 **Problem:** Tabela Draws jest wspólna (bez UserId), jak system wie które losowania są "nowe" dla użytkownika?
 
-**Rozwiązania:**
+**Implementacja MVP:** Sprawdzanie w locie po stronie aplikacji (localStorage)
 
-#### Opcja A: Porównanie z ostatnim logowaniem
-```sql
--- Dodaj kolumnę do Users
-ALTER TABLE Users ADD LastLoginAt DATETIME2;
+**Logika:**
+1. Frontend przechowuje timestamp ostatniej weryfikacji w `localStorage`
+2. Przy wywołaniu `POST /api/tickets/verify` backend zwraca listę losowań wraz z `createdAt`
+3. Frontend porównuje `draw.createdAt` z `lastVerificationDate` z localStorage
+4. Jeśli `draw.createdAt > lastVerificationDate` → wyświetl wskaźnik "NOWE"
+5. Po zakończeniu weryfikacji: `localStorage.setItem('lastVerificationDate', new Date().toISOString())`
 
--- Query dla nowych losowań
-SELECT COUNT(*)
-FROM Draws
-WHERE CreatedAt > @lastLoginAt;
+**Przykładowa logika frontend:**
+```typescript
+// Pobranie ostatniej daty weryfikacji
+const lastVerified = localStorage.getItem('lastVerificationDate');
+
+// Po otrzymaniu wyników weryfikacji z API
+const results = await api.ticketsVerify(ticketIds);
+
+results.forEach(ticket => {
+  ticket.draws.forEach(draw => {
+    const isNew = lastVerified 
+      ? new Date(draw.createdAt) > new Date(lastVerified)
+      : true; // Pierwsza weryfikacja - wszystko nowe
+    
+    if (isNew) {
+      // Wyświetl badge "NOWE" przy tym losowaniu
+    }
+  });
+});
+
+// Zapisz timestamp weryfikacji
+localStorage.setItem('lastVerificationDate', new Date().toISOString());
 ```
 
-**Zalety:** Proste
-**Wady:** Użytkownik może być zalogowany cały czas (LastLoginAt nieaktualne)
+**Zalety:**
+- Zero dodatkowych tabel/kolumn w bazie danych
+- Wszystkie sprawdzenia odbywają się w locie (in-memory, bez zapisów do storage)
+- Proste w implementacji
+- Nie obciąża bazy danych dodatkowymi zapytaniami
 
-#### Opcja B: Tabela UserDraws (tracking)
-```sql
-CREATE TABLE UserDraws (
-    UserId INT NOT NULL,
-    DrawId INT NOT NULL,
-    ViewedAt DATETIME2 NOT NULL DEFAULT GETDATE(),
-    PRIMARY KEY (UserId, DrawId),
-    CONSTRAINT FK_UserDraws_Users FOREIGN KEY (UserId)
-        REFERENCES Users(Id) ON DELETE CASCADE,
-    CONSTRAINT FK_UserDraws_Draws FOREIGN KEY (DrawId)
-        REFERENCES Draws(Id) ON DELETE CASCADE
-);
+**Wady:**
+- Dane tracone przy czyszczeniu localStorage (akceptowalne dla MVP - użytkownik po prostu zobaczy wszystkie losowania jako "nowe")
+- Każdy użytkownik na tej samej przeglądarce ma wspólny timestamp (akceptowalne dla MVP)
 
--- Query dla nowych losowań
-SELECT d.*
-FROM Draws d
-LEFT JOIN UserDraws ud ON d.Id = ud.DrawId AND ud.UserId = @userId
-WHERE ud.DrawId IS NULL;
-```
-
-**Zalety:** Precyzyjne tracking per user
-**Wady:** Dodatkowa tabela, więcej logiki
-
-#### Opcja C: Po stronie aplikacji (localStorage)
-```javascript
-// Frontend przechowuje date ostatniej weryfikacji
-localStorage.setItem('lastVerificationDate', '2025-11-02');
-
-// Query dla nowych losowań
-SELECT COUNT(*)
-FROM Draws
-WHERE CreatedAt > @lastVerificationDate;
-```
-
-**Zalety:** Zero zmian w bazie, proste
-**Wady:** Dane tracone przy czyszczeniu przeglądarki
-
-**Rekomendacja dla MVP:** Opcja C (localStorage) - najprostsza
+**Rekomendacja dla MVP:** Rozwiązanie localStorage - najprostsza opcja bez dodatkowych zapisów do bazy
 
 ### 5.7 Duplikaty zestawów
 

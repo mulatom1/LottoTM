@@ -12,21 +12,22 @@ namespace LottoTM.Server.Api.Features.Auth.Login;
 /// </summary>
 public class LoginHandler : IRequestHandler<Contracts.Request, Contracts.Response>
 {
+    private readonly ILogger<LoginHandler> _logger;
+    private readonly IValidator<Contracts.Request> _validator;
     private readonly AppDbContext _dbContext;
     private readonly IJwtService _jwtService;
-    private readonly IValidator<Contracts.Request> _validator;
-    private readonly ILogger<LoginHandler> _logger;
 
     public LoginHandler(
-        AppDbContext dbContext,
-        IJwtService jwtService,
+        ILogger<LoginHandler> logger,
         IValidator<Contracts.Request> validator,
-        ILogger<LoginHandler> logger)
+        AppDbContext dbContext,
+        IJwtService jwtService
+    )
     {
+        _logger = logger;
+        _validator = validator;
         _dbContext = dbContext;
         _jwtService = jwtService;
-        _validator = validator;
-        _logger = logger;
     }
 
     /// <summary>

@@ -15,7 +15,7 @@ public static class Endpoint
         app.MapGet("api/tickets",
             [Authorize] async (IMediator mediator) =>
             {
-                var request = new Contracts.GetListRequest();
+                var request = new Contracts.Request();
                 var result = await mediator.Send(request);
                 return Results.Ok(result);
             })
@@ -23,7 +23,7 @@ public static class Endpoint
             .WithName("TicketsGetList")
             .WithTags("Tickets")
             .WithDescription("Retrieves all lottery tickets belonging to the authenticated user. Returns list with pagination metadata. Maximum 100 tickets per user.")
-            .Produces<Contracts.GetListResponse>(StatusCodes.Status200OK)
+            .Produces<Contracts.Response>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces<ProblemDetails>(StatusCodes.Status500InternalServerError)
             .WithOpenApi();

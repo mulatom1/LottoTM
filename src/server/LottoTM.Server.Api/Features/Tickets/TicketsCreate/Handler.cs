@@ -1,6 +1,7 @@
 using FluentValidation;
 using LottoTM.Server.Api.Entities;
 using LottoTM.Server.Api.Repositories;
+using LottoTM.Server.Api.Services;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -11,27 +12,28 @@ namespace LottoTM.Server.Api.Features.Tickets.TicketsCreate;
 /// Handler for CreateTicketRequest - implements business logic for ticket creation
 /// Validates ticket limit (100 per user), checks for duplicate sets, and saves to database
 /// </summary>
-public class CreateTicketHandler : IRequestHandler<Contracts.CreateTicketRequest, Contracts.CreateTicketResponse>
+public class CreateTicketHandler : IRequestHandler<Contracts.Request, Contracts.Response>
 {
-    private readonly AppDbContext _dbContext;
-    private readonly IValidator<Contracts.CreateTicketRequest> _validator;
-    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger<CreateTicketHandler> _logger;
+    private readonly IValidator<Contracts.Request> _validator;
+    private readonly AppDbContext _dbContext;
+    private readonly IJwtService _jwtService;
 
     public CreateTicketHandler(
+        ILogger<CreateTicketHandler> logger,
+        IValidator<Contracts.Request> validator,
         AppDbContext dbContext,
-        IValidator<Contracts.CreateTicketRequest> validator,
-        IHttpContextAccessor httpContextAccessor,
-        ILogger<CreateTicketHandler> logger)
+        IJwtService jwtService
+        )
     {
-        _dbContext = dbContext;
-        _validator = validator;
-        _httpContextAccessor = httpContextAccessor;
         _logger = logger;
+        _validator = validator;
+        _dbContext = dbContext;
+        _jwtService = jwtService;
     }
 
-    public async Task<Contracts.CreateTicketResponse> Handle(
-        Contracts.CreateTicketRequest request,
+    public async Task<Contracts.Response> Handle(
+        Contracts.Request request,
         CancellationToken cancellationToken)
     {
         // 1. Validate request using FluentValidation
@@ -42,7 +44,7 @@ public class CreateTicketHandler : IRequestHandler<Contracts.CreateTicketRequest
         }
 
         // 2. Extract UserId from JWT token
-        var userId = GetUserIdFromJwt();
+        var userId = await _jwtService.GetUserIdFromJwt();
 
         // 3. Check if user has reached the limit of 100 tickets
         await ValidateTicketLimitAsync(userId, cancellationToken);
@@ -55,21 +57,7 @@ public class CreateTicketHandler : IRequestHandler<Contracts.CreateTicketRequest
 
         _logger.LogInformation("Ticket {TicketId} created successfully for user {UserId}", ticketId, userId);
 
-        return new Contracts.CreateTicketResponse(ticketId, "Zestaw utworzony pomyślnie");
-    }
-
-    /// <summary>
-    /// Extracts the UserId from JWT token claims
-    /// </summary>
-    /// <exception cref="UnauthorizedAccessException">Thrown when user cannot be identified</exception>
-    private int GetUserIdFromJwt()
-    {
-        var userIdClaim = _httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
-        {
-            throw new UnauthorizedAccessException("Nie można zidentyfikować użytkownika");
-        }
-        return userId;
+        return new Contracts.Response(ticketId, "Zestaw utworzony pomyślnie");
     }
 
     /// <summary>

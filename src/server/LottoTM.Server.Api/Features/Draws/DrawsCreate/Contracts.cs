@@ -10,7 +10,7 @@ public class Contracts
     /// <summary>
     /// Request to create a new lottery draw result
     /// </summary>
-    public record CreateDrawRequest : IRequest<CreateDrawResponse>
+    public record Request : IRequest<Response>
     {
         /// <summary>
         /// Date of the lottery draw (YYYY-MM-DD format)
@@ -30,7 +30,7 @@ public class Contracts
     /// Response after successfully creating a draw
     /// </summary>
     /// <param name="Message">Success message</param>
-    public record CreateDrawResponse(
+    public record Response(
         string Message
     );
 }

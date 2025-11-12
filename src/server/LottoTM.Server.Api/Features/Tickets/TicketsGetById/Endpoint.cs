@@ -15,7 +15,7 @@ public static class Endpoint
         app.MapGet("api/tickets/{id:int}",
             [Authorize] async (int id, IMediator mediator) =>
             {
-                var request = new Contracts.GetByIdRequest(id);
+                var request = new Contracts.Request(id);
                 var result = await mediator.Send(request);
                 return Results.Ok(result);
             })
@@ -23,7 +23,7 @@ public static class Endpoint
             .WithName("TicketsGetById")
             .WithTags("Tickets")
             .WithDescription("Retrieves a single lottery ticket by ID. The ticket must belong to the authenticated user.")
-            .Produces<Contracts.GetByIdResponse>(StatusCodes.Status200OK)
+            .Produces<Contracts.Response>(StatusCodes.Status200OK)
             .Produces<ValidationProblemDetails>(StatusCodes.Status400BadRequest)
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces<ProblemDetails>(StatusCodes.Status403Forbidden)

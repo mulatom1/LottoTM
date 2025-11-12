@@ -1,40 +1,22 @@
 /**
  * Response from POST /api/tickets/generate-system endpoint
- * Contains details of 9 generated system tickets covering all numbers 1-49
+ * Contains 9 generated tickets as preview/proposal covering all numbers 1-49
+ * User must manually save each ticket using POST /api/tickets to persist
  */
 export interface TicketsGenerateSystemResponse {
   /**
-   * Success message
-   */
-  message: string;
-
-  /**
-   * Number of tickets generated (always 9 for system generation)
-   */
-  generatedCount: number;
-
-  /**
-   * List of generated ticket details
+   * List of 9 generated tickets (proposals)
    */
   tickets: TicketDto[];
 }
 
 /**
- * DTO representing a single generated ticket
+ * DTO representing a single generated ticket (preview only)
  */
 export interface TicketDto {
   /**
-   * Unique ticket identifier
-   */
-  id: number;
-
-  /**
-   * 6 lottery numbers (sorted by position)
+   * 6 lottery numbers (1-49)
+   * @example [7, 15, 23, 31, 39, 47]
    */
   numbers: number[];
-
-  /**
-   * UTC timestamp of creation
-   */
-  createdAt: string;
 }

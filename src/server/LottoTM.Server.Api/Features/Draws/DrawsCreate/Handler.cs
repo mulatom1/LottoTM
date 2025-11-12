@@ -1,9 +1,10 @@
-using System.Security.Claims;
 using FluentValidation;
 using LottoTM.Server.Api.Entities;
 using LottoTM.Server.Api.Repositories;
+using LottoTM.Server.Api.Services;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace LottoTM.Server.Api.Features.Draws.DrawsCreate;
 
@@ -11,23 +12,25 @@ namespace LottoTM.Server.Api.Features.Draws.DrawsCreate;
 /// Handler for processing CreateDrawRequest
 /// Creates a new lottery draw with validation and transaction support
 /// </summary>
-public class CreateDrawHandler : IRequestHandler<Contracts.CreateDrawRequest, Contracts.CreateDrawResponse>
+public class CreateDrawHandler : IRequestHandler<Contracts.Request, Contracts.Response>
 {
-    private readonly AppDbContext _dbContext;
-    private readonly IValidator<Contracts.CreateDrawRequest> _validator;
-    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger<CreateDrawHandler> _logger;
+    private readonly IValidator<Contracts.Request> _validator;
+    private readonly AppDbContext _dbContext;
+    private readonly IJwtService _jwtService;
+
 
     public CreateDrawHandler(
+        ILogger<CreateDrawHandler> logger,
+        IValidator<Contracts.Request> validator,
         AppDbContext dbContext,
-        IValidator<Contracts.CreateDrawRequest> validator,
-        IHttpContextAccessor httpContextAccessor,
-        ILogger<CreateDrawHandler> logger)
+        IJwtService jwtService
+    )
     {
-        _dbContext = dbContext;
-        _validator = validator;
-        _httpContextAccessor = httpContextAccessor;
         _logger = logger;
+        _validator = validator;
+        _dbContext = dbContext;
+        _jwtService = jwtService;
     }
 
     /// <summary>
@@ -37,8 +40,8 @@ public class CreateDrawHandler : IRequestHandler<Contracts.CreateDrawRequest, Co
     /// 3. Checking if draw for the date already exists
     /// 4. Creating Draw and DrawNumbers in a transaction
     /// </summary>
-    public async Task<Contracts.CreateDrawResponse> Handle(
-        Contracts.CreateDrawRequest request,
+    public async Task<Contracts.Response> Handle(
+        Contracts.Request request,
         CancellationToken cancellationToken)
     {
         // 1. Walidacja FluentValidation
@@ -49,19 +52,20 @@ public class CreateDrawHandler : IRequestHandler<Contracts.CreateDrawRequest, Co
         }
 
         // 2. Pobierz UserId z JWT claims
-        var currentUserId = int.Parse(
-            _httpContextAccessor.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!
-        );
-
-        _logger.LogInformation(
-            "Creating draw for date {DrawDate} with type {LottoType} by user {UserId}",
-            request.DrawDate, request.LottoType, currentUserId
-        );
+        var currentUserId = await _jwtService.GetUserIdFromJwt();
+        var isAdmin = await _jwtService.GetIsAdminFromJwt();
+        if (!isAdmin)
+        {
+            _logger.LogWarning(
+                "User {UserId} attempted to create a draw without admin privileges",
+                currentUserId
+            );
+            throw new UnauthorizedAccessException("Brak uprawnień do tworzenia losowań");
+        }
 
         // 3. Sprawdź czy losowanie na daną datę i typ gry już istnieje (unique combination)
         var existingDraw = await _dbContext.Draws
             .AnyAsync(d => d.DrawDate == request.DrawDate && d.LottoType == request.LottoType, cancellationToken);
-
         if (existingDraw)
         {
             _logger.LogWarning(
@@ -112,7 +116,7 @@ public class CreateDrawHandler : IRequestHandler<Contracts.CreateDrawRequest, Co
                 draw.Id, draw.DrawDate
             );
 
-            return new Contracts.CreateDrawResponse("Losowanie utworzone pomyślnie");
+            return new Contracts.Response("Losowanie utworzone pomyślnie");
         }
         catch (Exception ex)
         {

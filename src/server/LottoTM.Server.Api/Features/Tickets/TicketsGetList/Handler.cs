@@ -1,5 +1,6 @@
 using FluentValidation;
 using LottoTM.Server.Api.Repositories;
+using LottoTM.Server.Api.Services;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -10,27 +11,28 @@ namespace LottoTM.Server.Api.Features.Tickets.TicketsGetList;
 /// Handler for GetListRequest - implements business logic for retrieving all tickets for authenticated user
 /// Returns list of tickets with 6 numbers each, ordered by creation date (newest first)
 /// </summary>
-public class GetListHandler : IRequestHandler<Contracts.GetListRequest, Contracts.GetListResponse>
+public class GetListHandler : IRequestHandler<Contracts.Request, Contracts.Response>
 {
-    private readonly AppDbContext _dbContext;
-    private readonly IValidator<Contracts.GetListRequest> _validator;
-    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger<GetListHandler> _logger;
+    private readonly IValidator<Contracts.Request> _validator;
+    private readonly AppDbContext _dbContext;
+    private readonly IJwtService _jwtService;
 
     public GetListHandler(
+        ILogger<GetListHandler> logger,
+        IValidator<Contracts.Request> validator,
         AppDbContext dbContext,
-        IValidator<Contracts.GetListRequest> validator,
-        IHttpContextAccessor httpContextAccessor,
-        ILogger<GetListHandler> logger)
+        IJwtService jwtService
+        )
     {
-        _dbContext = dbContext;
-        _validator = validator;
-        _httpContextAccessor = httpContextAccessor;
         _logger = logger;
+        _validator = validator;
+        _dbContext = dbContext;
+        _jwtService = jwtService;
     }
 
-    public async Task<Contracts.GetListResponse> Handle(
-        Contracts.GetListRequest request,
+    public async Task<Contracts.Response> Handle(
+        Contracts.Request request,
         CancellationToken cancellationToken)
     {
         // 1. Validate request using FluentValidation
@@ -41,7 +43,7 @@ public class GetListHandler : IRequestHandler<Contracts.GetListRequest, Contract
         }
 
         // 2. Extract UserId from JWT token (CRITICAL for security - data isolation)
-        var currentUserId = GetUserIdFromJwt();
+        var currentUserId = await _jwtService.GetUserIdFromJwt();
 
         _logger.LogInformation(
             "Pobieranie zestawów dla użytkownika {UserId}",
@@ -79,18 +81,12 @@ public class GetListHandler : IRequestHandler<Contracts.GetListRequest, Contract
 
             // 5. Calculate metadata
             var totalCount = ticketDtos.Count;
-            var page = 1; // No pagination in MVP
-            var pageSize = totalCount; // All tickets on one page
-            var totalPages = totalCount > 0 ? 1 : 0;
             var limit = 100; // Max tickets per user (enforced in Create endpoint)
 
             // 6. Return response
-            return new Contracts.GetListResponse(
+            return new Contracts.Response(
                 Tickets: ticketDtos,
                 TotalCount: totalCount,
-                Page: page,
-                PageSize: pageSize,
-                TotalPages: totalPages,
                 Limit: limit
             );
         }
@@ -103,19 +99,5 @@ public class GetListHandler : IRequestHandler<Contracts.GetListRequest, Contract
             );
             throw; // Re-throw, ExceptionHandlingMiddleware will handle it
         }
-    }
-
-    /// <summary>
-    /// Extracts the UserId from JWT token claims
-    /// </summary>
-    /// <exception cref="UnauthorizedAccessException">Thrown when user cannot be identified</exception>
-    private int GetUserIdFromJwt()
-    {
-        var userIdClaim = _httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
-        {
-            throw new UnauthorizedAccessException("Brak autoryzacji");
-        }
-        return userId;
     }
 }
