@@ -30,7 +30,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
                     ["Jwt:Issuer"] = "TestIssuer",
                     ["Jwt:Audience"] = "TestAudience",
                     ["Swagger:Enabled"] = "false",
-                    ["ConnectionStrings:DefaultConnection"] = "Server=(localdb)\\mssqllocaldb;Database=TestDb;Trusted_Connection=True;"
+                    ["ConnectionStrings:DefaultConnection"] = "U2VydmVyPWR1bW15O0RhdGFiYXNlPWR1bW15O0ludGVncmF0ZWQgU2VjdXJpdHk9VHJ1ZTs=" // Base64: "Server=dummy;Database=dummy;Integrated Security=True;"
                 });
             });
         }).CreateClient();
@@ -63,7 +63,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
                     ["Jwt:Issuer"] = "TestIssuer",
                     ["Jwt:Audience"] = "TestAudience",
                     ["Swagger:Enabled"] = "false",
-                    ["ConnectionStrings:DefaultConnection"] = "Server=(localdb)\\mssqllocaldb;Database=TestDb;Trusted_Connection=True;"
+                    ["ConnectionStrings:DefaultConnection"] = "U2VydmVyPWR1bW15O0RhdGFiYXNlPWR1bW15O0ludGVncmF0ZWQgU2VjdXJpdHk9VHJ1ZTs=" // Base64: "Server=dummy;Database=dummy;Integrated Security=True;"
                 });
             });
         }).CreateClient();
@@ -96,7 +96,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
                     ["Jwt:Issuer"] = "TestIssuer",
                     ["Jwt:Audience"] = "TestAudience",
                     ["Swagger:Enabled"] = "false",
-                    ["ConnectionStrings:DefaultConnection"] = "Server=(localdb)\\mssqllocaldb;Database=TestDb;Trusted_Connection=True;"
+                    ["ConnectionStrings:DefaultConnection"] = "U2VydmVyPWR1bW15O0RhdGFiYXNlPWR1bW15O0ludGVncmF0ZWQgU2VjdXJpdHk9VHJ1ZTs=" // Base64: "Server=dummy;Database=dummy;Integrated Security=True;"
                 });
             });
         }).CreateClient();

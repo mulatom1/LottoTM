@@ -334,6 +334,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
                 // Add only required configuration
                 config.AddInMemoryCollection(new Dictionary<string, string?>
                 {
+                    ["ConnectionStrings:DefaultConnection"] = "U2VydmVyPWR1bW15O0RhdGFiYXNlPWR1bW15O0ludGVncmF0ZWQgU2VjdXJpdHk9VHJ1ZTs=",
                     ["Jwt:Key"] = "ThisIsASecretKeyForTestingPurposesOnly123456",
                     ["Jwt:Issuer"] = "TestIssuer",
                     ["Jwt:Audience"] = "TestAudience",
