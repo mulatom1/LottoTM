@@ -30,7 +30,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
                     ["Jwt:Issuer"] = "TestIssuer",
                     ["Jwt:Audience"] = "TestAudience",
                     ["Swagger:Enabled"] = "false",
-                    ["ConnectionStrings:DefaultConnection"] = "U2VydmVyPWR1bW15O0RhdGFiYXNlPWR1bW15O0ludGVncmF0ZWQgU2VjdXJpdHk9VHJ1ZTs=" // Base64: "Server=dummy;Database=dummy;Integrated Security=True;"
+                    ["ConnectionStrings:DefaultConnection"] = "Server=dummy;Database=dummy;Integrated Security=True;"
                 });
             });
         }).CreateClient();
@@ -53,17 +53,17 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         {
             builder.ConfigureAppConfiguration((context, config) =>
             {
-                // Wyczyœæ wszystkie Ÿród³a konfiguracji
+                // Wyczyï¿½ï¿½ wszystkie ï¿½rï¿½dï¿½a konfiguracji
                 config.Sources.Clear();
                 
-                // Dodaj tylko niezbêdn¹ konfiguracjê bez ApiVersion
+                // Dodaj tylko niezbï¿½dnï¿½ konfiguracjï¿½ bez ApiVersion
                 config.AddInMemoryCollection(new Dictionary<string, string?>
                 {
                     ["Jwt:Key"] = "ThisIsASecretKeyForTestingPurposesOnly123456",
                     ["Jwt:Issuer"] = "TestIssuer",
                     ["Jwt:Audience"] = "TestAudience",
                     ["Swagger:Enabled"] = "false",
-                    ["ConnectionStrings:DefaultConnection"] = "U2VydmVyPWR1bW15O0RhdGFiYXNlPWR1bW15O0ludGVncmF0ZWQgU2VjdXJpdHk9VHJ1ZTs=" // Base64: "Server=dummy;Database=dummy;Integrated Security=True;"
+                    ["ConnectionStrings:DefaultConnection"] = "Server=dummy;Database=dummy;Integrated Security=True;"
                 });
             });
         }).CreateClient();
@@ -96,7 +96,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
                     ["Jwt:Issuer"] = "TestIssuer",
                     ["Jwt:Audience"] = "TestAudience",
                     ["Swagger:Enabled"] = "false",
-                    ["ConnectionStrings:DefaultConnection"] = "U2VydmVyPWR1bW15O0RhdGFiYXNlPWR1bW15O0ludGVncmF0ZWQgU2VjdXJpdHk9VHJ1ZTs=" // Base64: "Server=dummy;Database=dummy;Integrated Security=True;"
+                    ["ConnectionStrings:DefaultConnection"] = "Server=dummy;Database=dummy;Integrated Security=True;"
                 });
             });
         }).CreateClient();

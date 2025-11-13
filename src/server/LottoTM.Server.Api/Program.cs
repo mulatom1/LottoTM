@@ -17,8 +17,17 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog((context, configuration) => configuration.ReadFrom.Configuration(context.Configuration));
 
 var connStrBase64 = builder.Configuration.GetConnectionString("DefaultConnection");
-var connStr = Encoding.UTF8.GetString(Convert.FromBase64String(connStrBase64 ?? throw new InvalidOperationException("Connection string not configured")))
-        .Replace("\\\\","\\");
+if (string.IsNullOrWhiteSpace(connStrBase64))
+{
+    throw new InvalidOperationException("Connection string not configured");
+}
+
+// Decode Base64 connection string (skip decoding if it's already a plain connection string for tests)
+var connStr = connStrBase64.StartsWith("Server=", StringComparison.OrdinalIgnoreCase) || 
+              connStrBase64.StartsWith("Data Source=", StringComparison.OrdinalIgnoreCase)
+    ? connStrBase64
+    : Encoding.UTF8.GetString(Convert.FromBase64String(connStrBase64)).Replace("\\\\", "\\");
+
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(connStr));
 
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
