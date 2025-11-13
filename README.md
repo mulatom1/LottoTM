@@ -205,7 +205,7 @@ dotnet ef database update --project src/server/LottoTM.Server.Api
 - ✅ Support for up to 100 ticket sets per user
 
 **Draw Management**
-- ✅ Manual entry of official LOTTO and LOTTO PLUS results
+- ✅ Manual entry of official LOTTO and LOTTO PLUS results (including download from XLotto with LLM extraction)
 - ✅ Historical draw results storage
 - ✅ Input validation with real-time feedback
 - ✅ Date-based filtering and sorting
