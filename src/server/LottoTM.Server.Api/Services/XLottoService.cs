@@ -51,9 +51,11 @@ public class XLottoService : IXLottoService
             _logger.LogInformation("Successfully fetched XLotto website content. Size: {Size} bytes", htmlContent.Length);
 
             // Step 2: Send content to Google Gemini API
-            var geminiApiKey = _configuration["GoogleGemini:ApiKey"]
+            var geminiApiKeyBase64 = _configuration["GoogleGemini:ApiKey"]
                 ?? throw new InvalidOperationException("Google Gemini API Key not configured");
-            
+
+            var geminiApiKey = Encoding.UTF8.GetString(Convert.FromBase64String(geminiApiKeyBase64));
+
             var geminiModel = _configuration["GoogleGemini:Model"] ?? "gemini-2.0-flash";
             var geminiApiUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{geminiModel}:generateContent?key={geminiApiKey}";
 

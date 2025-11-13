@@ -16,7 +16,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Host.UseSerilog((context, configuration) => configuration.ReadFrom.Configuration(context.Configuration));
 
-builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+var connStrBase64 = builder.Configuration.GetConnectionString("DefaultConnection");
+var connStr = Encoding.UTF8.GetString(Convert.FromBase64String(connStrBase64 ?? throw new InvalidOperationException("Connection string not configured")))
+        .Replace("\\\\","\\");
+builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(connStr));
 
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
 
