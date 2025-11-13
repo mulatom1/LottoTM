@@ -4,6 +4,8 @@ import DatePicker from '../shared/date-picker';
 import NumberInput from '../shared/number-input';
 import Button from '../shared/button';
 import type { DrawFormData, DrawFormErrors } from '../../types/draws';
+import { useAppContext } from '../../context/app-context';
+import type { XLottoDrawsData } from '../../services/contracts/xlotto-actual-draws-response';
 
 export interface DrawFormModalProps {
   isOpen: boolean;
@@ -50,6 +52,8 @@ const DrawFormModal: React.FC<DrawFormModalProps> = ({
   const [formData, setFormData] = useState<DrawFormData>(getInitialFormData());
   const [formErrors, setFormErrors] = useState<DrawFormErrors>({});
   const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const { getApiService } = useAppContext();
 
   // Reset form when modal opens/closes or mode changes
   useEffect(() => {
@@ -199,6 +203,56 @@ const DrawFormModal: React.FC<DrawFormModalProps> = ({
     setFormErrors({});
   };
 
+  // Handle load from XLotto button
+  const handleLoadFromXLotto = async () => {
+    // Validate that date is selected
+    if (!formData.drawDate) {
+      alert('Proszę najpierw wybrać datę losowania');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const apiService = getApiService();
+      if (!apiService) {
+        alert('API service is not available');
+        return;
+      }
+
+      const response = await apiService.xLottoActualDraws({
+        date: formData.drawDate,
+        lottoType: formData.lottoType,
+      });
+
+      // Parse the JSON data string
+      const drawsData: XLottoDrawsData = JSON.parse(response.data);
+
+      // Find the draw matching the selected lotto type
+      const drawItem = drawsData.Data.find(
+        (item) => item.GameType === formData.lottoType
+      );
+
+      if (!drawItem) {
+        alert(`Nie znaleziono wyników dla typu losowania: ${formData.lottoType}`);
+        return;
+      }
+
+      // Update form data with fetched numbers
+      setFormData((prev) => ({
+        ...prev,
+        numbers: drawItem.Numbers as (number | '')[],
+      }));
+
+      // Clear any existing errors
+      setFormErrors({});
+    } catch (error) {
+      console.error('Error loading numbers from XLotto:', error);
+      alert(error instanceof Error ? error.message : 'Błąd podczas pobierania danych z XLotto');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Handle submit
   const handleSubmit = async () => {
     // Validate form
@@ -291,30 +345,32 @@ const DrawFormModal: React.FC<DrawFormModalProps> = ({
 
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row justify-between gap-3 pt-4 border-t border-gray-200">
-          {/* Left: Clear button */}
-          <Button
-            variant="secondary"
-            onClick={handleClear}
-            disabled={submitting}
-            className="order-2 sm:order-1"
-          >
-            Wyczyść
-          </Button>
+          {/* Left: Clear and Load from XLotto buttons */}
+          <div className="flex gap-3 order-2 sm:order-1">
+            <Button
+              variant="secondary"
+              onClick={handleClear}
+              disabled={submitting || loading}
+              className="flex-1 sm:flex-none"
+            >
+              Wyczyść
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={handleLoadFromXLotto}
+              disabled={submitting || loading}
+              className="flex-1 sm:flex-none"
+            >
+              {loading ? 'Pobieranie...' : 'Pobierz z XLotto'}
+            </Button>
+          </div>
 
           {/* Right: Cancel and Save buttons */}
           <div className="flex gap-3 order-1 sm:order-2">
             <Button
-              variant="secondary"
-              onClick={onCancel}
-              disabled={submitting}
-              className="flex-1 sm:flex-none"
-            >
-              Anuluj
-            </Button>
-            <Button
               variant="primary"
               onClick={handleSubmit}
-              disabled={submitting}
+              disabled={submitting || loading}
               className="flex-1 sm:flex-none"
             >
               {submitting ? 'Zapisywanie...' : 'Zapisz'}

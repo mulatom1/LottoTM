@@ -22,6 +22,8 @@ import type { TicketsGenerateRandomResponse } from "./contracts/tickets-generate
 import type { TicketsGenerateSystemResponse } from "./contracts/tickets-generate-system-response";
 import type { VerificationCheckRequest } from "./contracts/verification-check-request";
 import type { VerificationCheckResponse } from "./contracts/verification-check-response";
+import type { XLottoActualDrawsRequest } from "./contracts/xlotto-actual-draws-request";
+import type { XLottoActualDrawsResponse } from "./contracts/xlotto-actual-draws-response";
 
 export class ApiService {
     private apiUrl: string = '';
@@ -831,6 +833,61 @@ export class ApiService {
       }
 
       const result: VerificationCheckResponse = await response.json();
+      return result;
+    }
+
+    /**
+     * Get actual draw results from XLotto website via Gemini API
+     * GET /api/xlotto/actual-draws
+     * @param request - Date and lotto type (LOTTO or LOTTO PLUS)
+     * @returns Promise<XLottoActualDrawsResponse> - JSON string containing latest LOTTO and LOTTO PLUS results
+     * @throws Error if unauthorized (401), validation fails (400), or server error occurs (500)
+     */
+    public async xLottoActualDraws(request: XLottoActualDrawsRequest): Promise<XLottoActualDrawsResponse> {
+      // Build query parameters
+      const params = new URLSearchParams();
+      params.append('Date', request.date);
+      params.append('LottoType', request.lottoType);
+
+      const url = `${this.apiUrl}/api/xlotto/actual-draws?${params.toString()}`;
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: this.getHeaders()
+      });
+
+      if (!response.ok) {
+        // Handle different error scenarios
+        if (response.status === 401) {
+          throw new Error('Brak autoryzacji. Wymagany token JWT.');
+        }
+
+        if (response.status === 400) {
+          const errorData = await response.json();
+
+          // Extract validation errors from the response
+          if (errorData.errors) {
+            const errorMessages = Object.entries(errorData.errors)
+              .map(([field, messages]) => {
+                const msgArray = messages as string[];
+                return `${field}: ${msgArray.join(', ')}`;
+              })
+              .join('; ');
+            throw new Error(errorMessages);
+          }
+
+          throw new Error('Błąd walidacji danych wejściowych');
+        }
+
+        if (response.status === 500) {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || 'Błąd serwera podczas pobierania wyników z XLotto');
+        }
+
+        throw new Error(`Error fetching XLotto draws: ${response.statusText}`);
+      }
+
+      const result: XLottoActualDrawsResponse = await response.json();
       return result;
     }
 }

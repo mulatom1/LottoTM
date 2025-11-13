@@ -64,7 +64,7 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 
 - Wsparcie dla innych gier losowych (MINI LOTTO, Multi Multi, EuroJackpot)
 - Weryfikacja adresu email przy rejestracji
-- Automatyczne pobieranie wyników losowań z zewnętrznych API
+- Automatyczne pobieranie wyników losowań z oficjalnych API (MVP zawiera ręczne pobieranie z XLotto.pl przez Google Gemini API)
 - Import/eksport zestawów z plików (CSV, PDF)
 - Powiadomienia email lub push
 - Funkcje społecznościowe (udostępnianie zestawów)
@@ -124,6 +124,8 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 - `POST /api/auth/login`
   - Body: `{ "email": "string", "password": "string" }`
   - Response: `{ "token": "string", "userId": "number", "email": "string", "expiresAt": "datetime" }`
+
+#### F-AUTH-003: Wylogowanie użytkownika
 **Priorytet:** Must Have
 **Opis:** Zalogowany użytkownik może się wylogować.
 
@@ -131,6 +133,24 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 - Przycisk wylogowania dostępny w UI
 - Po wylogowaniu token JWT jest usuwany z przeglądarki
 - Przekierowanie na stronę logowania
+
+#### F-AUTH-004: Przełączanie uprawnień administratora ⚠️ TYMCZASOWY
+**Priorytet:** Must Have (MVP tylko)
+**Opis:** Endpoint tymczasowy pozwalający na przełączanie uprawnień administratora dla użytkownika na podstawie emaila. **To jest funkcjonalność TYMCZASOWA wyłącznie dla fazy MVP i zostanie usunięta lub zastąpiona odpowiednim systemem zarządzania uprawnieniami w produkcji.**
+
+**Kryteria akceptacji:**
+- Endpoint dostępny dla uwierzytelnionych użytkowników
+- Wymaga podania emaila użytkownika
+- Znajduje użytkownika po emailu
+- Przełącza flagę IsAdmin na wartość przeciwną (toggle)
+- Zwraca zaktualizowane informacje o użytkowniku
+- Endpoint będzie wyłączony/usunięty po wdrożeniu produkcyjnego systemu zarządzania uprawnieniami
+
+**Endpointy API:**
+- `PUT /api/auth/setadmin` ⚠️ TYMCZASOWY
+  - Body: `{ "email": "string" }`
+  - Response: `{ "userId": "number", "email": "string", "isAdmin": "boolean", "updatedAt": "datetime" }`
+  - **UWAGA:** Ten endpoint jest przeznaczony wyłącznie dla MVP i zostanie usunięty w wersji produkcyjnej
 
 ---
 
@@ -225,6 +245,49 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
   - Body: `{ "drawDate": "2025-10-30", "lottoType": "LOTTO PLUS", "numbers": [3, 12, 25, 31, 42, 48] }`
   - Response: `{ "message": "Wynik losowania zaktualizowany pomyślnie" }`
   - Authorization: Wymaga uprawnień administratora
+
+#### F-DRAW-006: Automatyczne pobieranie wyników z XLotto.pl
+**Priorytet:** Should Have
+**Opis:** Użytkownik uprzywilejowany (admin) może automatycznie pobrać wyniki losowania z witryny XLotto.pl za pomocą przycisku "Pobierz z XLotto" w formularzu dodawania/edycji wyniku losowania.
+
+**Kryteria akceptacji:**
+- Przycisk "Pobierz z XLotto" widoczny w formularzu dodawania/edycji losowania (tylko dla adminów)
+- Walidacja przed wywołaniem: data losowania i typ gry muszą być wybrane
+- System pobiera HTML ze strony XLotto.pl
+- System przetwarza pobraną zawartość przez Google Gemini API w celu ekstrakcji wyników
+- Automatyczne wypełnienie 6 pól numerycznych wynikami pobranymi z API
+- Loading state podczas pobierania (disabled przyciski, spinner)
+- Obsługa błędów:
+  - Alert z komunikatem błędu jeśli pobieranie nie powiodło się
+  - Informacja o braku autoryzacji (401)
+  - Informacja o błędach walidacji (400)
+  - Informacja o błędzie serwera (500)
+- Użytkownik może zmodyfikować automatycznie wypełnione liczby przed zapisem
+- Zapis działa standardowo (POST /api/draws)
+
+**Endpointy API:**
+- `GET /api/xlotto/actual-draws?Date=2025-11-04&LottoType=LOTTO`
+  - Query parameters:
+    - `Date` (wymagany): Data losowania w formacie YYYY-MM-DD
+    - `LottoType` (wymagany): Typ losowania ("LOTTO" lub "LOTTO PLUS")
+  - Response: `{ "success": true, "data": "{\"Data\": [...]}" }`
+  - Authorization: Wymaga uprawnień administratora
+
+**Logika biznesowa:**
+1. Pobranie zawartości HTML ze strony https://www.xlotto.pl/
+2. Wywołanie Google Gemini API z promptem do ekstrakcji wyników
+3. Przetworzenie odpowiedzi Gemini (czyszczenie markdown, walidacja JSON)
+4. Zwrot wyników w formacie JSON
+
+**Konfiguracja wymagana:**
+- Klucz API Google Gemini (przechowywany w appsettings.json)
+- Model Gemini (domyślnie: gemini-2.0-flash)
+
+**Uwagi implementacyjne:**
+- Funkcjonalność wymaga aktywnego klucza API Google Gemini
+- Czas wykonania: ~2-4 sekundy (pobieranie HTML + przetwarzanie przez Gemini)
+- Backend zwraca wyniki dla obu typów losowania (LOTTO i LOTTO PLUS), frontend wybiera właściwy
+- Endpoint nie zapisuje danych do bazy - tylko zwraca przetworzone wyniki
 
 ---
 
@@ -967,9 +1030,10 @@ CREATE INDEX IX_DrawNumbers_Number ON DrawNumbers(Number);
 
 #### Auth Module
 ```
-POST   /api/auth/register       - Rejestracja nowego użytkownika
-POST   /api/auth/login          - Logowanie
-POST   /api/auth/logout         - Wylogowanie
+POST   /api/auth/register    - Rejestracja nowego użytkownika
+POST   /api/auth/login       - Logowanie
+POST   /api/auth/logout      - Wylogowanie
+PUT    /api/auth/setadmin    - ⚠️ TYMCZASOWY: Przełączanie uprawnień administratora (MVP only)
 ```
 
 #### Draws Module

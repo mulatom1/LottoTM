@@ -24,6 +24,8 @@ builder.Services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
 
 // Register services
 builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.AddScoped<IXLottoService, XLottoService>();
+builder.Services.AddHttpClient();
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddEndpointsApiExplorer();
@@ -112,6 +114,7 @@ app.UseAuthorization();
 LottoTM.Server.Api.Features.ApiVersion.Endpoint.AddEndpoint(app);
 LottoTM.Server.Api.Features.Auth.Login.Endpoint.AddEndpoint(app);
 LottoTM.Server.Api.Features.Auth.Register.Endpoint.AddEndpoint(app);
+LottoTM.Server.Api.Features.Auth.SetAdmin.Endpoint.AddEndpoint(app);
 LottoTM.Server.Api.Features.Draws.DrawsCreate.Endpoint.AddEndpoint(app);
 LottoTM.Server.Api.Features.Draws.DrawsGetList.Endpoint.AddEndpoint(app);
 LottoTM.Server.Api.Features.Draws.DrawsGetById.Endpoint.AddEndpoint(app);
@@ -125,6 +128,7 @@ LottoTM.Server.Api.Features.Tickets.TicketsDelete.Endpoint.AddEndpoint(app);
 LottoTM.Server.Api.Features.Tickets.GenerateRandom.Endpoint.AddEndpoint(app);
 LottoTM.Server.Api.Features.Tickets.GenerateSystem.Endpoint.AddEndpoint(app);
 LottoTM.Server.Api.Features.Verification.Check.Endpoint.AddEndpoint(app);
+LottoTM.Server.Api.Features.XLotto.ActualDraws.Endpoint.AddEndpoint(app);
 
 
 await app.RunAsync();

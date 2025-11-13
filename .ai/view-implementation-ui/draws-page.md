@@ -204,12 +204,19 @@ interface DrawItemProps {
 - 6x NumberInput: "Liczba 1" do "Liczba 6" (required, min: 1, max: 49)
 - Inline validation pod polami (czerwone komunikaty)
 - Przyciski:
+  - "Pobierz z XLotto" (secondary, left) - automatyczne pobieranie wyników z XLotto.pl
   - "Wyczyść" (secondary, left) - reset wszystkich pól
   - "Anuluj" (secondary, right) - zamknięcie bez zapisu
   - "Zapisz" (primary, right) - submit formularza
 
 **Obsługiwane interakcje:**
 - Zmiana wartości w polach → inline validation w czasie rzeczywistym
+- Kliknięcie "Pobierz z XLotto" → automatyczne pobieranie wyników z XLotto.pl:
+  - Walidacja: data losowania musi być wybrana
+  - API call GET /api/xlotto/actual-draws?Date={drawDate}&LottoType={lottoType}
+  - Przetwarzanie odpowiedzi JSON i automatyczne wypełnienie 6 pól z liczbami
+  - Loading state podczas pobierania (disabled przyciski, spinner)
+  - Obsługa błędów: alert z komunikatem błędu
 - Kliknięcie "Wyczyść" → reset formularza do wartości początkowych (empty dla add, initial dla edit)
 - Kliknięcie "Anuluj" → zamknięcie modalu (onCancel)
 - Kliknięcie "Zapisz" → zbieranie błędów walidacji:
@@ -736,6 +743,48 @@ export class ApiService {
     return response.json();
   }
 
+  /**
+   * GET /api/xlotto/actual-draws - Pobieranie wyników z XLotto.pl przez Gemini API
+   */
+  async xLottoActualDraws(request: XLottoActualDrawsRequest): Promise<XLottoActualDrawsResponse> {
+    const params = new URLSearchParams();
+    params.append('Date', request.date);
+    params.append('LottoType', request.lottoType);
+
+    const url = `${this.apiUrl}/api/xlotto/actual-draws?${params.toString()}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: this.getHeaders()
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error('Brak autoryzacji. Wymagany token JWT.');
+      }
+      if (response.status === 400) {
+        const errorData = await response.json();
+        if (errorData.errors) {
+          const errorMessages = Object.entries(errorData.errors)
+            .map(([field, messages]) => {
+              const msgArray = messages as string[];
+              return `${field}: ${msgArray.join(', ')}`;
+            })
+            .join('; ');
+          throw new Error(errorMessages);
+        }
+        throw new Error('Błąd walidacji danych wejściowych');
+      }
+      if (response.status === 500) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Błąd serwera podczas pobierania wyników z XLotto');
+      }
+      throw new Error(`Error fetching XLotto draws: ${response.statusText}`);
+    }
+
+    const result: XLottoActualDrawsResponse = await response.json();
+    return result;
+  }
+
   // ... private request method with error handling
 }
 ```
@@ -869,6 +918,43 @@ export class ApiService {
     - Jeśli usunięto ostatni element na stronie i currentPage > 1: redirect do poprzedniej strony
     - W przeciwnym razie: odświeżenie aktualnej strony
 11. Losowanie zniknęło z listy
+
+---
+
+### 8.7 Przepływ: Admin pobiera wyniki z XLotto
+
+**Warunek:** Użytkownik z flagą `isAdmin === true`
+
+1. Admin otwiera DrawFormModal (dodawanie lub edycja)
+2. Admin wybiera datę losowania: 2025-11-04
+3. Admin wybiera typ losowania: "LOTTO" (dropdown lub radio buttons)
+4. Kliknięcie "Pobierz z XLotto"
+5. Walidacja inline: czy data jest wybrana
+   - Jeśli brak daty: alert "Proszę najpierw wybrać datę losowania"
+   - Jeśli data wybrana: kontynuacja
+6. Loading state: przyciski disabled, spinner przy przycisku "Pobierz z XLotto"
+7. API call: `GET /api/xlotto/actual-draws?Date=2025-11-04&LottoType=LOTTO`
+8. Backend:
+   - Pobiera HTML ze strony XLotto.pl
+   - Przetwarza przez Google Gemini API
+   - Zwraca JSON: `{ success: true, data: "{\"Data\": [...]}" }`
+9. Frontend parsuje odpowiedź:
+   - Deserializacja JSON string z pola `data`
+   - Wyszukanie obiektu DrawItem dla wybranego GameType
+   - Ekstrakcja tablicy Numbers
+10. Automatyczne wypełnienie 6 pól NumberInput wylosowanymi liczbami
+11. Loading state zakończony
+12. Admin może:
+    - Zmodyfikować liczby ręcznie (jeśli potrzebne)
+    - Kliknąć "Zapisz" aby zapisać wynik
+    - Kliknąć "Wyczyść" aby zresetować formularz
+13. Obsługa błędów:
+    - 401: Alert "Brak autoryzacji. Wymagany token JWT."
+    - 400: Alert z komunikatami walidacji z backendu
+    - 500: Alert "Nie udało się pobrać wyników z XLotto lub Gemini API"
+    - Network error: Alert "Błąd podczas pobierania danych z XLotto"
+
+**Uwaga:** Funkcjonalność działa dla obu typów losowania: LOTTO i LOTTO PLUS. Backend zwraca wyniki dla obu typów, ale frontend automatycznie wybiera właściwy na podstawie formData.lottoType.
 
 ---
 
@@ -1205,7 +1291,7 @@ private async request(endpoint: string, options: RequestInit) {
 ---
 
 ### Krok 7: Komponent DrawFormModal
-**Czas:** 2 godziny
+**Czas:** 2.5 godziny
 
 **Zadania:**
 1. Utworzenie `src/components/Draws/DrawFormModal.tsx`
@@ -1213,21 +1299,31 @@ private async request(endpoint: string, options: RequestInit) {
    - Modal wrapper (używa shared Modal)
    - Tytuł dynamiczny (mode: 'add' | 'edit')
    - DatePicker dla drawDate
+   - Dropdown/RadioButtons dla lottoType ("LOTTO" lub "LOTTO PLUS")
    - 6x NumberInput dla numbers[]
-   - Local state: formData, formErrors
+   - Local state: formData, formErrors, loading
    - Inline validation w czasie rzeczywistym (onChange)
+   - Przycisk "Pobierz z XLotto" (wywołanie handleLoadFromXLotto)
    - Przycisk "Wyczyść" (reset formularza)
    - Przycisk "Anuluj" (zamknięcie onCancel)
    - Przycisk "Zapisz" (submit → zbieranie błędów → onSubmit)
-3. Logika walidacji:
+3. Implementacja funkcji handleLoadFromXLotto:
+   - Walidacja: sprawdzenie czy drawDate jest wybrany
+   - API call: xLottoActualDraws({ date: formData.drawDate, lottoType: formData.lottoType })
+   - Parsowanie odpowiedzi: JSON.parse(response.data)
+   - Wyszukanie DrawItem dla wybranego GameType
+   - Automatyczne wypełnienie pól numbers[] wynikami
+   - Loading state: disabled przyciski, spinner
+   - Obsługa błędów: alert z komunikatem błędu
+4. Logika walidacji:
    - Wszystkie pola wymagane
    - drawDate ≤ dzisiaj
    - numbers[i] w zakresie 1-49
    - numbers[] unikalne (porównanie wszystkich par)
-4. Layout:
+5. Layout:
    - Mobile: vertical stack (6 inputs)
    - Desktop: 2 kolumny (3 inputs per row)
-5. Testowanie wszystkich scenariuszy walidacji
+6. Testowanie wszystkich scenariuszy walidacji i integracji XLotto
 
 ---
 
@@ -1383,8 +1479,9 @@ Plan implementacji widoku Historia Losowań (Draws Page) obejmuje wszystkie kluc
 ✅ **Filtrowanie po zakresie dat** - Date range picker z inline validation
 ✅ **Paginacja** - 20 wyników na stronę, adaptive controls (desktop/mobile)
 ✅ **Zarządzanie losowaniami (admin only)** - Dodawanie/edycja/usuwanie z walidacją i error handling
+✅ **Automatyczne pobieranie wyników z XLotto.pl** - Przycisk "Pobierz z XLotto" w formularzu dodawania/edycji wykorzystujący Google Gemini API do ekstrakcji wyników
 ✅ **Conditional rendering** - Role-based UI (admin vs non-admin)
-✅ **Integracja API** - 4 endpointy (GET/POST/PUT/DELETE) z JWT authentication
+✅ **Integracja API** - 5 endpointów (GET/POST/PUT/DELETE draws + GET xlotto/actual-draws) z JWT authentication
 ✅ **Obsługa błędów** - Inline validation + ErrorModal dla błędów API
 ✅ **Responsywność** - Mobile-first CSS, adaptive layouts
 ✅ **Accessibility** - ARIA attributes, keyboard navigation, focus management

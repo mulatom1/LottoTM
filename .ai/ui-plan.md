@@ -382,11 +382,25 @@ W MVP **całkowicie zrezygnowano z widoku Dashboard** (`/dashboard`). Po zalogow
      - Type: date
      - Required: true
      - Validation: nie może być w przyszłości (date ≤ dzisiaj)
+   - **Dropdown/Radio buttons dla typu losowania:**
+     - Label: "Typ losowania"
+     - Opcje: "LOTTO" lub "LOTTO PLUS"
+     - Required: true
+     - Default: "LOTTO"
+   - **Przycisk "Pobierz z XLotto" (admin only):**
+     - Secondary button, po lewej stronie
+     - Funkcjonalność: Automatyczne pobieranie wyników z XLotto.pl przez Google Gemini API
+     - Walidacja przed wywołaniem: data losowania musi być wybrana
+     - API call: `GET /api/xlotto/actual-draws?Date={drawDate}&LottoType={lottoType}`
+     - Loading state: disabled przyciski, spinner przy przycisku
+     - Automatyczne wypełnienie 6 pól numerycznych wynikami z API
+     - Obsługa błędów: Alert z komunikatem błędu (401, 400, 500)
    - **6 pól numerycznych:**
      - Labels: "Liczba 1" do "Liczba 6"
      - Type: number, min="1", max="49", required
      - Inline validation: zakres 1-49, unikalność
-   - Przyciski: [Wyczyść] | [Anuluj] [Zapisz]
+     - Mogą być wypełnione automatycznie przez przycisk "Pobierz z XLotto"
+   - Przyciski: [Pobierz z XLotto] [Wyczyść] | [Anuluj] [Zapisz]
    - **Logika backend:** Jeśli losowanie na daną datę i typ już istnieje, backend zwraca błąd z komunikatem "Wynik losowania na tę datę i typ już istnieje."
    - Po sukcesie: Toast "Wynik losowania zapisany pomyślnie", modal zamyka, aktualna strona odświeża
 
@@ -1103,6 +1117,7 @@ const variantClasses = {
 - Auth: `register()`, `login()`
 - Tickets: `getTickets()`, `createTicket()`, `updateTicket()`, `deleteTicket()`, `generateRandomTicket()`, `generateSystemTickets()`
 - Draws: `getDraws(page, pageSize, dateFrom?, dateTo?)`, `createDraw()`, `updateDraw()`, `deleteDraw()`
+- XLotto: `xLottoActualDraws(date, lottoType)` - pobieranie wyników z XLotto.pl przez Gemini API
 - Verification: `checkWinnings(dateFrom, dateTo)`
 
 ### 6.2 Error Handling w Komponentach
@@ -1308,9 +1323,11 @@ const apiService = getApiService()
 **F-DRAW-001: Dodawanie wyniku losowania**
 - UI: Draws Page → Modal dodawania (admin only)
   - DatePicker (drawDate, walidacja: nie w przyszłości)
-  - 6x NumberInput (1-49, unikalne)
+  - Dropdown/Radio buttons (lottoType: "LOTTO" lub "LOTTO PLUS")
+  - Przycisk "Pobierz z XLotto" (automatyczne pobieranie wyników z XLotto.pl przez Google Gemini API)
+  - 6x NumberInput (1-49, unikalne, mogą być wypełnione automatycznie)
   - Inline validation + ErrorModal
-  - Przycisk [Wyczyść] + [Anuluj] [Zapisz]
+  - Przyciski [Pobierz z XLotto] [Wyczyść] + [Anuluj] [Zapisz]
 
 **F-DRAW-002: Przeglądanie historii losowań**
 - UI: Draws Page (`/draws`)
@@ -1415,7 +1432,8 @@ const apiService = getApiService()
 7. **Progresywna kolorystyka licznika** zestawów (zielony/żółty/czerwony)
 8. **Accordion dla wyników weryfikacji** (czytelność przy wielu losowaniach)
 9. **Conditional rendering** dla admin features (role-based UI)
-10. **Mobile-first CSS, desktop-first UX**
+10. **Automatyczne pobieranie wyników z XLotto.pl** (admin) - przycisk "Pobierz z XLotto" wykorzystujący Google Gemini API
+11. **Mobile-first CSS, desktop-first UX**
 
 ### 9.2 Gotowość do Implementacji
 

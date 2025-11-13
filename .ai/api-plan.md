@@ -14,6 +14,7 @@
 | **Tickets** | `Tickets`, `TicketNumbers` | Zestawy liczb LOTTO należące do użytkowników |
 | **Draws** | `Draws`, `DrawNumbers` | Wyniki oficjalnych losowań LOTTO wprowadzone przez użytkowników |
 | **Verification** | - | Wyniki weryfikacji wygranych (obliczane on-demand) |
+| **XLotto** | - | Automatyczne pobieranie wyników z XLotto.pl przez Google Gemini API (utility endpoint, bez zapisu do bazy) |
 
 ---
 
@@ -152,6 +153,66 @@
 
 **Logika biznesowa:**
 1. Po stronie klienta: usunięcie tokenu z localStorage/sessionStorage
+
+---
+
+#### **PUT /api/auth/setadmin** ⚠️ TYMCZASOWY
+
+**Opis:** Przełączanie uprawnień administratora dla użytkownika na podstawie emaila (IsAdmin toggle)
+
+**⚠️ UWAGA:** To jest TYMCZASOWY endpoint wyłącznie dla MVP. Zostanie usunięty lub zastąpiony odpowiednim systemem zarządzania uprawnieniami w produkcji.
+
+**Autoryzacja:** Wymagany JWT w header `Authorization: Bearer <token>`
+
+**Parametry zapytania:** Brak
+
+**Przykład:** `PUT /api/auth/setadmin`
+
+**Payload żądania:**
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+**Walidacja:**
+- `email`: wymagane, format email, użytkownik musi istnieć w systemie
+
+**Payload odpowiedzi (sukces):**
+```json
+{
+  "userId": 123,
+  "email": "user@example.com",
+  "isAdmin": true,
+  "updatedAt": "2025-11-12T10:30:00Z"
+}
+```
+
+**Kody sukcesu:**
+- `200 OK` - Status administratora przełączony pomyślnie
+
+**Kody błędów:**
+- `401 Unauthorized` - Brak tokenu lub token nieprawidłowy
+- `400 Bad Request` - Nieprawidłowe dane wejściowe
+  ```json
+  {
+    "errors": {
+      "email": ["Email jest wymagany", "Nieprawidłowy format email", "Użytkownik z emailem {email} nie istnieje"]
+    }
+  }
+  ```
+
+**Logika biznesowa:**
+1. Walidacja formatu email
+2. Wyszukanie użytkownika po emailu
+3. Przełączenie flagi IsAdmin na wartość przeciwną: `IsAdmin = !IsAdmin`
+4. Zapis do bazy danych
+5. Zwrot zaktualizowanych danych użytkownika
+
+**Uwagi bezpieczeństwa:**
+- Email jednoznacznie identyfikuje użytkownika (unikalny w systemie)
+- Brak dodatkowych zabezpieczeń w MVP - w produkcji wymagane będą dodatkowe mechanizmy autoryzacji
+- Ten endpoint jest przeznaczony wyłącznie do użytku podczas fazy MVP
 
 ---
 
@@ -938,6 +999,149 @@
 
 ---
 
+### 2.5 Moduł: XLotto (Automatyczne pobieranie wyników)
+
+---
+
+#### **GET /api/xlotto/actual-draws**
+
+**Opis:** Pobieranie aktualnych wyników losowań z witryny XLotto.pl za pomocą Google Gemini API
+
+**Autoryzacja:** Wymagany JWT (wymaga uprawnień administratora - IsAdmin)
+
+**Parametry zapytania:**
+- `Date` (wymagany): Data losowania w formacie YYYY-MM-DD
+- `LottoType` (wymagany): Typ losowania ("LOTTO" lub "LOTTO PLUS")
+
+**Przykład:** `GET /api/xlotto/actual-draws?Date=2025-11-04&LottoType=LOTTO`
+
+**Payload odpowiedzi (sukces):**
+```json
+{
+  "success": true,
+  "data": "{\"Data\": [ { \"DrawDate\": \"2025-11-04\", \"GameType\": \"LOTTO\", \"Numbers\": [4, 23, 34, 37, 45, 46] }, { \"DrawDate\": \"2025-11-04\", \"GameType\": \"LOTTO PLUS\", \"Numbers\": [15, 17, 18, 23, 43, 46] } ]}"
+}
+```
+
+**Struktura JSON w polu `data`:**
+```json
+{
+  "Data": [
+    {
+      "DrawDate": "2025-11-04",
+      "GameType": "LOTTO",
+      "Numbers": [4, 23, 34, 37, 45, 46]
+    },
+    {
+      "DrawDate": "2025-11-04",
+      "GameType": "LOTTO PLUS",
+      "Numbers": [15, 17, 18, 23, 43, 46]
+    }
+  ]
+}
+```
+
+**Walidacja:**
+- `Date`: wymagany, format DATE (YYYY-MM-DD), nie może być w przyszłości
+- `LottoType`: wymagany, wartość "LOTTO" lub "LOTTO PLUS"
+
+**Kody sukcesu:**
+- `200 OK` - Wyniki pobrane i przetworzone pomyślnie
+
+**Kody błędów:**
+- `401 Unauthorized` - Brak tokenu lub token nieprawidłowy
+- `403 Forbidden` - Użytkownik nie ma uprawnień administratora
+- `400 Bad Request` - Nieprawidłowe parametry zapytania
+  ```json
+  {
+    "errors": {
+      "Date": ["Data jest wymagana", "Nieprawidłowy format daty", "Data nie może być w przyszłości"],
+      "LottoType": ["Typ losowania jest wymagany", "Dozwolone wartości: LOTTO, LOTTO PLUS"]
+    }
+  }
+  ```
+- `500 Internal Server Error` - Błąd podczas pobierania lub przetwarzania danych
+  ```json
+  {
+    "error": "Nie udało się pobrać wyników z XLotto lub Gemini API"
+  }
+  ```
+
+**Logika biznesowa:**
+1. Pobranie `UserId` z JWT i sprawdzenie flagi `IsAdmin`
+2. Jeśli IsAdmin == false: zwróć 403 Forbidden
+3. Walidacja parametrów zapytania (Date format, LottoType value)
+4. **Faza 1: Pobranie zawartości HTML ze strony XLotto.pl**
+   ```csharp
+   var httpClient = _httpClientFactory.CreateClient();
+   httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0...");
+   var response = await httpClient.GetAsync("https://www.xlotto.pl/");
+   var htmlContent = await response.Content.ReadAsStringAsync();
+   ```
+5. **Faza 2: Wywołanie Google Gemini API**
+   ```csharp
+   var geminiApiKey = _configuration["GoogleGemini:ApiKey"];
+   var geminiModel = _configuration["GoogleGemini:Model"] ?? "gemini-2.0-flash";
+   var geminiApiUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{geminiModel}:generateContent?key={geminiApiKey}";
+
+   var prompt = "Przeszukaj zawartość contentu i podaj najnowsze wyniki dla LOTTO, LOTTO PLUS. Wynik oddaj w formacie w JSON { \"Data\": [ { \"DrawDate\": \"YYYY-MM-DD\", \"GameType\": \"LOTTO\", \"Numbers\": [1,2,3,4,5,6] }, { \"DrawDate\": \"YYYY-MM-DD\", \"GameType\": \"LOTTO PLUS\", \"Numbers\": [1,2,3,4,5,6] } ] } i nie zwracaj niczego innego.Tylko JSON.";
+
+   var geminiRequest = new {
+       contents = new[] {
+           new {
+               parts = new[] {
+                   new { text = $"{prompt}\n\nHTML Content:\n{htmlContent}" }
+               }
+           }
+       }
+   };
+   ```
+6. **Faza 3: Przetworzenie odpowiedzi Gemini**
+   ```csharp
+   var geminiResult = JsonSerializer.Deserialize<JsonElement>(geminiResponseContent);
+   var generatedText = geminiResult
+       .GetProperty("candidates")[0]
+       .GetProperty("content")
+       .GetProperty("parts")[0]
+       .GetProperty("text")
+       .GetString();
+
+   // Czyszczenie markdown code blocks
+   var cleanedText = generatedText.Trim();
+   if (cleanedText.StartsWith("```json"))
+       cleanedText = cleanedText.Substring(7);
+   if (cleanedText.EndsWith("```"))
+       cleanedText = cleanedText.Substring(0, cleanedText.Length - 3);
+
+   cleanedText = cleanedText.Trim();
+
+   // Walidacja JSON
+   JsonSerializer.Deserialize<JsonElement>(cleanedText);
+   ```
+7. Zwrot przetworzonego JSON jako string w polu `data`
+
+**Konfiguracja wymagana (appsettings.json):**
+```json
+{
+  "GoogleGemini": {
+    "ApiKey": "YOUR_GEMINI_API_KEY",
+    "Model": "gemini-2.0-flash"
+  }
+}
+```
+
+**Uwagi bezpieczeństwa:**
+- Klucz API Gemini przechowywany w konfiguracji (nie w kodzie)
+- W produkcji: używać Azure Key Vault lub podobnego rozwiązania
+- Rate limiting zalecany (Gemini API ma własne limity)
+
+**Wydajność:**
+- Czas pobierania HTML: ~200-500ms
+- Czas przetwarzania przez Gemini API: ~1-3 sekundy
+- Całkowity czas: ~2-4 sekundy
+
+---
+
 ## 3. Uwierzytelnianie i Autoryzacja
 
 ### 3.1 Mechanizm: JWT (JSON Web Tokens)
@@ -1368,6 +1572,7 @@ public List<int[]> GenerateSystemTickets()
 | POST | `/api/auth/register` | Rejestracja + automatyczne logowanie | Nie |
 | POST | `/api/auth/login` | Logowanie | Nie |
 | POST | `/api/auth/logout` | Wylogowanie | Tak |
+| PUT | `/api/auth/setadmin` | ⚠️ TYMCZASOWY: Przełączanie uprawnień administratora | Tak |
 | GET | `/api/draws` | Lista wszystkich wyników losowań (globalna) | Tak |
 | GET | `/api/draws/{id}` | Szczegóły losowania | Tak |
 | POST | `/api/draws` | Dodanie wyniku losowania (admin) | Tak (IsAdmin) |
