@@ -7,6 +7,7 @@ A modern lottery ticket management system that automates win verification and si
 - [Project Description](#project-description)
 - [Tech Stack](#tech-stack)
 - [Getting Started Locally](#getting-started-locally)
+- [Getting Started with Docker](#getting-started-with-docker)
 - [Available Scripts](#available-scripts)
 - [Project Scope](#project-scope)
 - [Project Status](#project-status)
@@ -41,8 +42,10 @@ Currently supports LOTTO and LOTTO PLUS (6 numbers from 1-49)
 - **FluentValidation** - Request validation
 - **Serilog** - Structured logging
 - **JWT** - JSON Web Token authentication
+- **Google Gemini API** - AI-powered data extraction from XLotto website
 - **xUnit** - Unit and integration testing
 - **WebApplicationFactory** - Integration test framework
+- **Moq** - Mocking framework for unit tests
 
 ### Frontend
 
@@ -119,6 +122,86 @@ npm run dev
 ```
 
 The application will open at `http://localhost:5173`
+
+## Getting Started with Docker
+
+Docker provides a simplified way to run the entire application (frontend + backend) in a containerized environment without installing Node.js or .NET SDK locally.
+
+### Prerequisites
+
+- **Docker Desktop** ([Download](https://www.docker.com/products/docker-desktop))
+- **SQL Server 2022** (running locally or accessible remotely)
+
+### Running with Docker
+
+#### 1. Build the Docker Image
+
+From the project root directory:
+
+```bash
+docker build -t lottotm:latest .
+```
+
+This creates a multi-stage Docker image that:
+- Builds the React frontend using Node.js 20
+- Builds the .NET 8 backend
+- Combines both into a single runtime image with ASP.NET Core serving the frontend
+
+#### 2. Run the Container
+
+```bash
+docker run -d -p 8080:8080 --name lottotm-app lottotm:latest
+```
+
+The application will be available at `http://localhost:8080`
+
+#### 3. Environment Configuration
+
+For production deployments, you'll need to configure environment variables for database connection and JWT settings:
+
+```bash
+docker run -d -p 8080:8080 \
+  -e ConnectionStrings__DefaultConnection="Server=YOUR_SQL_SERVER;Database=LottoTM;User Id=YOUR_USER;Password=YOUR_PASSWORD;TrustServerCertificate=True" \
+  -e Jwt__Key="YOUR_SECRET_KEY_MINIMUM_32_CHARACTERS" \
+  -e Jwt__Issuer="LottoTM" \
+  -e Jwt__Audience="LottoTM" \
+  -e Jwt__ExpiryMinutes="60" \
+  --name lottotm-app \
+  lottotm:latest
+```
+
+#### 4. Useful Docker Commands
+
+```bash
+# View running containers
+docker ps
+
+# Stop the container
+docker stop lottotm-app
+
+# Start the container
+docker start lottotm-app
+
+# Remove the container
+docker rm lottotm-app
+
+# View container logs
+docker logs lottotm-app
+
+# Follow container logs in real-time
+docker logs -f lottotm-app
+
+# Execute commands inside the container
+docker exec -it lottotm-app /bin/bash
+```
+
+### Docker Notes
+
+- The Dockerfile uses multi-stage builds to optimize image size
+- Frontend static files are served by the ASP.NET Core backend from `wwwroot`
+- The container exposes port **8080** (default for .NET 8 in containers)
+- Database migrations must be applied separately before running the container
+- For local development, SQL Server connection should use `host.docker.internal` instead of `localhost`
 
 ### Configuration
 
@@ -205,7 +288,10 @@ dotnet ef database update --project src/server/LottoTM.Server.Api
 - ✅ Support for up to 100 ticket sets per user
 
 **Draw Management**
-- ✅ Manual entry of official LOTTO and LOTTO PLUS results (including download from XLotto with LLM extraction)
+- ✅ Manual entry of official LOTTO and LOTTO PLUS results
+- ✅ Automated draw fetching from XLotto.pl via Google Gemini API
+- ✅ AI-powered HTML content extraction and JSON conversion
+- ✅ Support for multiple lottery types (LOTTO, LOTTO PLUS)
 - ✅ Historical draw results storage
 - ✅ Input validation with real-time feedback
 - ✅ Date-based filtering and sorting
@@ -251,7 +337,9 @@ The project is actively under development with a focus on delivering core MVP fu
 - ✅ FluentValidation for all inputs
 - ✅ Global exception handling middleware
 - ✅ Structured logging with Serilog
+- ✅ Comprehensive test coverage (Unit, Integration, Service tests)
 - ✅ Integration tests with WebApplicationFactory
+- ✅ XLotto integration with Google Gemini API (29 tests passing)
 
 ### Performance Metrics
 
@@ -259,7 +347,7 @@ The project is actively under development with a focus on delivering core MVP fu
 
 ### Recent Updates
 
-- Added Dockerfile for containerization
+- **Docker Support**: Added multi-stage Dockerfile for containerized deployments (frontend + backend in single image)
 - Implemented GitHub Actions CI/CD pipeline
 - Enhanced ticket and draw management with `groupName` and `lottoType` fields
 - Refactored database context with updated Entity Framework Core fluent API
