@@ -234,9 +234,81 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     /// <summary>
+    /// Test retrieval when GoogleGemini feature is disabled returns empty data
+    /// </summary>
+    [Fact]
+    public async Task GetActualDraws_WhenFeatureDisabled_Returns200WithEmptyData()
+    {
+        // Arrange
+        var testDbName = "TestDb_FeatureDisabled_" + Guid.NewGuid();
+        var mockXLottoService = new Mock<IXLottoService>();
+
+        // Service should NOT be called when feature is disabled
+        mockXLottoService
+            .Setup(s => s.GetActualDraws(It.IsAny<DateTime?>(), It.IsAny<string>()))
+            .ReturnsAsync("{\"Data\":[{\"DrawDate\":\"2025-01-15\",\"GameType\":\"LOTTO\",\"Numbers\":[1,2,3,4,5,6]}]}");
+
+        var factory = CreateTestFactory(testDbName, mockXLottoService.Object, featureEnabled: false);
+        var userId = SeedTestUser(testDbName, "user@example.com", "Password123!", false);
+
+        var client = factory.CreateClient();
+        var token = GenerateTestToken(factory, userId, "user@example.com", false);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        // Act
+        var response = await client.GetAsync("/api/xlotto/actual-draws?date=2025-01-15&lottoType=LOTTO");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var result = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(result.GetProperty("success").GetBoolean());
+
+        var data = result.GetProperty("data").GetString();
+        Assert.NotNull(data);
+        Assert.Contains("\"Data\":[]", data); // Should return empty data
+
+        // Verify service was NOT called
+        mockXLottoService.Verify(s => s.GetActualDraws(It.IsAny<DateTime?>(), It.IsAny<string>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Test retrieval when GoogleGemini feature is enabled calls service
+    /// </summary>
+    [Fact]
+    public async Task GetActualDraws_WhenFeatureEnabled_CallsService()
+    {
+        // Arrange
+        var testDbName = "TestDb_FeatureEnabled_" + Guid.NewGuid();
+        var mockXLottoService = new Mock<IXLottoService>();
+        var expectedJsonData = "{\"Data\":[{\"DrawDate\":\"2025-01-15\",\"GameType\":\"LOTTO\",\"Numbers\":[1,2,3,4,5,6]}]}";
+
+        mockXLottoService
+            .Setup(s => s.GetActualDraws(It.IsAny<DateTime?>(), It.IsAny<string>()))
+            .ReturnsAsync(expectedJsonData);
+
+        var factory = CreateTestFactory(testDbName, mockXLottoService.Object, featureEnabled: true);
+        var userId = SeedTestUser(testDbName, "user@example.com", "Password123!", false);
+
+        var client = factory.CreateClient();
+        var token = GenerateTestToken(factory, userId, "user@example.com", false);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        // Act
+        var response = await client.GetAsync("/api/xlotto/actual-draws?date=2025-01-15&lottoType=LOTTO");
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var result = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(result.GetProperty("success").GetBoolean());
+
+        // Verify service WAS called
+        mockXLottoService.Verify(s => s.GetActualDraws(It.IsAny<DateTime?>(), It.IsAny<string>()), Times.Once);
+    }
+
+    /// <summary>
     /// Creates a test factory with in-memory database and mocked XLotto service
     /// </summary>
-    private WebApplicationFactory<Program> CreateTestFactory(string databaseName, IXLottoService? xLottoService = null)
+    private WebApplicationFactory<Program> CreateTestFactory(string databaseName, IXLottoService? xLottoService = null, bool featureEnabled = true)
     {
         return _factory.WithWebHostBuilder(builder =>
         {
@@ -253,6 +325,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
                     ["Jwt:ExpiryInMinutes"] = "1440",
                     ["GoogleGemini:ApiKey"] = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("test-api-key")),
                     ["GoogleGemini:Model"] = "gemini-2.0-flash",
+                    ["GoogleGemini:Enable"] = featureEnabled.ToString(),
                     ["Swagger:Enabled"] = "false"
                 });
             });

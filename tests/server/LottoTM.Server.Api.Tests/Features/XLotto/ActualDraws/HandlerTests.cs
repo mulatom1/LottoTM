@@ -1,6 +1,8 @@
 using LottoTM.Server.Api.Features.XLotto.ActualDraws;
+using LottoTM.Server.Api.Options;
 using LottoTM.Server.Api.Services;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 
 namespace LottoTM.Server.Api.Tests.Features.XLotto.ActualDraws;
@@ -12,13 +14,18 @@ public class HandlerTests
 {
     private readonly Mock<IXLottoService> _mockXLottoService;
     private readonly Mock<ILogger<Handler>> _mockLogger;
-    private readonly Handler _handler;
+    private readonly Mock<IOptions<GoogleGeminiOptions>> _mockOptions;
+    private Handler _handler;
 
     public HandlerTests()
     {
         _mockXLottoService = new Mock<IXLottoService>();
         _mockLogger = new Mock<ILogger<Handler>>();
-        _handler = new Handler(_mockXLottoService.Object, _mockLogger.Object);
+        _mockOptions = new Mock<IOptions<GoogleGeminiOptions>>();
+
+        // Default: Feature enabled
+        _mockOptions.Setup(x => x.Value).Returns(new GoogleGeminiOptions { Enable = true });
+        _handler = new Handler(_mockXLottoService.Object, _mockOptions.Object, _mockLogger.Object);
     }
 
     /// <summary>
@@ -267,5 +274,88 @@ public class HandlerTests
         Assert.Equal(jsonData2, result2.JsonData);
         _mockXLottoService.Verify(s => s.GetActualDraws(date1, lottoType), Times.Once);
         _mockXLottoService.Verify(s => s.GetActualDraws(date2, lottoType), Times.Once);
+    }
+
+    /// <summary>
+    /// Test that handler returns empty data when GoogleGemini feature is disabled
+    /// </summary>
+    [Fact]
+    public async Task Handle_WhenFeatureDisabled_ReturnsEmptyData()
+    {
+        // Arrange
+        var date = new DateTime(2025, 1, 15);
+        var lottoType = "LOTTO";
+
+        // Setup options with Enable = false
+        _mockOptions.Setup(x => x.Value).Returns(new GoogleGeminiOptions { Enable = false });
+        _handler = new Handler(_mockXLottoService.Object, _mockOptions.Object, _mockLogger.Object);
+
+        var request = new Contracts.Request(date, lottoType);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("{\"Data\":[]}", result.JsonData);
+        _mockXLottoService.Verify(s => s.GetActualDraws(It.IsAny<DateTime?>(), It.IsAny<string>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Test that handler logs warning when feature is disabled
+    /// </summary>
+    [Fact]
+    public async Task Handle_WhenFeatureDisabled_LogsWarning()
+    {
+        // Arrange
+        var date = new DateTime(2025, 1, 15);
+        var lottoType = "LOTTO";
+
+        _mockOptions.Setup(x => x.Value).Returns(new GoogleGeminiOptions { Enable = false });
+        _handler = new Handler(_mockXLottoService.Object, _mockOptions.Object, _mockLogger.Object);
+
+        var request = new Contracts.Request(date, lottoType);
+
+        // Act
+        await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        _mockLogger.Verify(
+            x => x.Log(
+                LogLevel.Warning,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("GoogleGemini feature is disabled")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// Test that handler calls service when feature is enabled
+    /// </summary>
+    [Fact]
+    public async Task Handle_WhenFeatureEnabled_CallsService()
+    {
+        // Arrange
+        var date = new DateTime(2025, 1, 15);
+        var lottoType = "LOTTO";
+        var expectedJsonData = "{\"Data\":[{\"DrawDate\":\"2025-01-15\",\"GameType\":\"LOTTO\",\"Numbers\":[1,2,3,4,5,6]}]}";
+
+        _mockOptions.Setup(x => x.Value).Returns(new GoogleGeminiOptions { Enable = true });
+        _handler = new Handler(_mockXLottoService.Object, _mockOptions.Object, _mockLogger.Object);
+
+        _mockXLottoService
+            .Setup(s => s.GetActualDraws(date, lottoType))
+            .ReturnsAsync(expectedJsonData);
+
+        var request = new Contracts.Request(date, lottoType);
+
+        // Act
+        var result = await _handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(expectedJsonData, result.JsonData);
+        _mockXLottoService.Verify(s => s.GetActualDraws(date, lottoType), Times.Once);
     }
 }

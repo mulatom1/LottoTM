@@ -24,6 +24,7 @@ import type { VerificationCheckRequest } from "./contracts/verification-check-re
 import type { VerificationCheckResponse } from "./contracts/verification-check-response";
 import type { XLottoActualDrawsRequest } from "./contracts/xlotto-actual-draws-request";
 import type { XLottoActualDrawsResponse } from "./contracts/xlotto-actual-draws-response";
+import type { XLottoIsEnabledResponse } from "./contracts/xlotto-is-enabled-response";
 
 export class ApiService {
     private apiUrl: string = '';
@@ -888,6 +889,38 @@ export class ApiService {
       }
 
       const result: XLottoActualDrawsResponse = await response.json();
+      return result;
+    }
+
+    /**
+     * Check if XLotto feature is enabled
+     * GET /api/xlotto/is-enabled
+     * @returns Promise<XLottoIsEnabledResponse> - Boolean indicating whether the feature is enabled
+     * @throws Error if unauthorized (401) or server error occurs (500)
+     */
+    public async xLottoIsEnabled(): Promise<XLottoIsEnabledResponse> {
+      const url = `${this.apiUrl}/api/xlotto/is-enabled`;
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: this.getHeaders()
+      });
+
+      if (!response.ok) {
+        // Handle different error scenarios
+        if (response.status === 401) {
+          throw new Error('Brak autoryzacji. Wymagany token JWT.');
+        }
+
+        if (response.status === 500) {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || 'Błąd serwera podczas sprawdzania statusu funkcji XLotto');
+        }
+
+        throw new Error(`Error checking XLotto feature status: ${response.statusText}`);
+      }
+
+      const result: XLottoIsEnabledResponse = await response.json();
       return result;
     }
 }

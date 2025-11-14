@@ -282,12 +282,21 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 **Konfiguracja wymagana:**
 - Klucz API Google Gemini (przechowywany w appsettings.json)
 - Model Gemini (domyślnie: gemini-2.0-flash)
+- Feature Flag Enable (boolean) - kontroluje widoczność funkcji w UI i dostępność endpointu
 
 **Uwagi implementacyjne:**
 - Funkcjonalność wymaga aktywnego klucza API Google Gemini
 - Czas wykonania: ~2-4 sekundy (pobieranie HTML + przetwarzanie przez Gemini)
 - Backend zwraca wyniki dla obu typów losowania (LOTTO i LOTTO PLUS), frontend wybiera właściwy
 - Endpoint nie zapisuje danych do bazy - tylko zwraca przetworzone wyniki
+
+**Feature Flag:**
+- Sekcja konfiguracji: `GoogleGemini:Enable` (true/false)
+- `GET /api/xlotto/is-enabled` - endpoint sprawdzający status funkcji
+- Gdy Enable=false:
+  - Endpoint `GET /api/xlotto/actual-draws` zwraca pustą tablicę `{"Data":[]}`
+  - Przycisk "Pobierz z XLotto" jest ukryty w UI
+- Domyślnie: false (produkcja), true (development)
 
 ---
 

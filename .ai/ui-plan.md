@@ -387,8 +387,10 @@ W MVP **całkowicie zrezygnowano z widoku Dashboard** (`/dashboard`). Po zalogow
      - Opcje: "LOTTO" lub "LOTTO PLUS"
      - Required: true
      - Default: "LOTTO"
-   - **Przycisk "Pobierz z XLotto" (admin only):**
+   - **Przycisk "Pobierz z XLotto" (admin only, warunkowo wyświetlany):**
      - Secondary button, po lewej stronie
+     - **Feature Flag:** Widoczny tylko gdy `GoogleGemini:Enable = true` w konfiguracji backend
+     - Frontend sprawdza endpoint `GET /api/xlotto/is-enabled` przy otwarciu modalu
      - Funkcjonalność: Automatyczne pobieranie wyników z XLotto.pl przez Google Gemini API
      - Walidacja przed wywołaniem: data losowania musi być wybrana
      - API call: `GET /api/xlotto/actual-draws?Date={drawDate}&LottoType={lottoType}`
@@ -1118,6 +1120,7 @@ const variantClasses = {
 - Tickets: `getTickets()`, `createTicket()`, `updateTicket()`, `deleteTicket()`, `generateRandomTicket()`, `generateSystemTickets()`
 - Draws: `getDraws(page, pageSize, dateFrom?, dateTo?)`, `createDraw()`, `updateDraw()`, `deleteDraw()`
 - XLotto: `xLottoActualDraws(date, lottoType)` - pobieranie wyników z XLotto.pl przez Gemini API
+- XLotto: `xLottoIsEnabled()` - sprawdzenie Feature Flag (czy funkcja XLotto jest włączona)
 - Verification: `checkWinnings(dateFrom, dateTo)`
 
 ### 6.2 Error Handling w Komponentach
@@ -1324,10 +1327,13 @@ const apiService = getApiService()
 - UI: Draws Page → Modal dodawania (admin only)
   - DatePicker (drawDate, walidacja: nie w przyszłości)
   - Dropdown/Radio buttons (lottoType: "LOTTO" lub "LOTTO PLUS")
-  - Przycisk "Pobierz z XLotto" (automatyczne pobieranie wyników z XLotto.pl przez Google Gemini API)
-  - 6x NumberInput (1-49, unikalne, mogą być wypełnione automatycznie)
+  - **Przycisk "Pobierz z XLotto"** (warunkowo wyświetlany przez Feature Flag):
+    - Sprawdzenie statusu: API call `GET /api/xlotto/is-enabled` przy otwarciu modalu
+    - Widoczny tylko gdy `response.data === true`
+    - Funkcjonalność: automatyczne pobieranie wyników z XLotto.pl przez Google Gemini API
+  - 6x NumberInput (1-49, unikalne, mogą być wypełnione automatycznie przez XLotto)
   - Inline validation + ErrorModal
-  - Przyciski [Pobierz z XLotto] [Wyczyść] + [Anuluj] [Zapisz]
+  - Przyciski [Pobierz z XLotto (conditional)] [Wyczyść] + [Anuluj] [Zapisz]
 
 **F-DRAW-002: Przeglądanie historii losowań**
 - UI: Draws Page (`/draws`)

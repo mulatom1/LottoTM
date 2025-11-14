@@ -53,6 +53,7 @@ const DrawFormModal: React.FC<DrawFormModalProps> = ({
   const [formErrors, setFormErrors] = useState<DrawFormErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [xLottoEnabled, setXLottoEnabled] = useState(false);
   const { getApiService } = useAppContext();
 
   // Reset form when modal opens/closes or mode changes
@@ -61,6 +62,22 @@ const DrawFormModal: React.FC<DrawFormModalProps> = ({
       setFormData(getInitialFormData());
       setFormErrors({});
       setSubmitting(false);
+
+      // Check if XLotto feature is enabled
+      const checkXLottoEnabled = async () => {
+        try {
+          const apiService = getApiService();
+          if (apiService) {
+            const response = await apiService.xLottoIsEnabled();
+            setXLottoEnabled(response.data);
+          }
+        } catch (error) {
+          console.error('Error checking XLotto feature status:', error);
+          setXLottoEnabled(false);
+        }
+      };
+
+      checkXLottoEnabled();
     }
   }, [isOpen, mode, initialValues]);
 
@@ -355,14 +372,16 @@ const DrawFormModal: React.FC<DrawFormModalProps> = ({
             >
               Wyczyść
             </Button>
-            <Button
-              variant="secondary"
-              onClick={handleLoadFromXLotto}
-              disabled={submitting || loading}
-              className="flex-1 sm:flex-none"
-            >
-              {loading ? 'Pobieranie...' : 'Pobierz z XLotto'}
-            </Button>
+            {xLottoEnabled && (
+              <Button
+                variant="secondary"
+                onClick={handleLoadFromXLotto}
+                disabled={submitting || loading}
+                className="flex-1 sm:flex-none"
+              >
+                {loading ? 'Pobieranie...' : 'Pobierz z XLotto'}
+              </Button>
+            )}
           </div>
 
           {/* Right: Cancel and Save buttons */}
