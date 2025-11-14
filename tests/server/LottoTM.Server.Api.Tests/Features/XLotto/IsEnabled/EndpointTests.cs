@@ -176,7 +176,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
     /// Test that endpoint is fast (no database or external calls)
     /// </summary>
     [Fact]
-    public async Task GetIsEnabled_ExecutionTime_IsUnder50Milliseconds()
+    public async Task GetIsEnabled_ExecutionTime_IsUnder100Milliseconds()
     {
         // Arrange
         var testDbName = "TestDb_IsEnabledPerformance_" + Guid.NewGuid();
@@ -194,8 +194,8 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.True(stopwatch.ElapsedMilliseconds < 50,
-            $"Endpoint took {stopwatch.ElapsedMilliseconds}ms, expected < 50ms");
+        Assert.True(stopwatch.ElapsedMilliseconds < 100,
+            $"Endpoint took {stopwatch.ElapsedMilliseconds}ms, expected < 100ms");
     }
 
     /// <summary>

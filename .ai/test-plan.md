@@ -43,7 +43,7 @@ Główne cele procesu testowego to:
 *   **[x] System XLotto:**
     *   [x] Pobieranie aktualnych wyników z XLotto przez Gemini API.
     *   [x] Obsługa różnych typów gier (LOTTO, LOTTO PLUS).
-    *   [x] Integracja z zewnętrznym serwisem XLotto.
+    *   [x] Integracja z zewnętrznym serwisem XLotto (włączanie/Wyłącznake funkcji jako Feature Flag).
     *   [x] Przetwarzanie i walidacja JSON z Gemini API.
 *   **[ ] Interfejs użytkownika (Frontend):**
     *   [ ] Nawigacja i routing.
