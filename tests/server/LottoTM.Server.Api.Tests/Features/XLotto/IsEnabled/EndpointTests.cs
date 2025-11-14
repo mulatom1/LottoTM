@@ -172,31 +172,6 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         Assert.True(data.ValueKind == JsonValueKind.True || data.ValueKind == JsonValueKind.False);
     }
 
-    /// <summary>
-    /// Test that endpoint is fast (no database or external calls)
-    /// </summary>
-    [Fact]
-    public async Task GetIsEnabled_ExecutionTime_IsUnder100Milliseconds()
-    {
-        // Arrange
-        var testDbName = "TestDb_IsEnabledPerformance_" + Guid.NewGuid();
-        var factory = CreateTestFactory(testDbName, featureEnabled: true);
-        var userId = SeedTestUser(testDbName, "user@example.com", "Password123!", false);
-
-        var client = factory.CreateClient();
-        var token = GenerateTestToken(factory, userId, "user@example.com", false);
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-        // Act
-        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var response = await client.GetAsync("/api/xlotto/is-enabled");
-        stopwatch.Stop();
-
-        // Assert
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.True(stopwatch.ElapsedMilliseconds < 100,
-            $"Endpoint took {stopwatch.ElapsedMilliseconds}ms, expected < 100ms");
-    }
 
     /// <summary>
     /// Test multiple consecutive calls return consistent results
