@@ -341,6 +341,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
                 config.AddInMemoryCollection(new Dictionary<string, string?>
                 {
+                    ["ConnectionStrings:DefaultConnection"] = "Server=dummy;Database=dummy;Integrated Security=True;",
                     ["Jwt:Key"] = "ThisIsASecretKeyForTestingPurposesOnly123456",
                     ["Jwt:Issuer"] = "TestIssuer",
                     ["Jwt:Audience"] = "TestAudience",
