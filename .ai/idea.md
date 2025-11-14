@@ -15,7 +15,7 @@ Wielu graczy LOTTO posiada liczne, często zróżnicowane zestawy liczb. Ręczne
 *   **Izolacja danych:** Każdy zalogowany użytkownik ma dostęp wyłącznie do swojego prywatnego zbioru zestawów liczb.
 
 **Obsługa losowań:**
-*   **Wprowadzanie wyników:** Użytkownik administrator może ręcznie wprowadzić oficjalne wyniki losowania dla konkretnej daty i typu gry w celu ich weryfikacji. ponadto może ściągnąć wyniki z oficjalnej strony XLotto (po ekstrakcji danych przy pomocy LLM).
+*   **Wprowadzanie wyników:** Użytkownik administrator może ręcznie wprowadzić oficjalne wyniki losowania dla konkretnej daty i typu gry w celu ich weryfikacji. Ponadto użytkownik może ściągnąć wyniki przed zapisem z oficjalnej strony XLotto (po ekstrakcji danych przy pomocy LLM - dostępne jako Feature Flag).
 
 **Zarządzanie kuponami (zestawami liczb):**
 *   **Przeglądanie zestawów:** Czytelna lista wszystkich zapisanych przez użytkownika zestawów.

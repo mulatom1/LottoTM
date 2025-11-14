@@ -1,5 +1,6 @@
 using FluentValidation;
 using LottoTM.Server.Api.Middlewares;
+using LottoTM.Server.Api.Options;
 using LottoTM.Server.Api.Repositories;
 using LottoTM.Server.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -33,6 +34,9 @@ builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(conn
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly()));
 
 builder.Services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
+
+// Register configuration options
+builder.Services.Configure<GoogleGeminiOptions>(builder.Configuration.GetSection("GoogleGemini"));
 
 // Register services
 builder.Services.AddScoped<IJwtService, JwtService>();
@@ -141,6 +145,7 @@ LottoTM.Server.Api.Features.Tickets.GenerateRandom.Endpoint.AddEndpoint(app);
 LottoTM.Server.Api.Features.Tickets.GenerateSystem.Endpoint.AddEndpoint(app);
 LottoTM.Server.Api.Features.Verification.Check.Endpoint.AddEndpoint(app);
 LottoTM.Server.Api.Features.XLotto.ActualDraws.Endpoint.AddEndpoint(app);
+LottoTM.Server.Api.Features.XLotto.IsEnabled.Endpoint.AddEndpoint(app);
 
 
 await app.RunAsync();

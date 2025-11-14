@@ -1142,6 +1142,47 @@
 
 ---
 
+#### **GET /api/xlotto/is-enabled**
+
+**Opis:** Sprawdzenie czy funkcjonalność XLotto jest włączona (Feature Flag)
+
+**Autoryzacja:** Wymagany JWT
+
+**Parametry zapytania:** Brak
+
+**Przykład:** `GET /api/xlotto/is-enabled`
+
+**Payload odpowiedzi (sukces):**
+```json
+{
+  "success": true,
+  "data": true
+}
+```
+
+**Kody sukcesu:**
+- `200 OK` - Status funkcji zwrócony
+
+**Kody błędów:**
+- `401 Unauthorized` - Brak tokenu lub token nieprawidłowy
+- `500 Internal Server Error` - Błąd serwera podczas sprawdzania statusu
+
+**Logika biznesowa:**
+1. Odczytanie wartości `GoogleGemini:Enable` z konfiguracji (appsettings.json)
+2. Zwrot wartości boolean w polu `data`
+
+**Feature Flag:**
+- Konfiguracja: `appsettings.json` → `GoogleGemini:Enable` (true/false)
+- Domyślnie: false (produkcja), true (development)
+- Frontend używa tego endpointu do warunkowego wyświetlania przycisku "Pobierz z XLotto"
+
+**Uwagi:**
+- Endpoint nie wymaga uprawnień administratora (IsAdmin)
+- Szybki endpoint (<50ms) - tylko odczyt konfiguracji
+- Używany przez frontend przy każdym otwarciu formularza dodawania/edycji losowania
+
+---
+
 ## 3. Uwierzytelnianie i Autoryzacja
 
 ### 3.1 Mechanizm: JWT (JSON Web Tokens)
@@ -1586,6 +1627,8 @@ public List<int[]> GenerateSystemTickets()
 | POST | `/api/tickets/generate-random` | Generowanie losowego zestawu | Tak |
 | POST | `/api/tickets/generate-system` | Generowanie 9 zestawów systemowych | Tak |
 | POST | `/api/verification/check` | Weryfikacja wygranych | Tak |
+| GET | `/api/xlotto/actual-draws` | Pobieranie wyników z XLotto.pl przez Gemini API (admin) | Tak (IsAdmin) |
+| GET | `/api/xlotto/is-enabled` | Sprawdzenie czy funkcja XLotto jest włączona | Tak |
 
 ### 5.2 Kluczowe decyzje projektowe
 

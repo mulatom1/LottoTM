@@ -201,18 +201,23 @@ interface DrawItemProps {
 **Główne elementy:**
 - Tytuł: "Dodaj wynik losowania" lub "Edytuj wynik losowania" (zależnie od mode)
 - DatePicker: "Data losowania" (required, max: dzisiaj)
+- Dropdown/RadioButtons: "Typ losowania" (LOTTO lub LOTTO PLUS)
 - 6x NumberInput: "Liczba 1" do "Liczba 6" (required, min: 1, max: 49)
 - Inline validation pod polami (czerwone komunikaty)
 - Przyciski:
-  - "Pobierz z XLotto" (secondary, left) - automatyczne pobieranie wyników z XLotto.pl
+  - "Pobierz z XLotto" (secondary, left, **warunkowo wyświetlany przez Feature Flag**) - automatyczne pobieranie wyników z XLotto.pl
   - "Wyczyść" (secondary, left) - reset wszystkich pól
   - "Anuluj" (secondary, right) - zamknięcie bez zapisu
   - "Zapisz" (primary, right) - submit formularza
 
 **Obsługiwane interakcje:**
+- **Sprawdzenie Feature Flag przy otwarciu modalu:**
+  - API call: `GET /api/xlotto/is-enabled`
+  - Ustawienie state `xLottoEnabled` na podstawie odpowiedzi `response.data`
+  - Conditional rendering przycisku "Pobierz z XLotto"
 - Zmiana wartości w polach → inline validation w czasie rzeczywistym
-- Kliknięcie "Pobierz z XLotto" → automatyczne pobieranie wyników z XLotto.pl:
-  - Walidacja: data losowania musi być wybrana
+- Kliknięcie "Pobierz z XLotto" (jeśli widoczny) → automatyczne pobieranie wyników z XLotto.pl:
+  - Walidacja: data losowania i typ muszą być wybrane
   - API call GET /api/xlotto/actual-draws?Date={drawDate}&LottoType={lottoType}
   - Przetwarzanie odpowiedzi JSON i automatyczne wypełnienie 6 pól z liczbami
   - Loading state podczas pobierania (disabled przyciski, spinner)
@@ -744,6 +749,27 @@ export class ApiService {
   }
 
   /**
+   * GET /api/xlotto/is-enabled - Sprawdzenie Feature Flag dla XLotto
+   */
+  async xLottoIsEnabled(): Promise<XLottoIsEnabledResponse> {
+    const url = `${this.apiUrl}/api/xlotto/is-enabled`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: this.getHeaders()
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error('Brak autoryzacji. Wymagany token JWT.');
+      }
+      throw new Error(`Error checking XLotto feature status: ${response.statusText}`);
+    }
+
+    const result: XLottoIsEnabledResponse = await response.json();
+    return result;
+  }
+
+  /**
    * GET /api/xlotto/actual-draws - Pobieranie wyników z XLotto.pl przez Gemini API
    */
   async xLottoActualDraws(request: XLottoActualDrawsRequest): Promise<XLottoActualDrawsResponse> {
@@ -923,32 +949,41 @@ export class ApiService {
 
 ### 8.7 Przepływ: Admin pobiera wyniki z XLotto
 
-**Warunek:** Użytkownik z flagą `isAdmin === true`
+**Warunki:**
+- Użytkownik z flagą `isAdmin === true`
+- **Feature Flag `GoogleGemini:Enable = true` w konfiguracji backend**
 
 1. Admin otwiera DrawFormModal (dodawanie lub edycja)
-2. Admin wybiera datę losowania: 2025-11-04
-3. Admin wybiera typ losowania: "LOTTO" (dropdown lub radio buttons)
-4. Kliknięcie "Pobierz z XLotto"
-5. Walidacja inline: czy data jest wybrana
+2. **Frontend automatycznie sprawdza Feature Flag:**
+   - API call: `GET /api/xlotto/is-enabled`
+   - Jeśli `response.data === true`: przycisk "Pobierz z XLotto" jest widoczny
+   - Jeśli `response.data === false`: przycisk jest ukryty
+3. Admin wybiera datę losowania: 2025-11-04
+4. Admin wybiera typ losowania: "LOTTO" (dropdown lub radio buttons)
+5. Kliknięcie "Pobierz z XLotto" (jeśli widoczny)
+6. Walidacja inline: czy data i typ są wybrane
    - Jeśli brak daty: alert "Proszę najpierw wybrać datę losowania"
-   - Jeśli data wybrana: kontynuacja
-6. Loading state: przyciski disabled, spinner przy przycisku "Pobierz z XLotto"
-7. API call: `GET /api/xlotto/actual-draws?Date=2025-11-04&LottoType=LOTTO`
-8. Backend:
-   - Pobiera HTML ze strony XLotto.pl
-   - Przetwarza przez Google Gemini API
-   - Zwraca JSON: `{ success: true, data: "{\"Data\": [...]}" }`
-9. Frontend parsuje odpowiedź:
+   - Jeśli data i typ wybrane: kontynuacja
+7. Loading state: przyciski disabled, spinner przy przycisku "Pobierz z XLotto"
+8. API call: `GET /api/xlotto/actual-draws?Date=2025-11-04&LottoType=LOTTO`
+9. Backend:
+   - Sprawdza Feature Flag `GoogleGemini:Enable`
+   - Jeśli `Enable = false`: zwraca pustą tablicę `{"Data":[]}`
+   - Jeśli `Enable = true`:
+     - Pobiera HTML ze strony XLotto.pl
+     - Przetwarza przez Google Gemini API
+     - Zwraca JSON: `{ success: true, data: "{\"Data\": [...]}" }`
+10. Frontend parsuje odpowiedź:
    - Deserializacja JSON string z pola `data`
    - Wyszukanie obiektu DrawItem dla wybranego GameType
    - Ekstrakcja tablicy Numbers
-10. Automatyczne wypełnienie 6 pól NumberInput wylosowanymi liczbami
-11. Loading state zakończony
-12. Admin może:
+11. Automatyczne wypełnienie 6 pól NumberInput wylosowanymi liczbami
+12. Loading state zakończony
+13. Admin może:
     - Zmodyfikować liczby ręcznie (jeśli potrzebne)
     - Kliknąć "Zapisz" aby zapisać wynik
     - Kliknąć "Wyczyść" aby zresetować formularz
-13. Obsługa błędów:
+14. Obsługa błędów:
     - 401: Alert "Brak autoryzacji. Wymagany token JWT."
     - 400: Alert z komunikatami walidacji z backendu
     - 500: Alert "Nie udało się pobrać wyników z XLotto lub Gemini API"
@@ -1050,6 +1085,35 @@ export class ApiService {
 - **Warunek:** `isFilterActive === true`
 - **Logika:** `{isFilterActive && <Button onClick={onClearFilter}>Wyczyść</Button>}`
 - **Wpływ:** Przycisk widoczny tylko gdy filtr aktywny
+
+**Przycisk "Pobierz z XLotto" (DrawFormModal):**
+- **Warunek:** `xLottoEnabled === true` (Feature Flag z backendu)
+- **Logika:**
+  ```tsx
+  const [xLottoEnabled, setXLottoEnabled] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      const checkXLottoEnabled = async () => {
+        try {
+          const apiService = getApiService();
+          const response = await apiService.xLottoIsEnabled();
+          setXLottoEnabled(response.data);
+        } catch (error) {
+          setXLottoEnabled(false);
+        }
+      };
+      checkXLottoEnabled();
+    }
+  }, [isOpen]);
+
+  {xLottoEnabled && (
+    <Button variant="secondary" onClick={handleLoadFromXLotto}>
+      Pobierz z XLotto
+    </Button>
+  )}
+  ```
+- **Wpływ:** Przycisk widoczny tylko gdy funkcja XLotto jest włączona w konfiguracji backend (`GoogleGemini:Enable = true`)
 
 **EmptyState (DrawList):**
 - **Warunek:** `draws.length === 0 && !loading`
@@ -1301,9 +1365,12 @@ private async request(endpoint: string, options: RequestInit) {
    - DatePicker dla drawDate
    - Dropdown/RadioButtons dla lottoType ("LOTTO" lub "LOTTO PLUS")
    - 6x NumberInput dla numbers[]
-   - Local state: formData, formErrors, loading
+   - Local state: formData, formErrors, loading, **xLottoEnabled**
+   - **useEffect: Sprawdzenie Feature Flag przy otwarciu modalu**
+     - API call `GET /api/xlotto/is-enabled`
+     - Ustawienie state `xLottoEnabled` na podstawie `response.data`
    - Inline validation w czasie rzeczywistym (onChange)
-   - Przycisk "Pobierz z XLotto" (wywołanie handleLoadFromXLotto)
+   - Przycisk "Pobierz z XLotto" (**conditional: xLottoEnabled**, wywołanie handleLoadFromXLotto)
    - Przycisk "Wyczyść" (reset formularza)
    - Przycisk "Anuluj" (zamknięcie onCancel)
    - Przycisk "Zapisz" (submit → zbieranie błędów → onSubmit)

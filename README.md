@@ -215,8 +215,11 @@ Edit `appsettings.json` or `appsettings.Development.json` in `src/server/LottoTM
 - `Jwt:Issuer` - Token issuer
 - `Jwt:Audience` - Token audience
 - `Jwt:ExpiryMinutes` - Token expiration time
+- `GoogleGemini:ApiKey` - Google Gemini API key (base64 encoded)
+- `GoogleGemini:Model` - Gemini model to use (default: "gemini-2.0-flash")
+- `GoogleGemini:Enable` - **Feature Flag** to enable/disable XLotto functionality (default: false)
 - `Serilog` - Logging configuration (console + file)
-- `Swagger:Enabled` - Enable/disable Swagger UI (default: false)
+- `Swagger:Enabled` - **Feature Flag** to enable/disable Swagger UI (default: false)
 
 #### Frontend Configuration
 
@@ -290,6 +293,9 @@ dotnet ef database update --project src/server/LottoTM.Server.Api
 **Draw Management**
 - ✅ Manual entry of official LOTTO and LOTTO PLUS results
 - ✅ Automated draw fetching from XLotto.pl via Google Gemini API
+  - **Feature Flag controlled** (`GoogleGemini:Enable` in appsettings.json)
+  - Disabled by default in production, enabled in development
+  - Frontend dynamically shows/hides "Pobierz z XLotto" button based on backend configuration
 - ✅ AI-powered HTML content extraction and JSON conversion
 - ✅ Support for multiple lottery types (LOTTO, LOTTO PLUS)
 - ✅ Historical draw results storage
@@ -328,6 +334,8 @@ dotnet ef database update --project src/server/LottoTM.Server.Api
 
 **Current Version**: MVP 1.3 (In Development)
 
+**Live Demo**: The MVP is deployed and accessible at **https://tomsoft1.pl/lottotm**
+
 The project is actively under development with a focus on delivering core MVP functionality. The system currently supports LOTTO and LOTTO PLUS games (6 numbers from 1-49) with fully automated win verification.
 
 ### Architecture Status
@@ -347,6 +355,10 @@ The project is actively under development with a focus on delivering core MVP fu
 
 ### Recent Updates
 
+- **Feature Flag for XLotto**: Added configurable `GoogleGemini:Enable` flag to control XLotto functionality visibility
+  - New endpoint `GET /api/xlotto/is-enabled` for frontend to check feature availability
+  - When disabled, API returns empty data and UI hides "Pobierz z XLotto" button
+  - Default: disabled in production, enabled in development
 - **Docker Support**: Added multi-stage Dockerfile for containerized deployments (frontend + backend in single image)
 - Implemented GitHub Actions CI/CD pipeline
 - Enhanced ticket and draw management with `groupName` and `lottoType` fields
@@ -364,4 +376,5 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 
 **Author**: Tomasz Mularczyk
 **GitHub**: [github.com/mulatom1/LottoTM](https://github.com/mulatom1/LottoTM)
+**Live Demo**: [tomsoft1.pl/lottotm](https://tomsoft1.pl/lottotm)
 **Last Updated**: November 11, 2025
