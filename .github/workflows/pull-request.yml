@@ -1,28 +1,28 @@
-name: Pull Request
+name: Build and Test
 
 on:
   pull_request:
     branches:
-      - main
+      - '**'
   push:
     branches:
-       - '**'  
+      - '**'
 
-# aby bot mógł zapisać komentarz z podsumowaniem
+# uprawnienia pozostają takie same
 permissions:
   checks: write
   pull-requests: write
   contents: read
 
 jobs:
-  build_and_test:
+  # --- ZADANIE 1: Backend CI (.NET) ---
+  backend-ci:
     runs-on: ubuntu-latest
-
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ---------- Backend .NET Setup ----------
       - name: Setup .NET 8 SDK
         uses: actions/setup-dotnet@v4
         with:
@@ -30,14 +30,39 @@ jobs:
       
       - name: Restore dependencies
         run: dotnet restore
-     
+
       - name: Build 
         run: dotnet build --no-restore
-  
+
       - name: Run tests with code coverage
         run: dotnet test --no-build --verbosity normal --collect:"XPlat Code Coverage;Format=cobertura" --results-directory TestResults
 
-      # ---------- Frontend Node.js Setup & Build ----------
+      - name: Install ReportGenerator
+        run: |
+          dotnet tool install --global dotnet-reportgenerator-globaltool --version 5.0.4
+          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+
+      - name: Generate HTML coverage report
+        run: |
+          reportgenerator \
+            -reports:**/TestResults/*/coverage.cobertura.xml \
+            -targetdir:CoverageReport \
+            -reporttypes:Html
+
+      - name: Upload coverage report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: CoverageReport
+
+  # --- ZADANIE 2: Frontend CI (Node.js) ---
+  frontend-ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -52,23 +77,3 @@ jobs:
       - name: Build frontend
         run: npm run build
         working-directory: src/client/app01
-
-      # ---------- Coverage report ----------  
-      - name: Install ReportGenerator
-        run: |
-          dotnet tool install --global dotnet-reportgenerator-globaltool --version 5.0.4
-          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
-
-      - name: Generate HTML coverage report
-        run: |
-          reportgenerator \
-            -reports:**/TestResults/*/coverage.cobertura.xml \
-            -targetdir:CoverageReport \
-            -reporttypes:Html
-
-      # ---------- Artefakty ----------
-      - name: Upload coverage report artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: CoverageReport
