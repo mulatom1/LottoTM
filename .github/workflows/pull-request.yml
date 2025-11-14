@@ -1,23 +1,24 @@
-name: Pull Request
+name: Build and Test
 
 on:
   pull_request:
     branches:
-      - main
+      - '**'
   push:
     branches:
-      - main  
+      - '**'
 
-# aby bot mógł zapisać komentarz z podsumowaniem
+# uprawnienia pozostają takie same
 permissions:
   checks: write
   pull-requests: write
   contents: read
 
 jobs:
-  test:
+  # --- ZADANIE 1: Backend CI (.NET) ---
+  backend-ci:
     runs-on: ubuntu-latest
-
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -30,23 +31,12 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore
 
-      # ---------- LINT and analyzer in dotnet ----------      
-      #- name: Build with analyzers (warnings ⇒ errors)
-      #  run: dotnet build --no-restore -warnaserror  
-      
-      # ---------- Build ----------      
       - name: Build 
         run: dotnet build --no-restore
 
-      # Formatowanie i Style/Analyzer warnings ⇒ fail PR jeśli naruszony styl
-      #- name: Run dotnet format (verify)
-      #  run: dotnet format --verify-no-changes  
-
-      # ---------- TEST ----------  
       - name: Run tests with code coverage
         run: dotnet test --no-build --verbosity normal --collect:"XPlat Code Coverage;Format=cobertura" --results-directory TestResults
 
-      # ---------- Coverage report ----------  
       - name: Install ReportGenerator
         run: |
           dotnet tool install --global dotnet-reportgenerator-globaltool --version 5.0.4
@@ -59,9 +49,31 @@ jobs:
             -targetdir:CoverageReport \
             -reporttypes:Html
 
-      # ---------- Artefakty ----------
       - name: Upload coverage report artifact
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: CoverageReport
+
+  # --- ZADANIE 2: Frontend CI (Node.js) ---
+  frontend-ci:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: src/client/app01/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm install
+        working-directory: src/client/app01
+
+      - name: Build frontend
+        run: npm run build
+        working-directory: src/client/app01
