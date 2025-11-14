@@ -10,6 +10,8 @@
     *   Fluent Validation dla walidacji danych
     *   Obsługa CORS (MediatR)
     *   Globalna obsługa wyjątków i błędów
+    *   Google Gemini API dla ekstrakcji danych z XLotto
+    *   xUnit, Moq, WebApplicationFactory dla testów
 *   **Frontend:** React 19 z wykorzystaniem:
     *   react-router 7 do zarządzania trasami.
     *   TypeScript
