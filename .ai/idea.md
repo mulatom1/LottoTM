@@ -14,11 +14,23 @@ Wielu graczy LOTTO posiada liczne, często zróżnicowane zestawy liczb. Ręczne
 *   **Logowanie i wylogowywanie:** Bezpieczny dostęp do systemu dla zarejestrowanych użytkowników.
 *   **Izolacja danych:** Każdy zalogowany użytkownik ma dostęp wyłącznie do swojego prywatnego zbioru zestawów liczb.
 
+---
+
 **Obsługa losowań:**
-*   **Wprowadzanie wyników:** 
+*   **Wprowadzanie wyników:**
 *    - Użytkownik jako administrator może ręcznie wprowadzić oficjalne wyniki losowania dla konkretnej daty i typu gry w celu ich weryfikacji.
-*    - Integracja z XLotto - użytkownik może ściągnąć wyniki przed zapisem z oficjalnej strony XLotto (po ekstrakcji danych przy pomocy LLM - dostępne jako Feature Flag).
-*    - Integracja z XLotto - system automatycznie może ściągnąć wyniki w danym przedziale czasowym i zapisać z oficjalnej strony (po ekstrakcji danych przy pomocy LLM - dostępne jako Feature Flag).
+*    - **Integracja z XLotto** - użytkownik może ściągnąć wyniki przed zapisem z oficjalnej strony XLotto (po ekstrakcji danych przy pomocy LLM - dostępne jako Feature Flag).
+*    - **Integracja z Lotto OpenApi** - system automatycznie może ściągnąć wyniki w danym przedziale czasowym i zapisać z oficjalnego API LOTTO (dostępne jako Feature Flag):
+        - **Background Worker** (`LottoWorker`) działa w oknie czasowym 22:15-23:00
+        - Automatyczne pobieranie wyników LOTTO i LOTTO PLUS z https://www.lotto.pl
+        - Endpoint: `GET /api/open/v1/lotteries/draw-results/by-date-per-game`
+        - Wymaga klucza API (header "secret")
+        - Konfiguracja w appsettings.json: `LottoOpenApi:Url`, `LottoOpenApi:ApiKey`
+        - Worker sprawdza duplikaty i zapisuje wyniki w transakcji
+        - Wszystkie błędy logowane, worker nie zatrzymuje się
+        - Feature Flag: `LottoWorker:Enable` (true/false)
+
+---
 
 **Zarządzanie kuponami (zestawami liczb):**
 *   **Przeglądanie zestawów:** Czytelna lista wszystkich zapisanych przez użytkownika zestawów.

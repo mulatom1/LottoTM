@@ -60,7 +60,8 @@ public class XLottoService : IXLottoService
             var geminiApiUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{geminiModel}:generateContent?key={geminiApiKey}";
 
             var prompt = 
-                  $"Przeszukaj zawartość contentu i podaj tylko wyniki dla typu gry {lottoType} na dzień {date?.ToString("yyyy-MM-dd") ?? "najnowszy"}. " 
+                  $"Przeszukaj zawartość contentu i podaj tylko wyniki dla typu gry {lottoType} na dzień {date?.ToString("yyyy-MM-dd") ?? "najnowszy"}. "
+                + "interesuje mnie wynik tylko na podany dzien, a nie starsze wyniki z poprzednich dni. "
                 + @"Wynik oddaj w formacie w JSON: { ""Data"": [ { ""DrawDate"": ""2025-01-01"", ""GameType"": """ + lottoType + @""", ""Numbers"": [1, 2, 3, 4, 5, 6 ] } ] }."
                 + @"Jeśli nie możesz znaleźć wyników na daną datę, zwróć pustą tablicę w polu Data, taką jak poniżej: { ""Data"": [ ] } i nie zwracaj niczego innego.Tylko JSON bez białych znaków.";
 

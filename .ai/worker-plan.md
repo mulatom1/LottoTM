@@ -9,10 +9,10 @@
 ## 1. Wprowadzenie
 
 ### 1.1 Cel dokumentu
-Ten dokument opisuje implementację i działanie automatycznego workera (`LottoWorker`), który w tle pobiera wyniki losowań LOTTO i LOTTO PLUS z zewnętrznego API XLotto.pl.
+Ten dokument opisuje implementację i działanie automatycznego workera (`LottoWorker`), który w tle pobiera wyniki losowań LOTTO i LOTTO PLUS z oficjalnego Lotto OpenApi (https://www.lotto.pl).
 
 ### 1.2 Cel funkcjonalności
-Automatyzacja procesu pobierania wyników losowań eliminuje potrzebę ręcznego wprowadzania wyników przez administratorów i zapewnia, że dane są zawsze aktualne dla wszystkich użytkowników systemu.
+Automatyzacja procesu pobierania wyników losowań eliminuje potrzebę ręcznego wprowadzania wyników przez administratorów i zapewnia, że dane są zawsze aktualne dla wszystkich użytkowników systemu. Worker wykorzystuje oficjalne **Lotto OpenApi** (https://www.lotto.pl) do pobierania wyników LOTTO i LOTTO PLUS.
 
 ---
 
@@ -38,10 +38,9 @@ Worker wykorzystuje następujące serwisy:
 - `IServiceScopeFactory` - tworzenie scope dla dostępu do scoped services (DbContext)
 - `ILogger<LottoWorker>` - logowanie zdarzeń i błędów
 - `IOptions<LottoWorkerOptions>` - konfiguracja parametrów działania
-- `IConfiguration` - dostęp do ustawień aplikacji (ApiUrl)
+- `IConfiguration` - dostęp do ustawień aplikacji (ApiUrl, LottoOpenApi:Url, LottoOpenApi:ApiKey)
 - `AppDbContext` - dostęp do bazy danych
-- `IXLottoService` - serwis do pobierania wyników z API XLotto
-- `IHttpClientFactory` - tworzenie HTTP clientów do pingowania API
+- `IHttpClientFactory` - tworzenie HTTP clientów dla Lotto OpenApi i pingowania API
 
 ---
 
@@ -62,9 +61,22 @@ Worker działa w **konfigurowalnym oknie czasowym**:
     "EndTime": "23:00:00",
     "IntervalMinutes": 5
   },
+  "LottoOpenApi": {
+    "Url": "https://www.lotto.pl",
+    "ApiKey": "your-secret-api-key"
+  },
   "ApiUrl": "https://your-api-url.com"
 }
 ```
+
+**Wymagane parametry:**
+- `LottoWorker:Enable` - włącza/wyłącza workera
+- `LottoWorker:StartTime` - czas rozpoczęcia okna czasowego (format: HH:mm:ss)
+- `LottoWorker:EndTime` - czas zakończenia okna czasowego (format: HH:mm:ss)
+- `LottoWorker:IntervalMinutes` - interwał sprawdzania w minutach
+- `LottoOpenApi:Url` - URL bazowy Lotto OpenApi (https://www.lotto.pl)
+- `LottoOpenApi:ApiKey` - klucz API do autoryzacji (header "secret")
+- `ApiUrl` - URL własnego API dla keep-alive ping
 
 **Feature Flag - Enable:**
 - `Enable: true` - Worker działa w skonfigurowanym oknie czasowym
@@ -99,7 +111,7 @@ Worker działa w **konfigurowalnym oknie czasowym**:
    a. Oblicz targetDate = Today - 2 dni
    b. Sprawdź czy wyniki na targetDate już istnieją w bazie (LOTTO i LOTTO PLUS)
    c. JEŚLI NIE ISTNIEJĄ:
-      - Pobierz wyniki z XLotto API (GetLottoDrawsFromXLottoApi)
+      - Pobierz wyniki z Lotto OpenApi (GetLottoDrawsFromLottoOpenApi)
       - Zapisz do bazy danych
    d. JEŚLI ISTNIEJĄ:
       - Log informacji i pomiń pobieranie
@@ -129,23 +141,41 @@ private async Task PingForApiVersion(CancellationToken stoppingToken)
 
 ## 5. Pobieranie i Zapisywanie Wyników
 
-### 5.1 Funkcja główna (`GetLottoDrawsFromXLottoApi`)
+### 5.1 Funkcja główna (`GetLottoDrawsFromLottoOpenApi`)
 ```csharp
-private async Task GetLottoDrawsFromXLottoApi(CancellationToken stoppingToken)
+private async Task GetLottoDrawsFromLottoOpenApi(CancellationToken stoppingToken)
 ```
 
 **Działanie**:
-1. Tworzy scope dla dostępu do scoped services (DbContext, XLottoService)
-2. Oblicza targetDate (Today - 2 dni w testach)
-3. Pobiera wyniki LOTTO z API XLotto
-4. Przetwarza i zapisuje wyniki LOTTO
-5. Pobiera wyniki LOTTO PLUS z API XLotto
-6. Przetwarza i zapisuje wyniki LOTTO PLUS
-7. Loguje sukces lub błędy
+1. Tworzy scope dla dostępu do scoped services (DbContext, IHttpClientFactory)
+2. Konfiguruje HTTP client z wymaganymi headers:
+   - `User-Agent: LottoTM.Server.Api.LottoWorker/1.0`
+   - `Accept: application/json`
+   - `secret: {ApiKey}` (z konfiguracji LottoOpenApi:ApiKey)
+3. Buduje URL do Lotto OpenApi:
+   - Endpoint: `/api/open/v1/lotteries/draw-results/by-date-per-game`
+   - Query params: `drawDate={yyyy-MM-dd}&gameType=Lotto&size=10&sort=drawDate&order=DESC&index=1`
+4. Wysyła GET request do Lotto OpenApi
+5. Deserializuje JSON response do `LottoOpenApiResponse`
+6. Transformuje dane do wewnętrznego formatu `DrawsResponse`
+7. Przetwarza i zapisuje wyniki (LOTTO i LOTTO PLUS)
+8. Loguje sukces lub błędy
 
-### 5.2 Przetwarzanie i zapis (`ProcessAndSaveXLottoApiDraw`)
+**Endpoint Lotto OpenApi:**
+```
+GET https://www.lotto.pl/api/open/v1/lotteries/draw-results/by-date-per-game?drawDate=2025-11-15&gameType=Lotto&size=10&sort=drawDate&order=DESC&index=1
+```
+
+**Headers wymagane:**
+```
+User-Agent: LottoTM.Server.Api.LottoWorker/1.0
+Accept: application/json
+secret: your-api-key
+```
+
+### 5.2 Przetwarzanie i zapis (`SaveInDatabase`)
 ```csharp
-private async Task ProcessAndSaveXLottoApiDraw(string jsonResults, AppDbContext dbContext, CancellationToken stoppingToken)
+private async Task SaveInDatabase(string jsonResults, AppDbContext dbContext, CancellationToken stoppingToken)
 ```
 
 **Działanie**:
@@ -190,7 +220,103 @@ private async Task ProcessAndSaveXLottoApiDraw(string jsonResults, AppDbContext 
 
 ## 6. Struktura DTO
 
-### 6.1 DrawsResponse
+### 6.1 DTOs dla Lotto OpenApi Response
+
+#### LottoOpenApiResponse
+```csharp
+private class LottoOpenApiResponse
+{
+    [JsonPropertyName("totalRows")]
+    public int TotalRows { get; set; }
+
+    [JsonPropertyName("items")]
+    public List<LottoOpenApiItem>? Items { get; set; }
+
+    [JsonPropertyName("code")]
+    public int Code { get; set; }
+}
+```
+
+#### LottoOpenApiItem
+```csharp
+private class LottoOpenApiItem
+{
+    [JsonPropertyName("drawSystemId")]
+    public int DrawSystemId { get; set; }
+
+    [JsonPropertyName("drawDate")]
+    public DateTime? DrawDate { get; set; }
+
+    [JsonPropertyName("gameType")]
+    public string? GameType { get; set; } // "Lotto" lub "LottoPlus"
+
+    [JsonPropertyName("results")]
+    public List<LottoOpenApiResult>? Results { get; set; }
+}
+```
+
+#### LottoOpenApiResult
+```csharp
+private class LottoOpenApiResult
+{
+    [JsonPropertyName("drawDate")]
+    public DateTime? DrawDate { get; set; }
+
+    [JsonPropertyName("drawSystemId")]
+    public int DrawSystemId { get; set; }
+
+    [JsonPropertyName("gameType")]
+    public string? GameType { get; set; }
+
+    [JsonPropertyName("resultsJson")]
+    public int[]? ResultsJson { get; set; } // 6 liczb
+
+    [JsonPropertyName("specialResults")]
+    public object[]? SpecialResults { get; set; }
+}
+```
+
+**Przykładowy JSON response z Lotto OpenApi**:
+```json
+{
+  "totalRows": 2,
+  "items": [
+    {
+      "drawSystemId": 1,
+      "drawDate": "2025-11-15T00:00:00",
+      "gameType": "Lotto",
+      "results": [
+        {
+          "drawDate": "2025-11-15T00:00:00",
+          "drawSystemId": 1,
+          "gameType": "Lotto",
+          "resultsJson": [3, 12, 25, 31, 42, 48],
+          "specialResults": []
+        }
+      ]
+    },
+    {
+      "drawSystemId": 2,
+      "drawDate": "2025-11-15T00:00:00",
+      "gameType": "LottoPlus",
+      "results": [
+        {
+          "drawDate": "2025-11-15T00:00:00",
+          "drawSystemId": 2,
+          "gameType": "LottoPlus",
+          "resultsJson": [5, 14, 23, 29, 37, 41],
+          "specialResults": []
+        }
+      ]
+    }
+  ],
+  "code": 200
+}
+```
+
+### 6.2 DTOs wewnętrzne (transformacja)
+
+#### DrawsResponse
 ```csharp
 private class DrawsResponse
 {
@@ -198,28 +324,19 @@ private class DrawsResponse
 }
 ```
 
-### 6.2 DrawData
+#### DrawData
 ```csharp
 private class DrawData
 {
     public string DrawDate { get; set; } = string.Empty;
-    public string GameType { get; set; } = string.Empty;
+    public string GameType { get; set; } = string.Empty; // "LOTTO" lub "LOTTO PLUS"
     public int[] Numbers { get; set; } = Array.Empty<int>();
 }
 ```
 
-**Przykładowy JSON response z XLotto API**:
-```json
-{
-  "Data": [
-    {
-      "DrawDate": "2025-11-13",
-      "GameType": "LOTTO",
-      "Numbers": [3, 12, 25, 31, 42, 48]
-    }
-  ]
-}
-```
+**Mapowanie typów gier:**
+- `"Lotto"` (z Lotto OpenApi) → `"LOTTO"` (wewnętrzny format)
+- `"LottoPlus"` (z Lotto OpenApi) → `"LOTTO PLUS"` (wewnętrzny format)
 
 ---
 
@@ -348,9 +465,9 @@ builder.Services.AddHostedService<LottoWorker>();
 
 ### 10.2 Wymagane serwisy
 Worker wymaga uprzedniej rejestracji:
-- `IXLottoService` - musi być zarejestrowany w DI
 - `AppDbContext` - musi być zarejestrowany jako scoped
 - `IHttpClientFactory` - automatycznie dostępny po `AddHttpClient()`
+- `IConfiguration` - automatycznie dostępny (dostęp do LottoOpenApi:Url i LottoOpenApi:ApiKey)
 
 ---
 
@@ -440,15 +557,19 @@ Worker wymaga uprzedniej rejestracji:
 2. Zweryfikuj logikę `AnyAsync(d => d.DrawDate == drawDate && d.LottoType == drawData.GameType)`
 
 ### Problem 4: Błędy deserializacji JSON
-**Objawy**: Logi "Failed to deserialize draw results JSON"
+**Objawy**: Logi "Failed to deserialize draw results JSON" lub "JSON deserialization error"
 **Przyczyny**:
-- Zmiana formatu response API XLotto
+- Zmiana formatu response z Lotto OpenApi
 - Błędne dane z API
+- Brak wymaganego klucza API (401 Unauthorized)
+- Nieprawidłowy ApiKey w konfiguracji
 
 **Rozwiązanie**:
 1. Sprawdź surowy JSON w logach
-2. Porównaj z klasami DTO (`DrawsResponse`, `DrawData`)
-3. Dostosuj DTO do nowego formatu
+2. Porównaj z klasami DTO (`LottoOpenApiResponse`, `LottoOpenApiItem`, `LottoOpenApiResult`)
+3. Sprawdź czy ApiKey jest poprawnie skonfigurowany w appsettings.json
+4. Zweryfikuj header `secret` w HTTP request
+5. Dostosuj DTO do nowego formatu jeśli API się zmieniło
 
 ---
 

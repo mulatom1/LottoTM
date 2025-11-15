@@ -4,3 +4,10 @@ GET {{LottoTM.Server.Api_HostAddress}}/api/version
 Accept: application/json
 
 ###
+
+
+GET https://developers.lotto.pl/api/open/v1/lotteries/draw-results/by-date-per-game?drawDate=2025-11-11&gameType=Lotto&size=10&sort=drawDate&order=desc&index=1
+Accept: application/json
+Secret: token
+
+###
