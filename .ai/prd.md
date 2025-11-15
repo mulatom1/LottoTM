@@ -300,13 +300,13 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 
 #### F-DRAW-007: Automatyczne pobieranie wyników - Background Worker
 **Priorytet:** Must Have
-**Opis:** System automatycznie pobiera wyniki losowań LOTTO i LOTTO PLUS w tle za pomocą workera działającego w skonfigurowanym oknie czasowym.
+**Opis:** System automatycznie pobiera wyniki losowań LOTTO i LOTTO PLUS w tle za pomocą workera działającego w skonfigurowanym oknie czasowym. Worker wykorzystuje oficjalne Lotto OpenApi.
 
 **Kryteria akceptacji:**
 - Background service (`LottoWorker`) uruchamia się automatycznie przy starcie aplikacji
 - Worker działa w konfigurowalnym oknie czasowym (domyślnie: 22:15-23:00)
 - Sprawdzanie dostępności nowych wyników co X minut (domyślnie: 5 minut)
-- Automatyczne pobieranie wyników LOTTO i LOTTO PLUS jeśli nie istnieją w bazie
+- Automatyczne pobieranie wyników LOTTO i LOTTO PLUS z Lotto OpenApi jeśli nie istnieją w bazie
 - Walidacja pobranych danych (6 unikalnych liczb 1-49)
 - Zapisywanie wyników w transakcji (Draw + DrawNumbers)
 - Wykrywanie duplikatów i pomijanie istniejących wyników
@@ -324,6 +324,10 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
     "EndTime": "23:00:00",
     "IntervalMinutes": 5
   },
+  "LottoOpenApi": {
+    "Url": "https://www.lotto.pl",
+    "ApiKey": "your-secret-api-key"
+  },
   "ApiUrl": "https://your-api-url.com"
 }
 ```
@@ -338,10 +342,12 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 2. Co X minut sprawdza czy Enable=true ORAZ jest w aktywnym oknie czasowym
 3. Jeśli OBA warunki spełnione:
    - Pinguje API (keep-alive)
-   - Sprawdza czy wyniki na targetDate już istnieją
-   - Jeśli NIE: pobiera LOTTO i LOTTO PLUS z XLotto API
+   - Sprawdza czy wyniki na targetDate już istnieją (LOTTO i LOTTO PLUS)
+   - Jeśli NIE: pobiera wyniki z Lotto OpenApi
+   - Endpoint: `GET /api/open/v1/lotteries/draw-results/by-date-per-game?drawDate={date}&gameType=Lotto&size=10`
    - Waliduje dane (6 liczb, zakres 1-49, brak duplikatów)
-   - Zapisuje w transakcji do bazy
+   - Transformuje odpowiedź API do wewnętrznego formatu (DrawsResponse)
+   - Zapisuje w transakcji do bazy (Draw + 6x DrawNumbers)
 4. Jeśli NIE: czeka do następnego cyklu
 
 **Wymagania techniczne:**
@@ -349,19 +355,49 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 - Lokalizacja: `src/server/LottoTM.Server.Api/Services/LottoWorker.cs`
 - Opcje konfiguracji: `src/server/LottoTM.Server.Api/Options/LottoWorkerOptions.cs`
 - Wykorzystanie `IServiceScopeFactory` dla dostępu do scoped services (DbContext)
-- Wykorzystanie `IXLottoService` dla pobierania danych
-- Wykorzystanie `IHttpClientFactory` dla HTTP requests
+- Wykorzystanie `IHttpClientFactory` dla HTTP requests do Lotto OpenApi
+- Headers wymagane: `User-Agent`, `Accept: application/json`, `secret: {ApiKey}`
+
+**DTOs dla Lotto OpenApi:**
+```csharp
+// Response z Lotto OpenApi
+private class LottoOpenApiResponse
+{
+    public int TotalRows { get; set; }
+    public List<LottoOpenApiItem> Items { get; set; }
+    public int Code { get; set; }
+}
+
+private class LottoOpenApiItem
+{
+    public int DrawSystemId { get; set; }
+    public DateTime? DrawDate { get; set; }
+    public string GameType { get; set; } // "Lotto" lub "LottoPlus"
+    public List<LottoOpenApiResult> Results { get; set; }
+}
+
+private class LottoOpenApiResult
+{
+    public DateTime? DrawDate { get; set; }
+    public int DrawSystemId { get; set; }
+    public string GameType { get; set; }
+    public int[] ResultsJson { get; set; } // 6 liczb
+    public object[] SpecialResults { get; set; }
+}
+```
 
 **Obsługa błędów:**
 - Wszystkie błędy są logowane, ale nie zatrzymują workera
 - Rollback transakcji w przypadku błędu zapisu
 - Retry w następnym cyklu (5 min później)
+- Obsługa HttpRequestException, JsonException, DbUpdateException
 
 **Uwagi:**
-- Worker działa niezależnie od funkcji F-DRAW-006 (on-demand)
+- Worker działa niezależnie od funkcji F-DRAW-006 (on-demand z XLotto)
 - Wyniki pobrane przez workera mają CreatedByUserId = NULL
 - Worker nie wymaga interwencji użytkownika
 - Dedykowana dokumentacja: `.ai/worker-plan.md`
+- Mapowanie typów gier: "Lotto" → "LOTTO", "LottoPlus" → "LOTTO PLUS"
 
 ---
 

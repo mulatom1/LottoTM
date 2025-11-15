@@ -4,6 +4,7 @@ using LottoTM.Server.Api.Repositories;
 using LottoTM.Server.Api.Entities;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace LottoTM.Server.Api.Services;
 
@@ -49,7 +50,7 @@ public class LottoWorker : BackgroundService
                 using var scope = _serviceScopeFactory.CreateScope();
                 var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-                var targetDate = DateOnly.FromDateTime(DateTime.Today.AddDays(-2));
+                var targetDate = DateOnly.FromDateTime(DateTime.Today);
 
                 var lottoExists = await dbContext.Draws
                     .AnyAsync(d => d.DrawDate == targetDate && d.LottoType == "LOTTO", stoppingToken);
@@ -64,7 +65,7 @@ public class LottoWorker : BackgroundService
                 {
                     _logger.LogInformation("Draws for date {Date} do not exist or are incomplete. LOTTO exists: {LottoExists}, LOTTO PLUS exists: {LottoPlusExists}",
                         targetDate, lottoExists, lottoPlusExists);
-                    await GetLottoDrawsFromXLottoApi(stoppingToken);
+                    await GetLottoDrawsFromLottoOpenApi(stoppingToken);
                 }
             }
 
@@ -117,38 +118,108 @@ public class LottoWorker : BackgroundService
             _logger.LogError(ex, "Unexpected error while pinging PingForApiVersion");
         }
     }
+    
 
-    private async Task GetLottoDrawsFromXLottoApi(CancellationToken stoppingToken)
+    private async Task GetLottoDrawsFromLottoOpenApi(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("Executing LottoGetDraws at: {time}", DateTime.Now);
+        _logger.LogInformation("Executing GetLottoDrawsFromLottoOpenApi at: {time}", DateTime.Now);
 
         try
         {
             using var scope = _serviceScopeFactory.CreateScope();
-            var xLottoService = scope.ServiceProvider.GetRequiredService<IXLottoService>();
+
+            var httpClientFactory = scope.ServiceProvider.GetRequiredService<IHttpClientFactory>();
+            var httpClient = httpClientFactory.CreateClient();
             var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            httpClient.DefaultRequestHeaders.Add("User-Agent", "LottoTM.Server.Api.LottoWorker/1.0");
+            httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
+            httpClient.DefaultRequestHeaders.Add("secret", _configuration.GetValue("LottoOpenApi:ApiKey", ""));
 
-            // Pobierz wyniki losowa� z API
-            var today = DateTime.Today.AddDays(-2);
-            _logger.LogInformation("Fetching draws for date: {date}", today);
+            var url = _configuration.GetValue("LottoOpenApi:Url", "");
+            if (string.IsNullOrEmpty(url))
+            {
+                _logger.LogWarning("LottoOpenApiUrl is not configured. Skipping fetch.");
+                return;
+            }
 
-            // Pobierz LOTTO
-            var lottoJson = await xLottoService.GetActualDraws(today, "LOTTO");
-            await ProcessAndSaveXLottoApiDraw(lottoJson, dbContext, stoppingToken);
+            var apiUrl = $"{url}/api/open/v1/lotteries/draw-results/by-date-per-game?drawDate={DateTime.Today:yyyy-MM-dd}&gameType=Lotto&size=10&sort=drawDate&order=DESC&index=1";
+            _logger.LogInformation("Fetching draws from Lotto Open API: {Url}", apiUrl);
 
-            // Pobierz LOTTO PLUS
-            var lottoPlusJson = await xLottoService.GetActualDraws(today, "LOTTO PLUS");
-            await ProcessAndSaveXLottoApiDraw(lottoPlusJson, dbContext, stoppingToken);
+            var response = await httpClient.GetAsync(apiUrl, stoppingToken);
 
-            _logger.LogInformation("LottoGetDraws completed successfully");
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Lotto Open API returned non-success status: {StatusCode}", response.StatusCode);
+                return;
+            }
+
+            var jsonContent = await response.Content.ReadAsStringAsync(stoppingToken);
+            _logger.LogInformation("Received response from Lotto Open API");
+
+            // Deserialize the Lotto Open API response
+            var lottoOpenApiResponse = JsonSerializer.Deserialize<LottoOpenApiResponse>(jsonContent);
+
+            if (lottoOpenApiResponse?.Items == null || lottoOpenApiResponse.Items.Count == 0)
+            {
+                _logger.LogInformation("No draw items found in Lotto Open API response");
+                return;
+            }
+
+            // Transform to DrawsResponse format and process each game type
+            var drawDataList = new List<DrawData>();
+
+            foreach (var item in lottoOpenApiResponse.Items)
+            {
+                if (item.Results == null || item.Results.Count == 0)
+                {
+                    _logger.LogWarning("No results found for game type {GameType}", item.GameType);
+                    continue;
+                }
+
+                var result = item.Results[0]; // Take first result
+
+                // Map gameType to LottoType format
+                var lottoType = item.GameType?.ToUpper() == "LOTTO" ? "LOTTO" 
+                    : item.GameType?.ToUpper() == "LOTTOPLUS" ? "LOTTO PLUS"
+                    : item.GameType ?? string.Empty;
+
+                var drawData = new DrawData
+                {
+                    DrawDate = result.DrawDate?.ToString("yyyy-MM-dd") ?? string.Empty,
+                    GameType = lottoType,
+                    Numbers = result.ResultsJson ?? Array.Empty<int>()
+                };
+
+                drawDataList.Add(drawData);
+            }
+
+            // Create DrawsResponse format
+            var drawsResponse = new DrawsResponse
+            {
+                Data = drawDataList
+            };
+
+            // Serialize to JSON and process using existing method
+            var jsonResults = JsonSerializer.Serialize(drawsResponse);
+            await SaveInDatabase(jsonResults, dbContext, stoppingToken);
+
+            _logger.LogInformation("GetLottoDrawsFromLottoOpenApi completed successfully");
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "HTTP request exception while fetching from Lotto Open API");
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogError(ex, "JSON deserialization error while processing Lotto Open API response");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error occurred while executing LottoGetDraws");
+            _logger.LogError(ex, "Unexpected error while fetching from Lotto Open API");
         }
     }
 
-    private async Task ProcessAndSaveXLottoApiDraw(string jsonResults, AppDbContext dbContext, CancellationToken stoppingToken)
+    private async Task SaveInDatabase(string jsonResults, AppDbContext dbContext, CancellationToken stoppingToken)
     {
         try
         {
@@ -267,5 +338,51 @@ public class LottoWorker : BackgroundService
         public string DrawDate { get; set; } = string.Empty;
         public string GameType { get; set; } = string.Empty;
         public int[] Numbers { get; set; } = Array.Empty<int>();
+    }
+
+    // DTOs for deserializing Lotto Open API response
+    private class LottoOpenApiResponse
+    {
+        [JsonPropertyName("totalRows")]
+        public int TotalRows { get; set; }
+
+        [JsonPropertyName("items")]
+        public List<LottoOpenApiItem>? Items { get; set; }
+
+        [JsonPropertyName("code")]
+        public int Code { get; set; }
+    }
+
+    private class LottoOpenApiItem
+    {
+        [JsonPropertyName("drawSystemId")]
+        public int DrawSystemId { get; set; }
+
+        [JsonPropertyName("drawDate")]
+        public DateTime? DrawDate { get; set; }
+
+        [JsonPropertyName("gameType")]
+        public string? GameType { get; set; }
+
+        [JsonPropertyName("results")]
+        public List<LottoOpenApiResult>? Results { get; set; }
+    }
+
+    private class LottoOpenApiResult
+    {
+        [JsonPropertyName("drawDate")]
+        public DateTime? DrawDate { get; set; }
+
+        [JsonPropertyName("drawSystemId")]
+        public int DrawSystemId { get; set; }
+
+        [JsonPropertyName("gameType")]
+        public string? GameType { get; set; }
+
+        [JsonPropertyName("resultsJson")]
+        public int[]? ResultsJson { get; set; }
+
+        [JsonPropertyName("specialResults")]
+        public object[]? SpecialResults { get; set; }
     }
 }
