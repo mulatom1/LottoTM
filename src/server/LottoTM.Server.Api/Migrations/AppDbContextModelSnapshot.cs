@@ -35,7 +35,7 @@ namespace LottoTM.Server.Api.Migrations
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("GETUTCDATE()");
 
-                    b.Property<int>("CreatedByUserId")
+                    b.Property<int?>("CreatedByUserId")
                         .HasColumnType("int");
 
                     b.Property<DateOnly>("DrawDate")
@@ -193,8 +193,7 @@ namespace LottoTM.Server.Api.Migrations
                     b.HasOne("LottoTM.Server.Api.Entities.User", "CreatedByUser")
                         .WithMany("CreatedDraws")
                         .HasForeignKey("CreatedByUserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("CreatedByUser");
                 });

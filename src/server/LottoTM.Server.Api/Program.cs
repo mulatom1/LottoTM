@@ -37,12 +37,14 @@ builder.Services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
 
 // Register configuration options
 builder.Services.Configure<GoogleGeminiOptions>(builder.Configuration.GetSection("GoogleGemini"));
+builder.Services.Configure<LottoWorkerOptions>(builder.Configuration.GetSection("LottoWorker"));
 
 // Register services
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IXLottoService, XLottoService>();
 builder.Services.AddHttpClient();
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddHostedService<LottoWorker>();
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -105,7 +107,7 @@ var app = builder.Build();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 
-if (builder.Configuration.GetValue("Swagger:Enabled", false))
+if (builder.Configuration.GetValue("Swagger:Enable", false))
 {
     app.UseSwagger();
     app.UseSwaggerUI();

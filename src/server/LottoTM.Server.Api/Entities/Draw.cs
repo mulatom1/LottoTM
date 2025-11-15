@@ -33,15 +33,17 @@ public class Draw
     /// <summary>
     /// Foreign key to the admin user who created this draw result.
     /// Used for tracking and audit purposes.
+    /// Nullable for worker-generated draws.
     /// </summary>
-    public int CreatedByUserId { get; set; }
+    public int? CreatedByUserId { get; set; }
 
     // Navigation properties
 
     /// <summary>
     /// Navigation property to the admin user who created this draw
+    /// Null for worker-generated draws.
     /// </summary>
-    public User CreatedByUser { get; set; } = null!;
+    public User? CreatedByUser { get; set; } = null!;
 
     /// <summary>
     /// Collection of exactly 6 numbers for this draw (positions 1-6).
