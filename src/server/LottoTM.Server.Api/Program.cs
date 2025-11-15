@@ -42,6 +42,7 @@ builder.Services.Configure<LottoWorkerOptions>(builder.Configuration.GetSection(
 // Register services
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IXLottoService, XLottoService>();
+builder.Services.AddScoped<ILottoOpenApiService, LottoOpenApiService>();
 builder.Services.AddHttpClient();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddHostedService<LottoWorker>();

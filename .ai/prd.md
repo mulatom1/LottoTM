@@ -300,7 +300,7 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 
 #### F-DRAW-007: Automatyczne pobieranie wyników - Background Worker
 **Priorytet:** Must Have
-**Opis:** System automatycznie pobiera wyniki losowań LOTTO i LOTTO PLUS w tle za pomocą workera działającego w skonfigurowanym oknie czasowym. Worker wykorzystuje oficjalne Lotto OpenApi.
+**Opis:** System automatycznie pobiera wyniki losowań LOTTO i LOTTO PLUS w tle za pomocą workera działającego w skonfigurowanym oknie czasowym. Worker wykorzystuje dedykowany serwis **LottoOpenApiService**, który komunikuje się z oficjalnym Lotto OpenApi (https://www.lotto.pl).
 
 **Kryteria akceptacji:**
 - Background service (`LottoWorker`) uruchamia się automatycznie przy starcie aplikacji
@@ -343,20 +343,26 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 3. Jeśli OBA warunki spełnione:
    - Pinguje API (keep-alive)
    - Sprawdza czy wyniki na targetDate już istnieją (LOTTO i LOTTO PLUS)
-   - Jeśli NIE: pobiera wyniki z Lotto OpenApi
-   - Endpoint: `GET /api/open/v1/lotteries/draw-results/by-date-per-game?drawDate={date}&gameType=Lotto&size=10`
-   - Waliduje dane (6 liczb, zakres 1-49, brak duplikatów)
-   - Transformuje odpowiedź API do wewnętrznego formatu (DrawsResponse)
+   - Jeśli NIE: wywołuje `ILottoOpenApiService.GetActualDraws(date)` do pobrania wyników
+   - LottoOpenApiService:
+     - Endpoint: `GET /api/open/v1/lotteries/draw-results/by-date-per-game?drawDate={date}&gameType=Lotto&size=10`
+     - Headers: `User-Agent`, `Accept: application/json`, `secret: {ApiKey}`
+     - Transformuje odpowiedź API do wewnętrznego formatu (DrawsResponse)
+     - Zwraca JSON string z wynikami
+   - Worker waliduje dane (6 liczb, zakres 1-49, brak duplikatów)
    - Zapisuje w transakcji do bazy (Draw + 6x DrawNumbers)
 4. Jeśli NIE: czeka do następnego cyklu
 
 **Wymagania techniczne:**
-- Implementacja: `BackgroundService` (.NET)
-- Lokalizacja: `src/server/LottoTM.Server.Api/Services/LottoWorker.cs`
-- Opcje konfiguracji: `src/server/LottoTM.Server.Api/Options/LottoWorkerOptions.cs`
-- Wykorzystanie `IServiceScopeFactory` dla dostępu do scoped services (DbContext)
-- Wykorzystanie `IHttpClientFactory` dla HTTP requests do Lotto OpenApi
-- Headers wymagane: `User-Agent`, `Accept: application/json`, `secret: {ApiKey}`
+- **Worker**: `BackgroundService` (.NET)
+  - Lokalizacja: `src/server/LottoTM.Server.Api/Services/LottoWorker.cs`
+  - Opcje konfiguracji: `src/server/LottoTM.Server.Api/Options/LottoWorkerOptions.cs`
+  - Wykorzystanie `IServiceScopeFactory` dla dostępu do scoped services (DbContext, ILottoOpenApiService)
+- **LottoOpenApiService**: Dedykowany serwis do komunikacji z Lotto OpenApi
+  - Interface: `src/server/LottoTM.Server.Api/Services/ILottoOpenApiService.cs`
+  - Implementacja: `src/server/LottoTM.Server.Api/Services/LottoOpenApiService.cs`
+  - Wykorzystanie `IHttpClientFactory` dla HTTP requests do Lotto OpenApi
+  - Headers wymagane: `User-Agent`, `Accept: application/json`, `secret: {ApiKey}`
 
 **DTOs dla Lotto OpenApi:**
 ```csharp
@@ -398,6 +404,10 @@ private class LottoOpenApiResult
 - Worker nie wymaga interwencji użytkownika
 - Dedykowana dokumentacja: `.ai/worker-plan.md`
 - Mapowanie typów gier: "Lotto" → "LOTTO", "LottoPlus" → "LOTTO PLUS"
+
+**Różnica między metodami pobierania wyników:**
+- **LottoOpenApiService** (F-DRAW-007): Bezpośrednie wywołanie oficjalnego Lotto OpenApi, używane przez Background Worker do automatycznego pobierania
+- **XLottoService** (F-DRAW-006): Pobieranie HTML z XLotto.pl + ekstrakcja przez Google Gemini AI, używane przez endpoint on-demand dla adminów
 
 ---
 

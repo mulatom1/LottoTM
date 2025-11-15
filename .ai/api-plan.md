@@ -999,13 +999,17 @@
 
 ---
 
-### 2.5 Moduł: XLotto (Automatyczne pobieranie wyników)
+### 2.5 Moduł: XLotto (Pobieranie wyników on-demand przez admina)
+
+**Uwaga:** Ten moduł obsługuje **ręczne pobieranie wyników** przez administratorów za pomocą przycisku "Pobierz z XLotto" w UI. Wykorzystuje **XLottoService** z Google Gemini AI do ekstrakcji danych z HTML.
+
+**Automatyczne pobieranie w tle** (Background Worker) korzysta z **LottoOpenApiService**, który bezpośrednio wywołuje oficjalne Lotto.pl OpenApi - patrz dokumentacja workera: `.ai/worker-plan.md`
 
 ---
 
 #### **GET /api/xlotto/actual-draws**
 
-**Opis:** Pobieranie aktualnych wyników losowań z witryny XLotto.pl za pomocą Google Gemini API
+**Opis:** Pobieranie aktualnych wyników losowań z witryny XLotto.pl za pomocą **XLottoService** i Google Gemini API (dla ręcznego pobierania przez admina)
 
 **Autoryzacja:** Wymagany JWT (wymaga uprawnień administratora - IsAdmin)
 
@@ -1067,18 +1071,19 @@
   }
   ```
 
-**Logika biznesowa:**
+**Logika biznesowa (wykorzystuje XLottoService):**
 1. Pobranie `UserId` z JWT i sprawdzenie flagi `IsAdmin`
 2. Jeśli IsAdmin == false: zwróć 403 Forbidden
 3. Walidacja parametrów zapytania (Date format, LottoType value)
-4. **Faza 1: Pobranie zawartości HTML ze strony XLotto.pl**
+4. Wywołanie `IXLottoService.GetActualDraws(date, lottoType)`
+5. **XLottoService - Faza 1: Pobranie zawartości HTML ze strony XLotto.pl**
    ```csharp
    var httpClient = _httpClientFactory.CreateClient();
    httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0...");
    var response = await httpClient.GetAsync("https://www.xlotto.pl/");
    var htmlContent = await response.Content.ReadAsStringAsync();
    ```
-5. **Faza 2: Wywołanie Google Gemini API**
+6. **XLottoService - Faza 2: Wywołanie Google Gemini API**
    ```csharp
    var geminiApiKey = _configuration["GoogleGemini:ApiKey"];
    var geminiModel = _configuration["GoogleGemini:Model"] ?? "gemini-2.0-flash";
@@ -1096,7 +1101,7 @@
        }
    };
    ```
-6. **Faza 3: Przetworzenie odpowiedzi Gemini**
+7. **XLottoService - Faza 3: Przetworzenie odpowiedzi Gemini**
    ```csharp
    var geminiResult = JsonSerializer.Deserialize<JsonElement>(geminiResponseContent);
    var generatedText = geminiResult
@@ -1118,20 +1123,24 @@
    // Walidacja JSON
    JsonSerializer.Deserialize<JsonElement>(cleanedText);
    ```
-7. Zwrot przetworzonego JSON jako string w polu `data`
+8. Zwrot przetworzonego JSON jako string w polu `data`
 
 **Konfiguracja wymagana (appsettings.json):**
 ```json
 {
+  "XLotto": {
+    "Url": "https://www.xlotto.pl/"
+  },
   "GoogleGemini": {
-    "ApiKey": "YOUR_GEMINI_API_KEY",
-    "Model": "gemini-2.0-flash"
+    "ApiKey": "YOUR_GEMINI_API_KEY_BASE64",
+    "Model": "gemini-2.0-flash",
+    "Enable": false
   }
 }
 ```
 
 **Uwagi bezpieczeństwa:**
-- Klucz API Gemini przechowywany w konfiguracji (nie w kodzie)
+- Klucz API Gemini przechowywany w konfiguracji jako base64 (nie w kodzie)
 - W produkcji: używać Azure Key Vault lub podobnego rozwiązania
 - Rate limiting zalecany (Gemini API ma własne limity)
 
@@ -1139,6 +1148,18 @@
 - Czas pobierania HTML: ~200-500ms
 - Czas przetwarzania przez Gemini API: ~1-3 sekundy
 - Całkowity czas: ~2-4 sekundy
+
+**Architektura - Dwa serwisy do pobierania wyników:**
+- **XLottoService** (ten endpoint): Ręczne pobieranie on-demand przez admina
+  - Pobiera HTML z XLotto.pl
+  - Wykorzystuje Google Gemini AI do ekstrakcji danych z HTML
+  - Endpoint: `GET /api/xlotto/actual-draws`
+  - Użycie: przycisk "Pobierz z XLotto" w UI dla adminów
+- **LottoOpenApiService** (Background Worker): Automatyczne pobieranie w tle
+  - Bezpośrednie wywołanie oficjalnego Lotto.pl OpenApi
+  - Nie wymaga Gemini AI - czysty REST API call
+  - Użycie: `LottoWorker` background service
+  - Dokumentacja: `.ai/worker-plan.md`
 
 ---
 

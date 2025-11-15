@@ -4,7 +4,6 @@ using LottoTM.Server.Api.Repositories;
 using LottoTM.Server.Api.Entities;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace LottoTM.Server.Api.Services;
 
@@ -65,7 +64,7 @@ public class LottoWorker : BackgroundService
                 {
                     _logger.LogInformation("Draws for date {Date} do not exist or are incomplete. LOTTO exists: {LottoExists}, LOTTO PLUS exists: {LottoPlusExists}",
                         targetDate, lottoExists, lottoPlusExists);
-                    await GetLottoDrawsFromLottoOpenApi(stoppingToken);
+                    await FetchAndSaveDrawsFromLottoOpenApi(stoppingToken);
                 }
             }
 
@@ -119,103 +118,29 @@ public class LottoWorker : BackgroundService
         }
     }
     
-
-    private async Task GetLottoDrawsFromLottoOpenApi(CancellationToken stoppingToken)
+    private async Task FetchAndSaveDrawsFromLottoOpenApi(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("Executing GetLottoDrawsFromLottoOpenApi at: {time}", DateTime.Now);
+        _logger.LogInformation("Executing FetchAndSaveDrawsFromLottoOpenApi at: {time}", DateTime.Now);
 
         try
         {
             using var scope = _serviceScopeFactory.CreateScope();
-
-            var httpClientFactory = scope.ServiceProvider.GetRequiredService<IHttpClientFactory>();
-            var httpClient = httpClientFactory.CreateClient();
+            var lottoOpenApiService = scope.ServiceProvider.GetRequiredService<ILottoOpenApiService>();
             var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            httpClient.DefaultRequestHeaders.Add("User-Agent", "LottoTM.Server.Api.LottoWorker/1.0");
-            httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
-            httpClient.DefaultRequestHeaders.Add("secret", _configuration.GetValue("LottoOpenApi:ApiKey", ""));
 
-            var url = _configuration.GetValue("LottoOpenApi:Url", "");
-            if (string.IsNullOrEmpty(url))
-            {
-                _logger.LogWarning("LottoOpenApiUrl is not configured. Skipping fetch.");
-                return;
-            }
+            // Pobierz wyniki losowa� z API
+            var today = DateTime.Today;
+            _logger.LogInformation("Fetching draws for date: {date}", today);
 
-            var apiUrl = $"{url}/api/open/v1/lotteries/draw-results/by-date-per-game?drawDate={DateTime.Today:yyyy-MM-dd}&gameType=Lotto&size=10&sort=drawDate&order=DESC&index=1";
-            _logger.LogInformation("Fetching draws from Lotto Open API: {Url}", apiUrl);
-
-            var response = await httpClient.GetAsync(apiUrl, stoppingToken);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                _logger.LogWarning("Lotto Open API returned non-success status: {StatusCode}", response.StatusCode);
-                return;
-            }
-
-            var jsonContent = await response.Content.ReadAsStringAsync(stoppingToken);
-            _logger.LogInformation("Received response from Lotto Open API");
-
-            // Deserialize the Lotto Open API response
-            var lottoOpenApiResponse = JsonSerializer.Deserialize<LottoOpenApiResponse>(jsonContent);
-
-            if (lottoOpenApiResponse?.Items == null || lottoOpenApiResponse.Items.Count == 0)
-            {
-                _logger.LogInformation("No draw items found in Lotto Open API response");
-                return;
-            }
-
-            // Transform to DrawsResponse format and process each game type
-            var drawDataList = new List<DrawData>();
-
-            foreach (var item in lottoOpenApiResponse.Items)
-            {
-                if (item.Results == null || item.Results.Count == 0)
-                {
-                    _logger.LogWarning("No results found for game type {GameType}", item.GameType);
-                    continue;
-                }
-
-                var result = item.Results[0]; // Take first result
-
-                // Map gameType to LottoType format
-                var lottoType = item.GameType?.ToUpper() == "LOTTO" ? "LOTTO" 
-                    : item.GameType?.ToUpper() == "LOTTOPLUS" ? "LOTTO PLUS"
-                    : item.GameType ?? string.Empty;
-
-                var drawData = new DrawData
-                {
-                    DrawDate = result.DrawDate?.ToString("yyyy-MM-dd") ?? string.Empty,
-                    GameType = lottoType,
-                    Numbers = result.ResultsJson ?? Array.Empty<int>()
-                };
-
-                drawDataList.Add(drawData);
-            }
-
-            // Create DrawsResponse format
-            var drawsResponse = new DrawsResponse
-            {
-                Data = drawDataList
-            };
-
-            // Serialize to JSON and process using existing method
-            var jsonResults = JsonSerializer.Serialize(drawsResponse);
+            // Pobierz wszystkie typy losowa� (LOTTO i LOTTO PLUS są zwracane razem)
+            var jsonResults = await lottoOpenApiService.GetActualDraws(today, "LOTTO");
             await SaveInDatabase(jsonResults, dbContext, stoppingToken);
 
-            _logger.LogInformation("GetLottoDrawsFromLottoOpenApi completed successfully");
-        }
-        catch (HttpRequestException ex)
-        {
-            _logger.LogError(ex, "HTTP request exception while fetching from Lotto Open API");
-        }
-        catch (JsonException ex)
-        {
-            _logger.LogError(ex, "JSON deserialization error while processing Lotto Open API response");
+            _logger.LogInformation("FetchAndSaveDrawsFromLottoOpenApi completed successfully");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unexpected error while fetching from Lotto Open API");
+            _logger.LogError(ex, "Error occurred while executing FetchAndSaveDrawsFromLottoOpenApi");
         }
     }
 
@@ -325,9 +250,7 @@ public class LottoWorker : BackgroundService
         }
     }
 
-
-
-    // DTOs for deserializing XLotto API response
+    // DTOs for deserializing draw results
     private class DrawsResponse
     {
         public List<DrawData>? Data { get; set; }
@@ -338,51 +261,5 @@ public class LottoWorker : BackgroundService
         public string DrawDate { get; set; } = string.Empty;
         public string GameType { get; set; } = string.Empty;
         public int[] Numbers { get; set; } = Array.Empty<int>();
-    }
-
-    // DTOs for deserializing Lotto Open API response
-    private class LottoOpenApiResponse
-    {
-        [JsonPropertyName("totalRows")]
-        public int TotalRows { get; set; }
-
-        [JsonPropertyName("items")]
-        public List<LottoOpenApiItem>? Items { get; set; }
-
-        [JsonPropertyName("code")]
-        public int Code { get; set; }
-    }
-
-    private class LottoOpenApiItem
-    {
-        [JsonPropertyName("drawSystemId")]
-        public int DrawSystemId { get; set; }
-
-        [JsonPropertyName("drawDate")]
-        public DateTime? DrawDate { get; set; }
-
-        [JsonPropertyName("gameType")]
-        public string? GameType { get; set; }
-
-        [JsonPropertyName("results")]
-        public List<LottoOpenApiResult>? Results { get; set; }
-    }
-
-    private class LottoOpenApiResult
-    {
-        [JsonPropertyName("drawDate")]
-        public DateTime? DrawDate { get; set; }
-
-        [JsonPropertyName("drawSystemId")]
-        public int DrawSystemId { get; set; }
-
-        [JsonPropertyName("gameType")]
-        public string? GameType { get; set; }
-
-        [JsonPropertyName("resultsJson")]
-        public int[]? ResultsJson { get; set; }
-
-        [JsonPropertyName("specialResults")]
-        public object[]? SpecialResults { get; set; }
     }
 }

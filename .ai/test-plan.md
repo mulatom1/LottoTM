@@ -40,11 +40,16 @@ Główne cele procesu testowego to:
     *   [x] Pobieranie kuponów użytkownika.
 *   **[x] Weryfikacja wyników (Verification):**
     *   [x] Mechanizm sprawdzania wygranych dla danego kuponu.
-*   **[x] System XLotto:**
-    *   [x] Pobieranie aktualnych wyników z XLotto przez Gemini API.
+*   **[x] System XLotto (On-Demand Fetching):**
+    *   [x] XLottoService - Pobieranie aktualnych wyników z XLotto przez Gemini API.
     *   [x] Obsługa różnych typów gier (LOTTO, LOTTO PLUS).
-    *   [x] Integracja z zewnętrznym serwisem XLotto (włączanie/Wyłącznake funkcji jako Feature Flag).
+    *   [x] Integracja z zewnętrznym serwisem XLotto (włączanie/wyłączanie funkcji jako Feature Flag).
     *   [x] Przetwarzanie i walidacja JSON z Gemini API.
+*   **[ ] LottoOpenApiService (Background Worker Fetching):**
+    *   [ ] Pobieranie wyników bezpośrednio z oficjalnego Lotto.pl OpenApi.
+    *   [ ] Transformacja danych (Lotto → LOTTO, LottoPlus → LOTTO PLUS).
+    *   [ ] Walidacja JSON response z Lotto OpenApi.
+    *   [ ] Obsługa błędów i brakującej konfiguracji.
 *   **[ ] Interfejs użytkownika (Frontend):**
     *   [ ] Nawigacja i routing.
     *   [ ] Responsywność widoków.
@@ -98,7 +103,7 @@ Proces testowy zostanie podzielony na następujące poziomy i typy:
 *   **[x] TC13:** Sprawdzenie kuponu, który nie wygrał.
 *   **[x] TC14:** Próba sprawdzenia wyników dla losowania, które jeszcze się nie odbyło.
 
-### 4.4. System XLotto - Pobieranie Aktualnych Wyników
+### 4.4. System XLotto - Pobieranie Aktualnych Wyników (On-Demand via XLottoService)
 
 *   **[x] TC15:** Pomyślne pobranie wyników z XLotto dla typu LOTTO z prawidłową autoryzacją.
 *   **[x] TC16:** Pomyślne pobranie wyników dla typu LOTTO PLUS.
@@ -112,6 +117,19 @@ Proces testowy zostanie podzielony na następujące poziomy i typy:
 *   **[x] TC24:** Czyszczenie bloków markdown z odpowiedzi Gemini API.
 *   **[x] TC25:** Obsługa różnych kodowań znaków (UTF-8, ISO-8859-2).
 *   **[x] TC26:** Poprawne logowanie informacji podczas operacji.
+
+### 4.5. LottoOpenApiService - Automatyczne Pobieranie Wyników (Background Worker)
+
+*   **[ ] TC27:** Pomyślne pobranie wyników z Lotto OpenApi dla daty.
+*   **[ ] TC28:** Weryfikacja poprawności transformacji danych (Lotto → LOTTO, LottoPlus → LOTTO PLUS).
+*   **[ ] TC29:** Obsługa pustych wyników gdy brak danych w Lotto OpenApi.
+*   **[ ] TC30:** Obsługa błędów HTTP przy niedostępności Lotto OpenApi.
+*   **[ ] TC31:** Walidacja braku URL w konfiguracji (LottoOpenApi:Url).
+*   **[ ] TC32:** Walidacja braku klucza API w konfiguracji (LottoOpenApi:ApiKey).
+*   **[ ] TC33:** Weryfikacja poprawności deserializacji JSON z Lotto OpenApi.
+*   **[ ] TC34:** Obsługa błędnych formatów danych w odpowiedzi API.
+*   **[ ] TC35:** Poprawne ustawienie headers (User-Agent, Accept, secret).
+*   **[ ] TC36:** Poprawne logowanie informacji podczas operacji LottoOpenApiService.
 
 ---
 

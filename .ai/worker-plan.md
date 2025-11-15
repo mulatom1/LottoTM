@@ -12,7 +12,7 @@
 Ten dokument opisuje implementację i działanie automatycznego workera (`LottoWorker`), który w tle pobiera wyniki losowań LOTTO i LOTTO PLUS z oficjalnego Lotto OpenApi (https://www.lotto.pl).
 
 ### 1.2 Cel funkcjonalności
-Automatyzacja procesu pobierania wyników losowań eliminuje potrzebę ręcznego wprowadzania wyników przez administratorów i zapewnia, że dane są zawsze aktualne dla wszystkich użytkowników systemu. Worker wykorzystuje oficjalne **Lotto OpenApi** (https://www.lotto.pl) do pobierania wyników LOTTO i LOTTO PLUS.
+Automatyzacja procesu pobierania wyników losowań eliminuje potrzebę ręcznego wprowadzania wyników przez administratorów i zapewnia, że dane są zawsze aktualne dla wszystkich użytkowników systemu. Worker wykorzystuje dedykowany serwis **LottoOpenApiService**, który komunikuje się z oficjalnym **Lotto OpenApi** (https://www.lotto.pl) do pobierania wyników LOTTO i LOTTO PLUS.
 
 ---
 
@@ -28,19 +28,27 @@ Automatyzacja procesu pobierania wyników losowań eliminuje potrzebę ręcznego
 ```
 src/server/LottoTM.Server.Api/
 ├── Services/
-│   └── LottoWorker.cs          // Główna implementacja workera
+│   ├── LottoWorker.cs              // Główna implementacja workera
+│   ├── LottoOpenApiService.cs      // Serwis do pobierania z Lotto OpenApi
+│   └── ILottoOpenApiService.cs     // Interface serwisu
 ├── Options/
-│   └── LottoWorkerOptions.cs   // Konfiguracja workera
+│   └── LottoWorkerOptions.cs       // Konfiguracja workera
 ```
 
 ### 2.3 Zależności
 Worker wykorzystuje następujące serwisy:
-- `IServiceScopeFactory` - tworzenie scope dla dostępu do scoped services (DbContext)
+- `IServiceScopeFactory` - tworzenie scope dla dostępu do scoped services (DbContext, LottoOpenApiService)
 - `ILogger<LottoWorker>` - logowanie zdarzeń i błędów
 - `IOptions<LottoWorkerOptions>` - konfiguracja parametrów działania
-- `IConfiguration` - dostęp do ustawień aplikacji (ApiUrl, LottoOpenApi:Url, LottoOpenApi:ApiKey)
+- `IConfiguration` - dostęp do ustawień aplikacji (ApiUrl)
 - `AppDbContext` - dostęp do bazy danych
-- `IHttpClientFactory` - tworzenie HTTP clientów dla Lotto OpenApi i pingowania API
+- `ILottoOpenApiService` - dedykowany serwis do pobierania wyników z Lotto OpenApi
+- `IHttpClientFactory` - tworzenie HTTP clientów dla pingowania API
+
+**LottoOpenApiService** (wykorzystywany przez Worker):
+- `IHttpClientFactory` - tworzenie HTTP clientów dla Lotto OpenApi
+- `IConfiguration` - dostęp do ustawień (LottoOpenApi:Url, LottoOpenApi:ApiKey)
+- `ILogger<LottoOpenApiService>` - logowanie operacji
 
 ---
 
@@ -147,28 +155,31 @@ private async Task GetLottoDrawsFromLottoOpenApi(CancellationToken stoppingToken
 ```
 
 **Działanie**:
-1. Tworzy scope dla dostępu do scoped services (DbContext, IHttpClientFactory)
-2. Konfiguruje HTTP client z wymaganymi headers:
-   - `User-Agent: LottoTM.Server.Api.LottoWorker/1.0`
-   - `Accept: application/json`
-   - `secret: {ApiKey}` (z konfiguracji LottoOpenApi:ApiKey)
-3. Buduje URL do Lotto OpenApi:
-   - Endpoint: `/api/open/v1/lotteries/draw-results/by-date-per-game`
-   - Query params: `drawDate={yyyy-MM-dd}&gameType=Lotto&size=10&sort=drawDate&order=DESC&index=1`
-4. Wysyła GET request do Lotto OpenApi
-5. Deserializuje JSON response do `LottoOpenApiResponse`
-6. Transformuje dane do wewnętrznego formatu `DrawsResponse`
-7. Przetwarza i zapisuje wyniki (LOTTO i LOTTO PLUS)
-8. Loguje sukces lub błędy
+1. Tworzy scope dla dostępu do scoped services (DbContext, ILottoOpenApiService)
+2. Wywołuje `ILottoOpenApiService.GetActualDraws(date)` do pobrania wyników
+3. Serwis LottoOpenApiService:
+   - Konfiguruje HTTP client z wymaganymi headers:
+     - `User-Agent: LottoTM.Server.Api.LottoOpenApiService/1.0`
+     - `Accept: application/json`
+     - `secret: {ApiKey}` (z konfiguracji LottoOpenApi:ApiKey)
+   - Buduje URL do Lotto OpenApi:
+     - Endpoint: `/api/open/v1/lotteries/draw-results/by-date-per-game`
+     - Query params: `drawDate={yyyy-MM-dd}&gameType=Lotto&size=10&sort=drawDate&order=DESC&index=1`
+   - Wysyła GET request do Lotto OpenApi
+   - Deserializuje JSON response do `LottoOpenApiResponse`
+   - Transformuje dane do wewnętrznego formatu `DrawsResponse`
+   - Zwraca JSON string z wynikami
+4. Worker przetwarza i zapisuje wyniki (LOTTO i LOTTO PLUS) wywołując `SaveInDatabase`
+5. Loguje sukces lub błędy
 
-**Endpoint Lotto OpenApi:**
+**Endpoint Lotto OpenApi (wywoływany przez LottoOpenApiService):**
 ```
 GET https://www.lotto.pl/api/open/v1/lotteries/draw-results/by-date-per-game?drawDate=2025-11-15&gameType=Lotto&size=10&sort=drawDate&order=DESC&index=1
 ```
 
-**Headers wymagane:**
+**Headers wymagane (ustawiane przez LottoOpenApiService):**
 ```
-User-Agent: LottoTM.Server.Api.LottoWorker/1.0
+User-Agent: LottoTM.Server.Api.LottoOpenApiService/1.0
 Accept: application/json
 secret: your-api-key
 ```
@@ -337,6 +348,38 @@ private class DrawData
 **Mapowanie typów gier:**
 - `"Lotto"` (z Lotto OpenApi) → `"LOTTO"` (wewnętrzny format)
 - `"LottoPlus"` (z Lotto OpenApi) → `"LOTTO PLUS"` (wewnętrzny format)
+
+### 6.3 LottoOpenApiService - Dedykowany Serwis
+
+**Lokalizacja:**
+```
+src/server/LottoTM.Server.Api/Services/
+├── ILottoOpenApiService.cs      // Interface
+└── LottoOpenApiService.cs       // Implementacja
+```
+
+**Główna metoda:**
+```csharp
+Task<string> GetActualDraws(DateTime? date = null, string lottoType = "LOTTO");
+```
+
+**Odpowiedzialności:**
+1. Komunikacja z Lotto OpenApi (https://www.lotto.pl)
+2. Konfiguracja HTTP client z odpowiednimi headers
+3. Deserializacja odpowiedzi API do wewnętrznych DTOs
+4. Transformacja danych (Lotto → LOTTO, LottoPlus → LOTTO PLUS)
+5. Zwrot wyników jako JSON string w standardowym formacie
+
+**Zalety wydzielenia serwisu:**
+- Separacja odpowiedzialności (Single Responsibility Principle)
+- Możliwość ponownego użycia w innych miejscach (Worker, endpointy API)
+- Łatwiejsze testowanie (mockowanie ILottoOpenApiService)
+- Centralizacja logiki pobierania z Lotto OpenApi
+- Jednolita konfiguracja (LottoOpenApi:Url, LottoOpenApi:ApiKey)
+
+**Różnica między LottoOpenApiService a XLottoService:**
+- **LottoOpenApiService**: Bezpośrednie wywołanie oficjalnego Lotto OpenApi, używane przez Worker
+- **XLottoService**: Pobieranie HTML z XLotto.pl + ekstrakcja przez Google Gemini AI, używane przez endpoint on-demand
 
 ---
 

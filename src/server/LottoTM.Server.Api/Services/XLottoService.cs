@@ -40,9 +40,19 @@ public class XLottoService : IXLottoService
             httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
             
             _logger.LogInformation("Fetching XLotto website content...");
-            var response = await httpClient.GetAsync("https://www.xlotto.pl/");
-            response.EnsureSuccessStatusCode();
-            
+            var url = _configuration.GetValue("XLotto:Url", "");
+            if (string.IsNullOrEmpty(url))
+            {
+                _logger.LogError("XLotto URL not configured");
+                throw new InvalidOperationException("XLotto URL not configured");
+            }
+            var response = await httpClient.GetAsync(url);
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogError("Failed to fetch XLotto website content. Status Code: {StatusCode}", response.StatusCode);
+                throw new InvalidOperationException($"Failed to fetch XLotto website content. Status Code: {response.StatusCode}");
+            }
+
             // Read content as byte array first, then decode with proper encoding
             var contentBytes = await response.Content.ReadAsByteArrayAsync();
             var encoding = GetEncodingFromContentType(response.Content.Headers.ContentType?.CharSet) ?? Encoding.UTF8;

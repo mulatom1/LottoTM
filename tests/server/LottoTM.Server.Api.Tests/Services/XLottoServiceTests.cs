@@ -30,6 +30,11 @@ public class XLottoServiceTests
         var apiKeyBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes("test-gemini-api-key"));
         _mockConfiguration.Setup(c => c["GoogleGemini:ApiKey"]).Returns(apiKeyBase64);
         _mockConfiguration.Setup(c => c["GoogleGemini:Model"]).Returns("gemini-2.0-flash");
+        
+        // Setup XLotto:Url configuration section
+        var urlSection = new Mock<IConfigurationSection>();
+        urlSection.Setup(s => s.Value).Returns("https://xlotto.pl");
+        _mockConfiguration.Setup(c => c.GetSection("XLotto:Url")).Returns(urlSection.Object);
     }
 
     /// <summary>
@@ -203,6 +208,7 @@ public class XLottoServiceTests
     {
         // Arrange
         _mockConfiguration.Setup(c => c["GoogleGemini:ApiKey"]).Returns((string?)null);
+        _mockConfiguration.Setup(c => c.GetSection("XLotto:Url").Value).Returns("https://xlotto.pl");
 
         var htmlContent = "<html><body>LOTTO content</body></html>";
         SetupXLottoWebsiteMock(htmlContent);
