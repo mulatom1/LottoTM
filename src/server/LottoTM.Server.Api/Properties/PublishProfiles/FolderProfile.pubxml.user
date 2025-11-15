@@ -3,7 +3,7 @@
 <Project>
   <PropertyGroup>
     <_PublishTargetUrl>D:\PROJECTS\LottoTM\src\server\LottoTM.Server.Api\bin\Release\net8.0\publish\</_PublishTargetUrl>
-    <History>True|2025-11-13T11:50:35.2072278Z||;True|2025-11-12T14:32:38.5598054+01:00||;True|2025-11-12T00:20:11.6901523+01:00||;</History>
+    <History>True|2025-11-14T22:06:52.8814242Z||;True|2025-11-13T12:50:35.2072278+01:00||;True|2025-11-12T14:32:38.5598054+01:00||;True|2025-11-12T00:20:11.6901523+01:00||;</History>
     <LastFailureDetails />
   </PropertyGroup>
 </Project>

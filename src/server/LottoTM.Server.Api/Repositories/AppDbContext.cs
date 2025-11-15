@@ -213,7 +213,7 @@ public class AppDbContext : DbContext
                 .HasDefaultValueSql("GETUTCDATE()");
 
             entity.Property(e => e.CreatedByUserId)
-                .IsRequired();
+                .IsRequired(false);
 
             entity.Property(e => e.LottoType)
                 .IsRequired()

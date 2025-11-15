@@ -56,7 +56,7 @@ CREATE TABLE Draws (
     DrawDate DATE NOT NULL,
     LottoType NVARCHAR(20) NOT NULL CHECK (LottoType IN ('LOTTO', 'LOTTO PLUS')),
     CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
-    CreatedByUserId INT NOT NULL,
+    CreatedByUserId INT NULL,
     CONSTRAINT UQ_Draws_DrawDateLottoType UNIQUE (DrawDate, LottoType),
     CONSTRAINT FK_Draws_Users FOREIGN KEY (CreatedByUserId)
         REFERENCES Users(Id) ON DELETE CASCADE
@@ -72,7 +72,7 @@ CREATE INDEX IX_Draws_LottoType ON Draws(LottoType);
 - `DrawDate` - DATE, data losowania (bez godziny)
 - `LottoType` - NVARCHAR(20), typ gry ("LOTTO" lub "LOTTO PLUS")
 - `CreatedAt` - DATETIME2, data wprowadzenia wyniku do systemu (UTC)
-- `CreatedByUserId` - INT, klucz obcy do Users (kto wprowadził wynik)
+- `CreatedByUserId` - INT NULL, klucz obcy do Users (kto wprowadził wynik), nullable dla wyników generowanych przez workera
 
 **Ograniczenia:**
 - PRIMARY KEY na `Id`
@@ -349,9 +349,11 @@ UQ: (DrawDate, LottoType)
 
 - **Kardynalność:** Jeden użytkownik (admin) może wprowadzić wiele losowań
 - **Foreign Key:** `Draws.CreatedByUserId` → `Users.Id`
-- **Cascade:** ON DELETE CASCADE - usunięcie użytkownika usuwa losowania przez niego wprowadzone
+- **Nullable:** CreatedByUserId może być NULL dla wyników generowanych przez background workera
+- **Cascade:** ON DELETE CASCADE - usunięcie użytkownika usuwa losowania przez niego wprowadzone (dotyczy tylko losowań z CreatedByUserId NOT NULL)
 - **Uwaga:** To relacja **trackingowa**, nie własności. Losowania są globalne (dostępne dla wszystkich), ale system śledzi kto je wprowadził
 - **Uprawnienia:** Tylko użytkownicy z `IsAdmin = TRUE` mogą dodawać/edytować/usuwać losowania
+- **Worker-generated draws:** Losowania utworzone przez background workera mają CreatedByUserId = NULL
 
 #### Draws → DrawNumbers (1:6)
 
@@ -1111,11 +1113,12 @@ protected override void OnModelCreating(ModelBuilder modelBuilder)
         // CHECK constraint na LottoType
         entity.ToTable(t => t.HasCheckConstraint("CK_Draws_LottoType", "LottoType IN ('LOTTO', 'LOTTO PLUS')"));
 
-        // Relacja do Users (tracking autora) z CASCADE DELETE
+        // Relacja do Users (tracking autora) z CASCADE DELETE, nullable dla worker-generated draws
         entity.HasOne(e => e.CreatedByUser)
             .WithMany(u => u.CreatedDraws)
             .HasForeignKey(e => e.CreatedByUserId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Cascade)
+            .IsRequired(false); // CreatedByUserId nullable
     });
 
     // DrawNumbers
@@ -1190,10 +1193,10 @@ public class Draw
     public DateTime DrawDate { get; set; }
     public string LottoType { get; set; } = null!;
     public DateTime CreatedAt { get; set; }
-    public int CreatedByUserId { get; set; }
-    
+    public int? CreatedByUserId { get; set; } // Nullable for worker-generated draws
+
     // Navigation properties
-    public User CreatedByUser { get; set; } = null!;
+    public User? CreatedByUser { get; set; } // Nullable for worker-generated draws
     public ICollection<DrawNumber> Numbers { get; set; } = new List<DrawNumber>();
 }
 

@@ -218,6 +218,12 @@ Edit `appsettings.json` or `appsettings.Development.json` in `src/server/LottoTM
 - `GoogleGemini:ApiKey` - Google Gemini API key (base64 encoded)
 - `GoogleGemini:Model` - Gemini model to use (default: "gemini-2.0-flash")
 - `GoogleGemini:Enable` - **Feature Flag** to enable/disable XLotto functionality (default: false)
+- `LottoWorker` - Background worker configuration (**Feature Flag**)
+  - `Enable` - Enable/disable worker (default: false)
+  - `StartTime` - Worker start time (default: "22:15:00")
+  - `EndTime` - Worker end time (default: "23:00:00")
+  - `IntervalMinutes` - Check interval in minutes (default: 5)
+- `ApiUrl` - Application API URL for worker keep-alive pings
 - `Serilog` - Logging configuration (console + file)
 - `Swagger:Enabled` - **Feature Flag** to enable/disable Swagger UI (default: false)
 
@@ -292,10 +298,21 @@ dotnet ef database update --project src/server/LottoTM.Server.Api
 
 **Draw Management**
 - ✅ Manual entry of official LOTTO and LOTTO PLUS results
-- ✅ Automated draw fetching from XLotto.pl via Google Gemini API
+- ✅ **Background Worker for Automatic Draw Fetching**
+  - Automated background service (`LottoWorker`) that runs during configured time window (22:15-23:00)
+  - **Feature Flag controlled** (`LottoWorker:Enable` in appsettings.json)
+  - Disabled by default in production, can be enabled in development
+  - Automatically fetches LOTTO and LOTTO PLUS results from XLotto.pl API
+  - Runs every 5 minutes (configurable) during active window
+  - Validates and saves results to database without user intervention
+  - Prevents duplicates and handles errors gracefully
+  - Keep-alive ping to maintain API uptime
+  - Detailed logging for monitoring and troubleshooting
+- ✅ Automated draw fetching from XLotto.pl via Google Gemini API (On-Demand)
   - **Feature Flag controlled** (`GoogleGemini:Enable` in appsettings.json)
   - Disabled by default in production, enabled in development
   - Frontend dynamically shows/hides "Pobierz z XLotto" button based on backend configuration
+  - Manual trigger by admin users through UI
 - ✅ AI-powered HTML content extraction and JSON conversion
 - ✅ Support for multiple lottery types (LOTTO, LOTTO PLUS)
 - ✅ Historical draw results storage
@@ -355,6 +372,15 @@ The project is actively under development with a focus on delivering core MVP fu
 
 ### Recent Updates
 
+- **LottoWorker - Background Service**: Implemented automatic lottery result fetching
+  - Background service that runs from 22:15 to 23:00 (configurable)
+  - **Feature Flag**: `LottoWorker:Enable` controls worker activation (default: false)
+  - Automatically fetches LOTTO and LOTTO PLUS results every 5 minutes
+  - Validates and saves results without user intervention
+  - Includes keep-alive ping to maintain API availability
+  - Comprehensive error handling and logging
+  - Configuration via `appsettings.json` (LottoWorker section)
+  - Dedicated documentation in `.ai/worker-plan.md`
 - **Feature Flag for XLotto**: Added configurable `GoogleGemini:Enable` flag to control XLotto functionality visibility
   - New endpoint `GET /api/xlotto/is-enabled` for frontend to check feature availability
   - When disabled, API returns empty data and UI hides "Pobierz z XLotto" button

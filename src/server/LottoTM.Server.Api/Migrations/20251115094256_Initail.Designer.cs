@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace LottoTM.Server.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251111214106_Init")]
-    partial class Init
+    [Migration("20251115094256_Initail")]
+    partial class Initail
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -38,7 +38,7 @@ namespace LottoTM.Server.Api.Migrations
                         .HasColumnType("datetime2")
                         .HasDefaultValueSql("GETUTCDATE()");
 
-                    b.Property<int>("CreatedByUserId")
+                    b.Property<int?>("CreatedByUserId")
                         .HasColumnType("int");
 
                     b.Property<DateOnly>("DrawDate")
@@ -196,8 +196,7 @@ namespace LottoTM.Server.Api.Migrations
                     b.HasOne("LottoTM.Server.Api.Entities.User", "CreatedByUser")
                         .WithMany("CreatedDraws")
                         .HasForeignKey("CreatedByUserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Cascade);
 
                     b.Navigation("CreatedByUser");
                 });
