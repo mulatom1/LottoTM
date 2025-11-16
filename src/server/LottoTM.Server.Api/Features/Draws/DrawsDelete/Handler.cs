@@ -40,7 +40,7 @@ public class Handler : IRequestHandler<Contracts.Request, Contracts.Response>
         var validationResult = await _validator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
         {
-            _logger.LogWarning("Walidacja nieudana dla DeleteDraw: {Errors}",
+            _logger.LogDebug("Walidacja nieudana dla DeleteDraw: {Errors}",
                 string.Join(", ", validationResult.Errors.Select(e => e.ErrorMessage)));
             throw new ValidationException(validationResult.Errors);
         }
@@ -50,7 +50,7 @@ public class Handler : IRequestHandler<Contracts.Request, Contracts.Response>
         var isAdmin = await _jwtService.GetIsAdminFromJwt();
         if (!isAdmin)
         {
-            _logger.LogWarning(
+            _logger.LogDebug(
                 "Użytkownik {UserId} próbował usunąć losowanie bez uprawnień administratora",
                 userId
             );
@@ -61,21 +61,21 @@ public class Handler : IRequestHandler<Contracts.Request, Contracts.Response>
         var draw = await _dbContext.Draws.FindAsync(new object[] { request.Id }, cancellationToken);
         if (draw == null)
         {
-            _logger.LogWarning(
+            _logger.LogDebug(
                 "Użytkownik {UserId} próbował usunąć nieistniejące losowanie {DrawId}",
                 userId, request.Id);
             throw new NotFoundException($"Losowanie o ID {request.Id} nie istnieje");
         }
 
         // 4. Delete the draw (CASCADE DELETE will remove related DrawNumbers automatically)
-        _logger.LogInformation(
+        _logger.LogDebug(
             "Użytkownik {UserId}usuwa losowanie {DrawId} z daty {DrawDate}",
             userId, draw.Id, draw.DrawDate);
 
         _dbContext.Draws.Remove(draw);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Pomyślnie usunięto losowanie {DrawId}", request.Id);
+        _logger.LogDebug("Pomyślnie usunięto losowanie {DrawId}", request.Id);
 
         return new Contracts.Response("Losowanie usunięte pomyślnie");
     }

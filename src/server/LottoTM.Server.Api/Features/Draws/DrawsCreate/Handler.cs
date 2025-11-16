@@ -56,7 +56,7 @@ public class CreateDrawHandler : IRequestHandler<Contracts.Request, Contracts.Re
         var isAdmin = await _jwtService.GetIsAdminFromJwt();
         if (!isAdmin)
         {
-            _logger.LogWarning(
+            _logger.LogDebug(
                 "User {UserId} attempted to create a draw without admin privileges",
                 currentUserId
             );
@@ -68,7 +68,7 @@ public class CreateDrawHandler : IRequestHandler<Contracts.Request, Contracts.Re
             .AnyAsync(d => d.DrawDate == request.DrawDate && d.LottoType == request.LottoType, cancellationToken);
         if (existingDraw)
         {
-            _logger.LogWarning(
+            _logger.LogDebug(
                 "Draw for date {DrawDate} with type {LottoType} already exists",
                 request.DrawDate, request.LottoType
             );
@@ -111,7 +111,7 @@ public class CreateDrawHandler : IRequestHandler<Contracts.Request, Contracts.Re
 
             await transaction.CommitAsync(cancellationToken);
 
-            _logger.LogInformation(
+            _logger.LogDebug(
                 "Draw {DrawId} created successfully for date {DrawDate}",
                 draw.Id, draw.DrawDate
             );

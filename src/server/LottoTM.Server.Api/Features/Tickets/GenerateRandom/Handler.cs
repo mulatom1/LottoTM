@@ -39,7 +39,7 @@ public class Handler : IRequestHandler<Contracts.Request, Contracts.Response>
         // 3. Generowanie losowych liczb
         var numbers = GenerateRandomNumbers();
 
-        _logger.LogInformation(
+        _logger.LogDebug(
             "Generated random numbers for user {UserId}: {Numbers}",
             userId, string.Join(", ", numbers));
 

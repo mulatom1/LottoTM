@@ -224,7 +224,7 @@ public class HandlerTests
         // Assert
         _mockLogger.Verify(
             x => x.Log(
-                LogLevel.Information,
+                LogLevel.Debug,
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("Pobieranie aktualnych wyników z XLotto")),
                 It.IsAny<Exception>(),
@@ -233,7 +233,7 @@ public class HandlerTests
 
         _mockLogger.Verify(
             x => x.Log(
-                LogLevel.Information,
+                LogLevel.Debug,
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("Pomyślnie pobrano wyniki z XLotto")),
                 It.IsAny<Exception>(),
@@ -322,7 +322,7 @@ public class HandlerTests
         // Assert
         _mockLogger.Verify(
             x => x.Log(
-                LogLevel.Warning,
+                LogLevel.Debug,
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("GoogleGemini feature is disabled")),
                 It.IsAny<Exception>(),

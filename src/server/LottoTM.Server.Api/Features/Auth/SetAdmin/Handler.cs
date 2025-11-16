@@ -63,7 +63,7 @@ public class SetAdminHandler : IRequestHandler<Contracts.Request, Contracts.Resp
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         // 5. Log the change
-        _logger.LogInformation(
+        _logger.LogDebug(
             "Admin status toggled for user {Email} (ID: {UserId}). New IsAdmin value: {IsAdmin}",
             user.Email,
             user.Id,

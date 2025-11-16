@@ -32,12 +32,12 @@ public class Handler : IRequestHandler<Contracts.Request, Contracts.Response?>
         var validationResult = await _validator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
         {
-            _logger.LogWarning("Walidacja nieudana dla GetDrawById: {Errors}",
+            _logger.LogDebug("Walidacja nieudana dla GetDrawById: {Errors}",
                 string.Join(", ", validationResult.Errors.Select(e => e.ErrorMessage)));
             throw new ValidationException(validationResult.Errors);
         }
 
-        _logger.LogInformation("Pobieranie losowania o ID: {DrawId}", request.Id);
+        _logger.LogDebug("Pobieranie losowania o ID: {DrawId}", request.Id);
 
         // 2. Fetch the draw from database with eager loading of numbers
         var draw = await _dbContext.Draws
@@ -47,7 +47,7 @@ public class Handler : IRequestHandler<Contracts.Request, Contracts.Response?>
         // 3. Check if draw exists
         if (draw == null)
         {
-            _logger.LogWarning("Losowanie o ID {DrawId} nie zostało znalezione", request.Id);
+            _logger.LogDebug("Losowanie o ID {DrawId} nie zostało znalezione", request.Id);
             return null; // Endpoint will return 404 Not Found
         }
 
@@ -65,7 +65,7 @@ public class Handler : IRequestHandler<Contracts.Request, Contracts.Response?>
             CreatedAt: draw.CreatedAt
         );
 
-        _logger.LogInformation("Losowanie o ID {DrawId} pobrane pomyślnie", request.Id);
+        _logger.LogDebug("Losowanie o ID {DrawId} pobrane pomyślnie", request.Id);
         return response;
     }
 }

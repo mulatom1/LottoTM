@@ -333,10 +333,10 @@ public class NotFoundException : Exception
 **Poziomy logowania:**
 ```csharp
 // Information - normalny flow
-_logger.LogInformation("Pobieranie zestawu {TicketId} dla użytkownika {UserId}", request.Id, currentUserId);
+_logger.LogDebug("Pobieranie zestawu {TicketId} dla użytkownika {UserId}", request.Id, currentUserId);
 
 // Warning - próba dostępu do cudzego zasobu
-_logger.LogWarning("Użytkownik {UserId} próbował uzyskać dostęp do zestawu {TicketId} należącego do innego użytkownika", currentUserId, request.Id);
+_logger.LogDebug("Użytkownik {UserId} próbował uzyskać dostęp do zestawu {TicketId} należącego do innego użytkownika", currentUserId, request.Id);
 
 // Error - błędy bazy danych
 _logger.LogError(ex, "Błąd podczas pobierania zestawu {TicketId}", request.Id);
@@ -513,7 +513,7 @@ public class GetByIdHandler : IRequestHandler<Contracts.GetByIdRequest, Contract
             ?? throw new UnauthorizedAccessException("Brak autoryzacji")
         );
 
-        _logger.LogInformation(
+        _logger.LogDebug(
             "Pobieranie zestawu {TicketId} dla użytkownika {UserId}",
             request.Id, currentUserId
         );
@@ -536,7 +536,7 @@ public class GetByIdHandler : IRequestHandler<Contracts.GetByIdRequest, Contract
 
             if (exists)
             {
-                _logger.LogWarning(
+                _logger.LogDebug(
                     "Użytkownik {UserId} próbował uzyskać dostęp do zestawu {TicketId} należącego do innego użytkownika",
                     currentUserId, request.Id
                 );
@@ -544,7 +544,7 @@ public class GetByIdHandler : IRequestHandler<Contracts.GetByIdRequest, Contract
             }
             else
             {
-                _logger.LogInformation(
+                _logger.LogDebug(
                     "Zestaw {TicketId} nie istnieje w systemie",
                     request.Id
                 );

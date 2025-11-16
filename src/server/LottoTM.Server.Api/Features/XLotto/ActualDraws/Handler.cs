@@ -31,16 +31,16 @@ public class Handler : IRequestHandler<Contracts.Request, Contracts.Response>
         // Check if GoogleGemini feature is enabled
         if (!_googleGeminiOptions.Enable)
         {
-            _logger.LogWarning("GoogleGemini feature is disabled. Returning empty data.");
+            _logger.LogDebug("GoogleGemini feature is disabled. Returning empty data.");
             return new Contracts.Response("{\"Data\":[]}");
         }
 
-        _logger.LogInformation("Pobieranie aktualnych wyników z XLotto...");
+        _logger.LogDebug("Pobieranie aktualnych wyników z XLotto...");
 
         // Fetch actual draws from XLotto via Gemini API
         var jsonData = await _xLottoService.GetActualDraws(request.Date, request.LottoType);
 
-        _logger.LogInformation("Pomyślnie pobrano wyniki z XLotto");
+        _logger.LogDebug("Pomyślnie pobrano wyniki z XLotto");
 
         return new Contracts.Response(jsonData);
     }

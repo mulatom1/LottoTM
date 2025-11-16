@@ -45,7 +45,7 @@ public class GetListHandler : IRequestHandler<Contracts.Request, Contracts.Respo
         // 2. Extract UserId from JWT token (CRITICAL for security - data isolation)
         var currentUserId = await _jwtService.GetUserIdFromJwt();
 
-        _logger.LogInformation(
+        _logger.LogDebug(
             "Pobieranie zestawów dla użytkownika {UserId}",
             currentUserId
         );
@@ -61,7 +61,7 @@ public class GetListHandler : IRequestHandler<Contracts.Request, Contracts.Respo
                 .OrderByDescending(t => t.CreatedAt) // Newest first
                 .ToListAsync(cancellationToken);
 
-            _logger.LogInformation(
+            _logger.LogDebug(
                 "Znaleziono {Count} zestawów dla użytkownika {UserId}",
                 tickets.Count,
                 currentUserId

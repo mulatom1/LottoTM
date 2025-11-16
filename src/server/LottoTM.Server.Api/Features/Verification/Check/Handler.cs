@@ -65,7 +65,7 @@ public class CheckVerificationHandler : IRequestHandler<Contracts.Request, Contr
                 .Include(d => d.Numbers)
                 .ToListAsync(cancellationToken);
 
-            _logger.LogInformation(
+            _logger.LogDebug(
                 "Weryfikacja: pobrano {TicketCount} kuponów i {DrawCount} losowań dla użytkownika {UserId}",
                 tickets.Count, draws.Count, userId);
 
@@ -121,7 +121,7 @@ public class CheckVerificationHandler : IRequestHandler<Contracts.Request, Contr
             // 6. Stop measurement and build response
             stopwatch.Stop();
 
-            _logger.LogInformation(
+            _logger.LogDebug(
                 "Weryfikacja zakończona: znaleziono {ResultCount} kuponów z trafieniami, czas wykonania: {ExecutionTime}ms",
                 results.Count, stopwatch.ElapsedMilliseconds);
 

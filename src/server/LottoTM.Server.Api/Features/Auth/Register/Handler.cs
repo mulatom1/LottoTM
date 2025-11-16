@@ -70,7 +70,7 @@ public class RegisterHandler : IRequestHandler<Contracts.Request, Contracts.Resp
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         // 5. Log successful registration
-        _logger.LogInformation(
+        _logger.LogDebug(
             "User registered successfully: {Email}",
             request.Email);
 

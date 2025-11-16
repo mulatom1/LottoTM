@@ -57,7 +57,7 @@ public class UpdateDrawHandler : IRequestHandler<Contracts.Request, IResult>
         // 3. Sprawdzenie uprawnień administratora
         if (!isAdmin)
         {
-            _logger.LogWarning(
+            _logger.LogDebug(
                 "Użytkownik {UserId} próbował aktualizować losowanie bez uprawnień administratora",
                 userId
             );
@@ -71,7 +71,7 @@ public class UpdateDrawHandler : IRequestHandler<Contracts.Request, IResult>
 
         if (draw == null)
         {
-            _logger.LogWarning("Draw {DrawId} not found for update", request.Id);
+            _logger.LogDebug("Draw {DrawId} not found for update", request.Id);
 
             return Results.Problem(
                 statusCode: StatusCodes.Status404NotFound,
@@ -88,7 +88,7 @@ public class UpdateDrawHandler : IRequestHandler<Contracts.Request, IResult>
 
             if (dateExists)
             {
-                _logger.LogWarning("Draw with date {DrawDate} and type {LottoType} already exists for another draw", 
+                _logger.LogDebug("Draw with date {DrawDate} and type {LottoType} already exists for another draw", 
                     request.DrawDate, request.LottoType);
 
                 return Results.Problem(
@@ -103,7 +103,7 @@ public class UpdateDrawHandler : IRequestHandler<Contracts.Request, IResult>
         using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
         try
         {
-            _logger.LogInformation("Updating draw {DrawId} by admin {UserId}", request.Id, userId);
+            _logger.LogDebug("Updating draw {DrawId} by admin {UserId}", request.Id, userId);
 
             // Update Draw metadata
             draw.DrawDate = request.DrawDate;
@@ -132,7 +132,7 @@ public class UpdateDrawHandler : IRequestHandler<Contracts.Request, IResult>
             await _dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
-            _logger.LogInformation("Draw {DrawId} updated successfully", request.Id);
+            _logger.LogDebug("Draw {DrawId} updated successfully", request.Id);
 
             return Results.Ok(new Contracts.Response("Losowanie zaktualizowane pomyślnie"));
         }

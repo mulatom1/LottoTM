@@ -1,8 +1,8 @@
 # Plan Wdrożenia Endpointu API: POST /api/tickets/generate-system
 
-**Data:** 2025-11-12  
-**Wersja:** 1.1  
-**Endpoint:** POST /api/tickets/generate-system  
+**Data:** 2025-11-16
+**Wersja:** 1.2
+**Endpoint:** POST /api/tickets/generate-system
 **Moduł:** Tickets (Zestawy)
 
 ---
@@ -22,6 +22,7 @@ Umożliwienie użytkownikom szybkiego wygenerowania zestawów systemowych, któr
 - **Payload żądania:** Brak (empty body)
 - **Zwrot:** Propozycja 9 zestawów (bez zapisu do bazy)
 - **Idempotentność:** Nie - każde wywołanie generuje nowe, losowe zestawy
+- **Sprawdzanie limitu:** NIE - endpoint tylko generuje propozycję, nie zapisuje
 
 ---
 
@@ -155,7 +156,9 @@ public class Contracts
 }
 ```
 
-**Uwaga:** Usunięto błąd 400 Bad Request (limit) - endpoint nie sprawdza limitu, tylko generuje propozycję.
+**Uwaga:**
+- Usunięto błąd 400 Bad Request (limit) - endpoint nie sprawdza limitu, tylko generuje propozycję
+- Sprawdzenie limitu 100 zestawów następuje dopiero przy zapisie przez `POST /api/tickets`
 
 ---
 
@@ -173,69 +176,49 @@ public class Contracts
        ▼
 ┌─────────────────────────────────────────┐
 │  Endpoint (GenerateSystem/Endpoint.cs)  │
-│  - Wymaga autoryzacji                   │
-│  - Wyodrębnia UserId z JWT              │
+│  - Weryfikacja autoryzacji (JWT)        │
 └──────┬──────────────────────────────────┘
        │ Wywołanie MediatR
        ▼
 ┌─────────────────────────────────────────┐
 │  Validator (Validator.cs)               │
-│  1. Sprawdza liczbę zestawów użytkownika│
-│  2. Waliduje limit (≤ 91)               │
+│  - Minimalna walidacja (request pusty)  │
 └──────┬──────────────────────────────────┘
-       │ Jeśli OK
+       │
        ▼
 ┌─────────────────────────────────────────┐
 │  Handler (Handler.cs)                   │
 │  1. Generuje 9 zestawów (algorytm)      │
-│  2. Tworzy encje Ticket + TicketNumber  │
-│  3. Zapisuje w transakcji (bulk insert) │
-│  4. Zwraca Response z ID-ami            │
+│  2. Waliduje pokrycie liczb 1-49        │
+│  3. Zwraca Response z liczbami          │
 └──────┬──────────────────────────────────┘
-       │ Response
+       │ Response (9 zestawów)
        ▼
 ┌─────────────────────────────────────────┐
 │  ExceptionHandlingMiddleware            │
 │  - Loguje błędy (Serilog)               │
 │  - Formatuje odpowiedzi błędów          │
 └──────┬──────────────────────────────────┘
-       │ JSON Response
+       │ JSON Response (200 OK)
        ▼
 ┌─────────────┐
 │   Client    │
-│  (201/400)  │
+│  (200 OK)   │
+│  - Wyświetla 9 zestawów                 │
+│  - Użytkownik decyduje czy zapisać      │
+│  - Zapis: 9x POST /api/tickets          │
 └─────────────┘
 ```
 
 ### 5.2 Interakcje z bazą danych
 
-#### Query 1: Sprawdzenie limitu zestawów
-```sql
-SELECT COUNT(*) 
-FROM Tickets 
-WHERE UserId = @userId;
-```
-**Indeks:** `IX_Tickets_UserId`
+**Brak interakcji z bazą danych** - endpoint tylko generuje liczby i zwraca je jako propozycję.
 
-#### Query 2: Bulk Insert - Tickets (9 rekordów)
-```sql
-INSERT INTO Tickets (Id, UserId, CreatedAt)
-VALUES 
-  (NEWID(), @userId, GETUTCDATE()),
-  (NEWID(), @userId, GETUTCDATE()),
-  -- ... 7 więcej
-```
-
-#### Query 3: Bulk Insert - TicketNumbers (54 rekordy: 9 × 6)
-```sql
-INSERT INTO TicketNumbers (TicketId, Number, Position)
-VALUES 
-  (@ticketId1, 7, 1),
-  (@ticketId1, 15, 2),
-  -- ... 52 więcej
-```
-
-**Optymalizacja:** Użycie `AddRangeAsync()` w EF Core dla bulk insert.
+**Uwaga:**
+- Endpoint nie wykonuje żadnych zapytań SQL
+- Nie sprawdza limitu zestawów (to robi `POST /api/tickets`)
+- Nie zapisuje danych do tabel `Tickets` ani `TicketNumbers`
+- Jest to czysta operacja obliczeniowa (generation-only)
 
 ### 5.3 Algorytm generowania systemowego
 
@@ -346,22 +329,21 @@ if (allNumbers.Count != 49 || allNumbers.First() != 1 || allNumbers.Last() != 49
 ### 6.4 Ochrona przed atakami
 
 #### SQL Injection
-- **Ochrona:** EF Core automatycznie parametryzuje zapytania
-- **Brak raw SQL:** Wszystkie operacje przez LINQ/EF Core
+- **Ochrona:** N/A - endpoint nie wykonuje zapytań SQL
 
 #### JWT Tampering
 - **Ochrona:** Podpis HMAC SHA256 weryfikowany przez middleware
 - **Konfiguracja:** `TokenValidationParameters` w `Program.cs`
 
 #### Brute-force Generation
-- **Ryzyko:** Użytkownik generuje 100 zestawów szybko
-- **Obecna ochrona:** Limit 100 zestawów globalny
-- **Rekomendacja przyszłości:** Rate limiting (np. 10 wywołań/minutę)
+- **Ryzyko:** Użytkownik wywołuje endpoint wiele razy
+- **Ochrona:** Endpoint jest stateless i szybki (~5-10ms)
+- **Rekomendacja przyszłości:** Rate limiting (np. 100 wywołań/minutę)
 
-#### Overflow Attack
-- **Ryzyko:** Przepełnienie bazy danych
-- **Ochrona:** Hard limit 100 zestawów/użytkownik
-- **Walidacja:** Sprawdzenie w Validator przed generowaniem
+#### DoS via Computation
+- **Ryzyko:** Algorytm generowania jest kosztowny
+- **Ochrona:** Algorytm ma stały czas ~5-10ms (O(1))
+- **Bez wpływu na bazę:** Endpoint nie wykonuje I/O
 
 ---
 
@@ -372,41 +354,11 @@ if (allNumbers.Count != 49 || allNumbers.First() != 1 || allNumbers.Last() != 49
 | Kod | Nazwa | Przyczyna | Komunikat | Obsługa |
 |-----|-------|-----------|-----------|---------|
 | 401 | Unauthorized | Brak/nieprawidłowy JWT | "Token JWT jest nieprawidłowy lub wygasł" | Middleware autoryzacji |
-| 400 | Bad Request | Limit zestawów (>91) | "Brak miejsca na 9 zestawów. Masz X/100 zestawów." | Validator + ValidationException |
-| 500 | Internal Server Error | Błąd bazy danych | "Wystąpił nieoczekiwany błąd podczas generowania zestawów" | ExceptionHandlingMiddleware |
 | 500 | Internal Server Error | Błąd algorytmu | "Błąd generowania systemowego - spróbuj ponownie" | Try-catch w Handler |
 
+**Uwaga:** Scenariusze limitu zestawów i błędów bazy danych NIE występują - endpoint nie zapisuje do bazy.
+
 ### 7.2 Strategie obsługi
-
-#### ValidationException (400)
-```csharp
-// W Validator.cs
-if (ticketCount > 91)
-{
-    var availableSlots = 100 - ticketCount;
-    throw new ValidationException(
-        $"Brak miejsca na 9 zestawów. Masz {ticketCount}/100 zestawów. " +
-        $"Usuń co najmniej {9 - availableSlots} zestawów."
-    );
-}
-```
-
-#### DbUpdateException (500)
-```csharp
-// W Handler.cs
-try
-{
-    await _context.Tickets.AddRangeAsync(tickets);
-    await _context.SaveChangesAsync();
-    await transaction.CommitAsync();
-}
-catch (DbUpdateException ex)
-{
-    await transaction.RollbackAsync();
-    _logger.LogError(ex, "Database error generating system tickets for UserId={UserId}", userId);
-    throw new InvalidOperationException("Wystąpił błąd podczas zapisywania zestawów", ex);
-}
-```
 
 #### Algorithm Validation Error (500)
 ```csharp
@@ -429,7 +381,7 @@ if (allNumbers != 49)
 
 **Przykład:**
 ```csharp
-_logger.LogInformation(
+_logger.LogDebug(
     "Generated 9 system tickets for UserId={UserId}, TotalTickets={TotalCount}", 
     userId, 
     newTotalCount
@@ -480,15 +432,14 @@ var response = new Response(
 
 | Operacja | Czas (ms) | Notatki |
 |----------|-----------|---------|
-| Algorytm generowania | <5 ms | In-memory, deterministyczny |
-| Query COUNT limitu | <10 ms | Z indeksem |
-| Bulk insert 63 rekordów | 20-50 ms | W zależności od obciążenia DB |
-| **Całkowity czas** | **<100 ms** | Optymistyczny scenariusz |
+| Algorytm generowania | 5-10 ms | In-memory, CPU-bound |
+| Walidacja pokrycia | <1 ms | Sprawdzenie 49 liczb |
+| JSON serialization | <1 ms | 9 zestawów × 6 liczb |
+| **Całkowity czas** | **<15 ms** | Brak I/O operations |
 
-**Rekomendacje:**
-- Monitorowanie czasu transakcji (Serilog + Application Insights)
-- Testowanie wydajności przy 10+ równoczesnych żądaniach
-- Rozważenie connection pooling (domyślnie w EF Core)
+**Przepustowość:** ~100-200 requestów/sekundę na standardowym serwerze (CPU-bound)
+
+**Uwaga:** Endpoint jest ekstremalnie szybki - brak I/O, tylko operacje w pamięci.
 
 ---
 
@@ -523,35 +474,21 @@ public class Contracts
 {
     /// <summary>
     /// Request for generating 9 system tickets covering all numbers 1-49.
-    /// No parameters required - UserId extracted from JWT token.
+    /// No parameters required - this is a simple generation endpoint.
     /// </summary>
     public record Request : IRequest<Response>;
-    
+
     /// <summary>
-    /// Response containing success message and details of generated tickets.
+    /// Response containing array of 9 generated tickets (preview/proposal).
+    /// Each ticket contains 6 numbers.
+    /// User must manually save using POST /api/tickets if they want to keep them.
     /// </summary>
-    /// <param name="Message">Success message</param>
-    /// <param name="GeneratedCount">Number of tickets generated (always 9)</param>
-    /// <param name="Tickets">List of generated ticket details</param>
-    public record Response(
-        string Message,
-        int GeneratedCount,
-        List<TicketDto> Tickets
-    );
-    
+    public record Response(List<TicketDto> Tickets);
+
     /// <summary>
-    /// DTO representing a single generated ticket.
+    /// DTO representing a single generated ticket with only numbers.
     /// </summary>
-    /// <param name="Id">Unique ticket identifier (int)</param>
-    /// <param name="GroupName">Group name (max 100 characters, empty string by default)</param>
-    /// <param name="Numbers">6 lottery numbers (sorted by position)</param>
-    /// <param name="CreatedAt">UTC timestamp of creation</param>
-    public record TicketDto(
-        int Id,
-        string GroupName,
-        List<int> Numbers,
-        DateTime CreatedAt
-    );
+    public record TicketDto(List<int> Numbers);
 }
 ```
 
@@ -571,62 +508,23 @@ using Microsoft.EntityFrameworkCore;
 namespace LottoTM.Server.Api.Features.Tickets.GenerateSystem;
 
 /// <summary>
-/// Validates that user has sufficient space for 9 new system tickets.
-/// Maximum allowed tickets per user: 100
-/// System generation requires: 9 slots available (≤91 existing tickets)
+/// Minimal validator for system tickets generation.
+/// No business logic validation - request is empty.
 /// </summary>
 public class Validator : AbstractValidator<Contracts.Request>
 {
-    private readonly AppDbContext _context;
-    private readonly IHttpContextAccessor _httpContextAccessor;
-
-    public Validator(AppDbContext context, IHttpContextAccessor httpContextAccessor)
+    public Validator()
     {
-        _context = context;
-        _httpContextAccessor = httpContextAccessor;
-
-        RuleFor(x => x)
-            .CustomAsync(async (request, context, cancellationToken) =>
-            {
-                // Extract UserId from JWT token
-                var userIdClaim = _httpContextAccessor.HttpContext?.User
-                    .FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-
-                if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
-                {
-                    context.AddFailure("UserId", "Nie można zidentyfikować użytkownika z tokenu JWT");
-                    return;
-                }
-
-                // Check current ticket count
-                var currentCount = await _context.Tickets
-                    .Where(t => t.UserId == userId)
-                    .CountAsync(cancellationToken);
-
-                // Validate: must have ≤91 tickets (space for 9 more)
-                const int maxTickets = 100;
-                const int systemTicketsCount = 9;
-                const int maxAllowedBeforeGeneration = maxTickets - systemTicketsCount; // 91
-
-                if (currentCount > maxAllowedBeforeGeneration)
-                {
-                    var availableSlots = maxTickets - currentCount;
-                    var ticketsToDelete = systemTicketsCount - availableSlots;
-
-                    context.AddFailure("limit", 
-                        $"Brak miejsca na {systemTicketsCount} zestawów. " +
-                        $"Masz {currentCount}/{maxTickets} zestawów. " +
-                        $"Usuń co najmniej {ticketsToDelete} zestawów.");
-                }
-            });
+        // Request is empty - minimal validation
+        // No limit check - this is only a preview/proposal generator
     }
 }
 ```
 
-**Uwaga:** Wymaga rejestracji `IHttpContextAccessor` w `Program.cs`:
-```csharp
-builder.Services.AddHttpContextAccessor();
-```
+**Uwaga:**
+- Validator jest minimalny - request nie ma parametrów
+- Brak sprawdzania limitu - to tylko generator propozycji
+- Brak dependency na AppDbContext lub IHttpContextAccessor
 
 ---
 
@@ -650,56 +548,40 @@ namespace LottoTM.Server.Api.Features.Tickets.GenerateSystem;
 /// Handles generation of 9 system tickets covering all lottery numbers 1-49.
 /// Each ticket contains 6 unique numbers. Algorithm ensures all 49 numbers
 /// appear at least once across the 9 tickets.
+/// Returns proposal only - does NOT save to database.
 /// </summary>
 public class GenerateSystemTicketsHandler : IRequestHandler<Contracts.Request, Contracts.Response>
 {
-    private readonly AppDbContext _context;
     private readonly IValidator<Contracts.Request> _validator;
-    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger<GenerateSystemTicketsHandler> _logger;
 
     public GenerateSystemTicketsHandler(
-        AppDbContext context,
         IValidator<Contracts.Request> validator,
-        IHttpContextAccessor httpContextAccessor,
         ILogger<GenerateSystemTicketsHandler> logger)
     {
-        _context = context;
         _validator = validator;
-        _httpContextAccessor = httpContextAccessor;
         _logger = logger;
     }
 
     public async Task<Contracts.Response> Handle(Contracts.Request request, CancellationToken cancellationToken)
     {
-        // Validate request
+        // 1. Validate request (minimal - request is empty)
         var validationResult = await _validator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
         {
             throw new ValidationException(validationResult.Errors);
         }
 
-        // Extract UserId from JWT
-        var userIdClaim = _httpContextAccessor.HttpContext?.User
-            .FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-        if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
-        {
-            throw new UnauthorizedAccessException("Nie można zidentyfikować użytkownika");
-        }
-
-        // Generate 9 system tickets
+        // 2. Generate 9 system tickets
         var generatedNumbers = GenerateSystemTickets();
 
-        // Validate coverage (all numbers 1-49 must appear)
+        // 3. Validate coverage (all numbers 1-49 must appear)
         ValidateCoverage(generatedNumbers);
 
-        _logger.LogInformation(
-            "Generated 9 system tickets for UserId={UserId}",
-            userId
-        );
+        // 4. Optional logging
+        _logger.LogDebug("Generated 9 system tickets");
 
-        // Build response with generated numbers only (no database save)
+        // 5. Build response with generated numbers only (no database save)
         var response = new Contracts.Response(
             generatedNumbers.Select(numbers => new Contracts.TicketDto(
                 numbers.ToList()
@@ -820,8 +702,8 @@ using MediatR;
 namespace LottoTM.Server.Api.Features.Tickets.GenerateSystem;
 
 /// <summary>
-/// Endpoint for generating 9 system lottery tickets covering all numbers 1-49.
-/// Requires JWT authentication. User must have ≤91 existing tickets.
+/// Endpoint for generating 9 system lottery tickets covering all numbers 1-49 (proposal).
+/// Requires JWT authentication. Returns preview only - does NOT save to database.
 /// </summary>
 public static class Endpoint
 {
@@ -831,20 +713,20 @@ public static class Endpoint
         {
             var request = new Contracts.Request();
             var result = await mediator.Send(request);
-            return Results.Created($"api/tickets", result);
+            return Results.Ok(result);
         })
         .RequireAuthorization() // Requires JWT token
         .WithName("GenerateSystemTickets")
-        .Produces<Contracts.Response>(StatusCodes.Status201Created)
+        .Produces<Contracts.Response>(StatusCodes.Status200OK)
         .Produces(StatusCodes.Status401Unauthorized)
-        .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
         .Produces<ProblemDetails>(StatusCodes.Status500InternalServerError)
         .WithOpenApi(operation =>
         {
-            operation.Summary = "Generowanie 9 zestawów systemowych";
-            operation.Description = 
-                "Generuje 9 zestawów liczb LOTTO pokrywających wszystkie liczby 1-49. " +
-                "Każdy zestaw zawiera 6 unikalnych liczb. Wymaga maksymalnie 91 istniejących zestawów.";
+            operation.Summary = "Generowanie 9 zestawów systemowych (propozycja)";
+            operation.Description =
+                "Generuje 9 zestawów liczb LOTTO pokrywających wszystkie liczby 1-49 i zwraca jako propozycję. " +
+                "Każdy zestaw zawiera 6 unikalnych liczb. NIE zapisuje do bazy danych. " +
+                "Użytkownik musi ręcznie zapisać używając POST /api/tickets jeśli chce zachować zestawy.";
             return operation;
         });
     }
@@ -860,9 +742,6 @@ public static class Endpoint
 
 **Dodaj przed `await app.RunAsync();`:**
 ```csharp
-// Rejestracja IHttpContextAccessor (jeśli nie istnieje)
-builder.Services.AddHttpContextAccessor();
-
 // Rejestracja endpointu (dodaj do istniejących)
 LottoTM.Server.Api.Features.Tickets.GenerateSystem.Endpoint.AddEndpoint(app);
 ```
@@ -875,6 +754,8 @@ LottoTM.Server.Api.Features.Tickets.GenerateSystem.Endpoint.AddEndpoint(app);
 
 await app.RunAsync();
 ```
+
+**Uwaga:** Nie ma potrzeby rejestrowania `IHttpContextAccessor` - endpoint nie potrzebuje dostępu do HttpContext.
 
 ---
 
@@ -910,23 +791,25 @@ public void GenerateSystemTickets_EachTicketShouldHave6UniqueNumbers()
 **Przykładowe testy:**
 ```csharp
 [Fact]
-public async Task POST_GenerateSystem_WithValidToken_ReturnsCreated()
+public async Task POST_GenerateSystem_WithValidToken_ReturnsOk()
 {
-    // Test sukcesu generowania
-}
-
-[Fact]
-public async Task POST_GenerateSystem_WithMoreThan91Tickets_ReturnsBadRequest()
-{
-    // Test walidacji limitu
+    // Test sukcesu generowania - zwraca 200 OK z 9 zestawami
 }
 
 [Fact]
 public async Task POST_GenerateSystem_WithoutToken_ReturnsUnauthorized()
 {
-    // Test autoryzacji
+    // Test autoryzacji - zwraca 401 Unauthorized
+}
+
+[Fact]
+public async Task POST_GenerateSystem_DoesNotSaveToDatabase()
+{
+    // Test że endpoint NIE zapisuje do bazy - tylko generuje propozycję
 }
 ```
+
+**Uwaga:** Usunięto test walidacji limitu - endpoint nie sprawdza limitu.
 
 ---
 
@@ -941,26 +824,28 @@ public async Task POST_GenerateSystem_WithoutToken_ReturnsUnauthorized()
    - **Metoda:** POST
    - **URL:** `/api/tickets/generate-system`
    - **Body:** (pusty)
-5. Sprawdź odpowiedź 201 Created z 9 zestawami
+5. Sprawdź odpowiedź 200 OK z 9 zestawami
 
-#### Krok 7.2: Weryfikacja w bazie danych
-```sql
--- Sprawdź wygenerowane zestawy
-SELECT t.Id, t.UserId, t.CreatedAt, tn.Number, tn.Position
-FROM Tickets t
-INNER JOIN TicketNumbers tn ON t.Id = tn.TicketId
-WHERE t.UserId = @userId
-ORDER BY t.CreatedAt DESC, tn.Position;
-
--- Sprawdź pokrycie liczb 1-49
-SELECT DISTINCT tn.Number
-FROM Tickets t
-INNER JOIN TicketNumbers tn ON t.Id = tn.TicketId
-WHERE t.UserId = @userId
-  AND t.CreatedAt > @lastGeneration
-ORDER BY tn.Number;
--- Oczekiwany wynik: 49 rekordów (liczby 1-49)
+#### Krok 7.2: Weryfikacja odpowiedzi
+```json
+{
+  "tickets": [
+    {
+      "numbers": [1, 7, 13, 19, 25, 31]
+    },
+    {
+      "numbers": [2, 8, 14, 20, 26, 32]
+    },
+    // ... 7 więcej zestawów
+  ]
+}
 ```
+
+**Weryfikacja:**
+- Response zawiera 9 zestawów
+- Każdy zestaw ma 6 liczb
+- Wszystkie liczby 1-49 występują co najmniej raz
+- **Brak zapisu do bazy** - to tylko propozycja
 
 #### Krok 7.3: Aktualizacja dokumentacji API
 - Zaktualizuj `api-plan.md` (jeśli są zmiany w implementacji)
@@ -979,26 +864,23 @@ ORDER BY tn.Number;
 
 ### Implementacja
 - [ ] Utwórz strukturę katalogów `Features/Tickets/GenerateSystem/`
-- [ ] Zaimplementuj `Contracts.cs` (Request/Response/TicketDto)
-- [ ] Zaimplementuj `Validator.cs` (walidacja limitu 91 zestawów)
-- [ ] Zaimplementuj `Handler.cs` (algorytm + logika biznesowa)
+- [ ] Zaimplementuj `Contracts.cs` (Request/Response/TicketDto - tylko liczby)
+- [ ] Zaimplementuj `Validator.cs` (minimalny - request pusty)
+- [ ] Zaimplementuj `Handler.cs` (algorytm + walidacja pokrycia)
 - [ ] Zaimplementuj `Endpoint.cs` (routing + autoryzacja)
-- [ ] Dodaj rejestrację `IHttpContextAccessor` w `Program.cs`
 - [ ] Zarejestruj endpoint w `Program.cs`
 
 ### Testy
 - [ ] Napisz testy jednostkowe algorytmu (pokrycie 1-49)
-- [ ] Napisz testy jednostkowe walidatora (limit)
 - [ ] Napisz testy integracyjne endpointu (sukces/błędy)
 - [ ] Przetestuj manualnie przez Swagger UI
-- [ ] Sprawdź dane w bazie SQL Server
+- [ ] Zweryfikuj że NIE zapisuje do bazy
 
 ### Optymalizacja i bezpieczeństwo
-- [ ] Sprawdź wydajność bulk insert (≤100ms)
-- [ ] Zweryfikuj transakcję (rollback przy błędzie)
+- [ ] Sprawdź wydajność generowania (≤15ms)
 - [ ] Przetestuj autoryzację JWT (brak tokenu = 401)
-- [ ] Sprawdź logowanie Serilog (info/warning/error)
-- [ ] Code review (algorytm, walidacja, obsługa błędów)
+- [ ] Sprawdź logowanie Serilog (debug/error)
+- [ ] Code review (algorytm, walidacja pokrycia, obsługa błędów)
 
 ### Dokumentacja
 - [ ] Dodaj komentarze XML do publicznych metod

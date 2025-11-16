@@ -277,7 +277,7 @@ public class LottoOpenApiServiceTests
         // Assert
         _mockLogger.Verify(
             x => x.Log(
-                LogLevel.Information,
+                LogLevel.Debug,
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("Fetching draws from Lotto Open API")),
                 It.IsAny<Exception>(),
@@ -286,7 +286,7 @@ public class LottoOpenApiServiceTests
 
         _mockLogger.Verify(
             x => x.Log(
-                LogLevel.Information,
+                LogLevel.Debug,
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("Successfully fetched and transformed draw results")),
                 It.IsAny<Exception>(),

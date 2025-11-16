@@ -492,7 +492,7 @@ public class GetTicketsValidator : AbstractValidator<GetTicketsRequest>
         OnAuthenticationFailed = context =>
         {
             // Logowanie błędu
-            _logger.LogWarning("JWT authentication failed: {Error}", context.Exception.Message);
+            _logger.LogDebug("JWT authentication failed: {Error}", context.Exception.Message);
             return Task.CompletedTask;
         },
         OnChallenge = context =>
@@ -643,7 +643,7 @@ public async Task<GetTicketsResponse> Handle(GetTicketsRequest request, Cancella
 {
     var userId = int.Parse(_httpContextAccessor.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    _logger.LogInformation("Pobieranie zestawów dla użytkownika {UserId}", userId);
+    _logger.LogDebug("Pobieranie zestawów dla użytkownika {UserId}", userId);
 
     try
     {
@@ -653,7 +653,7 @@ public async Task<GetTicketsResponse> Handle(GetTicketsRequest request, Cancella
             .OrderByDescending(t => t.CreatedAt)
             .ToListAsync(cancellationToken);
 
-        _logger.LogInformation("Znaleziono {Count} zestawów dla użytkownika {UserId}", tickets.Count, userId);
+        _logger.LogDebug("Znaleziono {Count} zestawów dla użytkownika {UserId}", tickets.Count, userId);
 
         // ... mapowanie i zwrot
     }
@@ -825,7 +825,7 @@ public async Task<GetTicketsResponse> Handle(GetTicketsRequest request, Cancella
     // ... zapytanie do bazy
 
     stopwatch.Stop();
-    _logger.LogInformation(
+    _logger.LogDebug(
         "Pobrano {Count} zestawów dla użytkownika {UserId} w {ElapsedMs}ms",
         tickets.Count,
         userId,
@@ -979,12 +979,12 @@ public class GetTicketsHandler : IRequestHandler<GetTicketsContracts.Request, Ge
         var userIdClaim = _httpContextAccessor.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(userIdClaim))
         {
-            _logger.LogWarning("UserId claim not found in JWT token");
+            _logger.LogDebug("UserId claim not found in JWT token");
             throw new UnauthorizedAccessException("Brak identyfikatora użytkownika w tokenie");
         }
 
         var currentUserId = int.Parse(userIdClaim);
-        _logger.LogInformation("Pobieranie zestawów dla użytkownika {UserId}", currentUserId);
+        _logger.LogDebug("Pobieranie zestawów dla użytkownika {UserId}", currentUserId);
 
         try
         {
@@ -996,7 +996,7 @@ public class GetTicketsHandler : IRequestHandler<GetTicketsContracts.Request, Ge
                 .OrderByDescending(t => t.CreatedAt) // Sortowanie (najnowsze pierwsze)
                 .ToListAsync(cancellationToken);
 
-            _logger.LogInformation(
+            _logger.LogDebug(
                 "Znaleziono {Count} zestawów dla użytkownika {UserId}",
                 tickets.Count,
                 currentUserId);

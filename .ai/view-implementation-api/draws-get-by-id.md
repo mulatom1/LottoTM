@@ -498,11 +498,11 @@ catch (Exception ex)
 
 **Logowanie w Handler:**
 ```csharp
-_logger.LogInformation("Pobieranie losowania o ID: {DrawId}", request.Id);
+_logger.LogDebug("Pobieranie losowania o ID: {DrawId}", request.Id);
 
 if (draw == null)
 {
-    _logger.LogWarning("Losowanie o ID {DrawId} nie zostało znalezione", request.Id);
+    _logger.LogDebug("Losowanie o ID {DrawId} nie zostało znalezione", request.Id);
 }
 ```
 
@@ -695,12 +695,12 @@ public class GetDrawByIdHandler : IRequestHandler<Contracts.Request, Contracts.R
         var validationResult = await _validator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
         {
-            _logger.LogWarning("Walidacja nieudana dla GetDrawById: {Errors}",
+            _logger.LogDebug("Walidacja nieudana dla GetDrawById: {Errors}",
                 string.Join(", ", validationResult.Errors.Select(e => e.ErrorMessage)));
             throw new ValidationException(validationResult.Errors);
         }
 
-        _logger.LogInformation("Pobieranie losowania o ID: {DrawId}", request.Id);
+        _logger.LogDebug("Pobieranie losowania o ID: {DrawId}", request.Id);
 
         // 2. Pobranie losowania z bazy danych (eager loading)
         var draw = await _dbContext.Draws
@@ -710,7 +710,7 @@ public class GetDrawByIdHandler : IRequestHandler<Contracts.Request, Contracts.R
         // 3. Sprawdzenie czy losowanie istnieje
         if (draw == null)
         {
-            _logger.LogWarning("Losowanie o ID {DrawId} nie zostało znalezione", request.Id);
+            _logger.LogDebug("Losowanie o ID {DrawId} nie zostało znalezione", request.Id);
             return null; // Endpoint zwróci 404 Not Found
         }
 
@@ -727,7 +727,7 @@ public class GetDrawByIdHandler : IRequestHandler<Contracts.Request, Contracts.R
             CreatedAt: draw.CreatedAt
         );
 
-        _logger.LogInformation("Losowanie o ID {DrawId} pobrane pomyślnie", request.Id);
+        _logger.LogDebug("Losowanie o ID {DrawId} pobrane pomyślnie", request.Id);
         return response;
     }
 }

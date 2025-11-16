@@ -1,9 +1,0 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<!-- https://go.microsoft.com/fwlink/?LinkID=208121. -->
-<Project>
-  <PropertyGroup>
-    <_PublishTargetUrl>D:\PROJECTS\LottoTM\src\server\LottoTM.Server.Api\bin\Release\net8.0\publish\</_PublishTargetUrl>
-    <History>True|2025-11-15T12:12:05.0568874Z||;True|2025-11-15T13:11:37.7048114+01:00||;True|2025-11-15T12:46:16.6967714+01:00||;True|2025-11-15T12:34:05.9589518+01:00||;True|2025-11-14T23:06:52.8814242+01:00||;True|2025-11-13T12:50:35.2072278+01:00||;True|2025-11-12T14:32:38.5598054+01:00||;True|2025-11-12T00:20:11.6901523+01:00||;</History>
-    <LastFailureDetails />
-  </PropertyGroup>
-</Project>

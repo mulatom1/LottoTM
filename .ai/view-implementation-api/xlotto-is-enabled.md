@@ -337,7 +337,7 @@ Gdy `Enable = false`, endpoint zwraca pustą tablicę:
 ```csharp
 if (!_googleGeminiOptions.Enable)
 {
-    _logger.LogWarning("GoogleGemini feature is disabled. Returning empty data.");
+    _logger.LogDebug("GoogleGemini feature is disabled. Returning empty data.");
     return new Contracts.Response("{\"Data\":[]}");
 }
 ```

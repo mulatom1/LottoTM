@@ -44,7 +44,7 @@ public class Handler : IRequestHandler<Contracts.Request, IResult>
                     g => g.Select(e => e.ErrorMessage).ToArray()
                 );
 
-            _logger.LogWarning(
+            _logger.LogDebug(
                 "Walidacja nie powiodła się dla aktualizacji zestawu {TicketId}: {Errors}",
                 request.TicketId,
                 string.Join(", ", errors.Keys)
@@ -63,7 +63,7 @@ public class Handler : IRequestHandler<Contracts.Request, IResult>
 
         if (ticket == null)
         {
-            _logger.LogWarning(
+            _logger.LogDebug(
                 "Zestaw {TicketId} nie został znaleziony",
                 request.TicketId
             );
@@ -73,7 +73,7 @@ public class Handler : IRequestHandler<Contracts.Request, IResult>
         // 4. Check ownership
         if (ticket.UserId != currentUserId)
         {
-            _logger.LogWarning(
+            _logger.LogDebug(
                 "Użytkownik {UserId} próbował edytować cudzy zestaw {TicketId} (właściciel: {OwnerId})",
                 currentUserId,
                 request.TicketId,
@@ -103,7 +103,7 @@ public class Handler : IRequestHandler<Contracts.Request, IResult>
 
             if (sortedNewNumbers.SequenceEqual(sortedExisting))
             {
-                _logger.LogWarning(
+                _logger.LogDebug(
                     "Użytkownik {UserId} próbował zapisać duplikat zestawu (zestaw {ExistingTicketId} już zawiera te liczby)",
                     currentUserId,
                     existingTicket.Id
@@ -143,7 +143,7 @@ public class Handler : IRequestHandler<Contracts.Request, IResult>
             await _context.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
-            _logger.LogInformation(
+            _logger.LogDebug(
                 "Użytkownik {UserId} zaktualizował zestaw {TicketId} na liczby [{Numbers}]",
                 currentUserId,
                 request.TicketId,
