@@ -9,6 +9,11 @@ public class GetDrawsValidator : AbstractValidator<Contracts.Request>
 {
     public GetDrawsValidator()
     {
+        RuleFor(x => x.DateFrom)
+            .LessThanOrEqualTo(x => x.DateTo)
+            .When(x => x.DateFrom.HasValue && x.DateTo.HasValue)
+            .WithMessage("DateFrom nie może być późniejsza niż DateTo");
+
         RuleFor(x => x.Page)
             .GreaterThan(0)
             .WithMessage("Wartość page musi być większa od 0");

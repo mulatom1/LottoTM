@@ -15,6 +15,8 @@ public class Contracts
     /// <param name="SortBy">Field to sort by: "drawDate" or "createdAt" (default: "drawDate")</param>
     /// <param name="SortOrder">Sort order: "asc" or "desc" (default: "desc")</param>
     public record Request(
+        DateOnly? DateFrom = null,
+        DateOnly? DateTo = null,
         int Page = 1,
         int PageSize = 20,
         string SortBy = "drawDate",

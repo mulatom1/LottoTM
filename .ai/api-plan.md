@@ -227,12 +227,15 @@
 **Autoryzacja:** Wymagany JWT
 
 **Parametry zapytania:**
-- `page` (opcjonalny, domyślnie: 1): Numer strony
-- `pageSize` (opcjonalny, domyślnie:  100): Liczba elementów na stronie
-- `sortBy` (opcjonalny, domyślnie: "drawDate"): Pole sortowania ("drawDate", "createdAt")
-- `sortOrder` (opcjonalny, domyślnie: "desc"): Kierunek sortowania ("asc", "desc")
+- `dateFrom` (opcjonalny, domyślnie: null): Zakres daty losowania od (YYYY-MM-DD)
+- `dateTo` (opcjonalny, domyślnie: null): Zakres daty losowania do (YYYY-MM-DD)
+- `page` (domyślnie: 1): Numer strony
+- `page` (domyślnie: 1): Numer strony
+- `pageSize` (domyślnie:  100): Liczba elementów na stronie
+- `sortBy` (domyślnie: "drawDate"): Pole sortowania ("drawDate", "createdAt")
+- `sortOrder` (domyślnie: "desc"): Kierunek sortowania ("asc", "desc")
 
-**Przykład:** `GET /api/draws?page=1&pageSize=20&sortBy=drawDate&sortOrder=desc`
+**Przykład:** `GET /api/draws?page=1&pageSize=20&sortBy=drawDate&sortOrder=desc&dateFrom=2025-01-01&dateTo=2025-12-31`
 
 **Payload odpowiedzi (sukces):**
 ```json
@@ -600,6 +603,7 @@
 **Payload odpowiedzi (sukces):**
 ```json
 {
+  "id": 124,
   "message": "Zestaw utworzony pomyślnie"
 }
 ```

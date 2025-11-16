@@ -64,7 +64,10 @@ function DrawsPage() {
   /**
    * Fetch draws from API with current pagination and filter settings
    */
-  const fetchDraws = async (page: number = paginationState.currentPage) => {
+  const fetchDraws = async (
+    page: number = paginationState.currentPage,
+    filter: FilterState = filterState
+  ) => {
     setLoading(true);
     try {
       const params: DrawsGetListRequest = {
@@ -72,9 +75,9 @@ function DrawsPage() {
         pageSize: 20,
         sortBy: 'drawDate',
         sortOrder: 'desc',
-        ...(filterState.isActive && {
-          dateFrom: filterState.dateFrom || undefined,
-          dateTo: filterState.dateTo || undefined,
+        ...(filter.isActive && {
+          dateFrom: filter.dateFrom || undefined,
+          dateTo: filter.dateTo || undefined,
         }),
       };
 
@@ -108,29 +111,34 @@ function DrawsPage() {
       return;
     }
 
-    // Update filter state
-    setFilterState({
+    // Create new filter state
+    const newFilterState: FilterState = {
       dateFrom: dateFrom || '',
       dateTo: dateTo || '',
       isActive: !!(dateFrom || dateTo),
-    });
+    };
+
+    // Update filter state
+    setFilterState(newFilterState);
 
     // Fetch draws with new filter from page 1
-    fetchDraws(1);
+    fetchDraws(1, newFilterState);
   };
 
   /**
    * Handle filter clear
    */
   const handleClearFilter = () => {
-    setFilterState({
+    const clearedFilterState: FilterState = {
       dateFrom: '',
       dateTo: '',
       isActive: false,
-    });
+    };
+
+    setFilterState(clearedFilterState);
 
     // Refresh list without filter from page 1
-    fetchDraws(1);
+    fetchDraws(1, clearedFilterState);
   };
 
   /**

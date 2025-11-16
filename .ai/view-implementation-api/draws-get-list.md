@@ -26,6 +26,8 @@
 
 | Parametr | Typ | Wymagany | Domyślna wartość | Opis | Walidacja |
 |----------|-----|----------|------------------|------|-----------|
+| `dateFrom` | date | Nie | null | Zakres daty losowania od |
+| `dateTo` | date | Nie | null | Zakres daty losowania do |
 | `page` | int | Nie | 1 | Numer strony (od 1) | >= 1 |
 | `pageSize` | int | Nie | 20 | Liczba elementów na stronie | 1-100 |
 | `sortBy` | string | Nie | "drawDate" | Pole sortowania | "drawDate" lub "createdAt" |
@@ -51,6 +53,8 @@ namespace LottoTM.Server.Api.Features.Draws;
 public class Contracts
 {
     public record GetDrawsRequest(
+        DateOnly? DateFrom = null,
+        DateOnly? DateTo = null,
         int Page = 1,
         int PageSize = 20,
         string SortBy = "drawDate",
@@ -170,7 +174,7 @@ public class DrawNumber
 
 ```
 [Client]
-   | GET /api/draws?page=1&pageSize=20&sortBy=drawDate&sortOrder=desc
+   | GET /api/draws?page=1&pageSize=20&sortBy=drawDate&sortOrder=desc&dateFrom=2025-01-01&dateTo=2025-12-31
    | Authorization: Bearer <token>
    v
 [Minimal API Endpoint]
@@ -228,18 +232,24 @@ FETCH NEXT @pageSize ROWS ONLY;
 ### 5.3 Entity Framework Core Query (w Handler)
 
 ```csharp
-// 1. TotalCount
-var totalCount = await _dbContext.Draws.CountAsync(cancellationToken);
-
-// 2. Obliczenie offset
-var offset = (request.Page - 1) * request.PageSize;
-
-// 3. Query z eager loading
+// 2. Build query with eager loading of DrawNumbers
 var drawsQuery = _dbContext.Draws
-    .Include(d => d.Numbers.OrderBy(dn => dn.Position))
+    .AsNoTracking() // Read-only query for better performance
+    .Include(d => d.Numbers) // Eager loading to prevent N+1 problem
     .AsQueryable();
 
-// 4. Sortowanie dynamiczne
+if (request.DateFrom.HasValue)
+    drawsQuery = drawsQuery.Where(d => d.DrawDate >= request.DateFrom.Value);
+if (request.DateTo.HasValue)
+    drawsQuery = drawsQuery.Where(d => d.DrawDate <= request.DateTo.Value);
+
+// 3. Get total count for pagination metadata
+var totalCount = await drawsQuery.CountAsync(cancellationToken);
+
+// 4. Calculate offset for pagination
+var offset = (request.Page - 1) * request.PageSize;
+
+// 5. Apply dynamic sorting based on request parameters
 drawsQuery = request.SortBy.ToLower() switch
 {
     "drawdate" => request.SortOrder.ToLower() == "asc"
@@ -248,27 +258,39 @@ drawsQuery = request.SortBy.ToLower() switch
     "createdat" => request.SortOrder.ToLower() == "asc"
         ? drawsQuery.OrderBy(d => d.CreatedAt)
         : drawsQuery.OrderByDescending(d => d.CreatedAt),
-    _ => drawsQuery.OrderByDescending(d => d.DrawDate) // fallback
+    _ => drawsQuery.OrderByDescending(d => d.DrawDate) // Fallback to default
 };
 
-// 5. Paginacja
+// 6. Apply pagination
 var draws = await drawsQuery
     .Skip(offset)
     .Take(request.PageSize)
     .ToListAsync(cancellationToken);
 
-// 6. Mapowanie do DTO
-var drawDtos = draws.Select(d => new DrawDto(
+// 7. Map entities to DTOs
+var drawDtos = draws.Select(d => new Contracts.DrawDto(
     d.Id,
-    d.DrawDate,
+    d.DrawDate.ToDateTime(TimeOnly.MinValue), // Convert DateOnly to DateTime
+    d.LottoType,
     d.Numbers.OrderBy(dn => dn.Position).Select(dn => dn.Number).ToArray(),
     d.CreatedAt
 )).ToList();
 
-// 7. Obliczenie totalPages
+// 8. Calculate total pages
 var totalPages = (int)Math.Ceiling((double)totalCount / request.PageSize);
 
-return new GetDrawsResponse(drawDtos, totalCount, request.Page, request.PageSize, totalPages);
+// 9. Log success
+_logger.LogDebug(
+    "Pobrano {Count} losowań (strona {Page}/{TotalPages})",
+    drawDtos.Count, request.Page, totalPages);
+
+return new Contracts.Response(
+    drawDtos,
+    totalCount,
+    request.Page,
+    request.PageSize,
+    totalPages
+);
 ```
 
 ---

@@ -38,17 +38,22 @@ public class GetDrawsHandler : IRequestHandler<Contracts.Request, Contracts.Resp
 
         try
         {
-            // 2. Get total count for pagination metadata
-            var totalCount = await _dbContext.Draws.CountAsync(cancellationToken);
-
-            // 3. Calculate offset for pagination
-            var offset = (request.Page - 1) * request.PageSize;
-
-            // 4. Build query with eager loading of DrawNumbers
+            // 2. Build query with eager loading of DrawNumbers
             var drawsQuery = _dbContext.Draws
                 .AsNoTracking() // Read-only query for better performance
                 .Include(d => d.Numbers) // Eager loading to prevent N+1 problem
                 .AsQueryable();
+            
+            if (request.DateFrom.HasValue)
+                drawsQuery = drawsQuery.Where(d => d.DrawDate >= request.DateFrom.Value);
+            if (request.DateTo.HasValue)
+                drawsQuery = drawsQuery.Where(d => d.DrawDate <= request.DateTo.Value);
+
+            // 3. Get total count for pagination metadata
+            var totalCount = await drawsQuery.CountAsync(cancellationToken);
+
+            // 4. Calculate offset for pagination
+            var offset = (request.Page - 1) * request.PageSize;
 
             // 5. Apply dynamic sorting based on request parameters
             drawsQuery = request.SortBy.ToLower() switch

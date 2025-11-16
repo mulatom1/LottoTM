@@ -14,6 +14,8 @@ public static class Endpoint
     public static void AddEndpoint(this IEndpointRouteBuilder app)
     {
         app.MapGet("api/draws", async (
+            [FromQuery] DateOnly? dateFrom,
+            [FromQuery] DateOnly? dateTo,
             [FromQuery] int? page,
             [FromQuery] int? pageSize,
             [FromQuery] string? sortBy,
@@ -22,6 +24,8 @@ public static class Endpoint
         {
             // Apply default values if parameters are not provided or are zero
             var request = new Contracts.Request(
+                dateFrom,
+                dateTo,
                 page ?? 1,
                 pageSize ?? 20,
                 string.IsNullOrWhiteSpace(sortBy) ? "drawDate" : sortBy,
