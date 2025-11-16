@@ -338,6 +338,8 @@ public async Task<Contracts.Response> Handle(
     // 2. Generowanie losowych liczb
     var numbers = _ticketService.GenerateRandomNumbers();
 
+    _logger.LogDebug("Generated random numbers: {Numbers}", string.Join(", ", numbers));
+
     // 3. Logowanie dla audytu (opcjonalne)
     _logger.LogDebug(
         "Generated random numbers: {Numbers}",
@@ -377,8 +379,8 @@ public async Task<Contracts.Response> Handle(
 
 - **Debug:** Pomyślne wygenerowanie liczb (opcjonalne)
   ```csharp
-  _logger.LogDebug("Generated random numbers: {Numbers}",
-      string.Join(", ", numbers));
+  _logger.LogDebug("Generated random numbers: {Numbers}", string.Join(", ", numbers));
+  
   ```
 
 - **Error:** Błędy algorytmu, nieoczekiwane wyjątki
@@ -580,9 +582,6 @@ public class TicketService : ITicketService
             .OrderBy(x => x) // Sortowanie dla czytelności
             .ToArray();
     }
-
-    // Inne metody (GetUserTicketCountAsync, CreateTicketWithNumbersAsync)
-    // będą dodane w kolejnych endpointach
 }
 ```
 
