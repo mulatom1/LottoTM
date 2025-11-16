@@ -55,7 +55,7 @@ public class CreateTicketHandler : IRequestHandler<Contracts.Request, Contracts.
         // 5. Create ticket in database transaction
         var ticketId = await CreateTicketAsync(userId, request.GroupName, request.Numbers, cancellationToken);
 
-        _logger.LogInformation("Ticket {TicketId} created successfully for user {UserId}", ticketId, userId);
+        _logger.LogDebug("Ticket {TicketId} created successfully for user {UserId}", ticketId, userId);
 
         return new Contracts.Response(ticketId, "Zestaw utworzony pomyślnie");
     }

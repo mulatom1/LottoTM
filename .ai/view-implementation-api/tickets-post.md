@@ -523,7 +523,7 @@ public class CreateTicketHandler : IRequestHandler<Contracts.CreateTicketRequest
         // 5. Utworzenie zestawu w transakcji
         var ticketId = await CreateTicketAsync(userId, request.Numbers, cancellationToken);
 
-        _logger.LogInformation("Ticket {TicketId} created successfully for user {UserId}", ticketId, userId);
+        _logger.LogDebug("Ticket {TicketId} created successfully for user {UserId}", ticketId, userId);
 
         return new Contracts.CreateTicketResponse(ticketId, "Zestaw utworzony pomyślnie");
     }

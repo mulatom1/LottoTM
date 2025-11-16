@@ -439,14 +439,14 @@ public class CreateDrawHandler : IRequestHandler<CreateDrawRequest, CreateDrawRe
     {
         try
         {
-            _logger.LogInformation(
+            _logger.LogDebug(
                 "Creating draw for date {DrawDate} by user {UserId}",
                 request.DrawDate, currentUserId
             );
 
             // ... business logic
 
-            _logger.LogInformation(
+            _logger.LogDebug(
                 "Draw {DrawId} created successfully for date {DrawDate}",
                 draw.Id, draw.DrawDate
             );
@@ -672,7 +672,7 @@ public class CreateDrawHandler : IRequestHandler<Contracts.CreateDrawRequest, Co
             _httpContextAccessor.HttpContext!.User.FindFirstValue(ClaimTypes.NameIdentifier)!
         );
 
-        _logger.LogInformation(
+        _logger.LogDebug(
             "Creating draw for date {DrawDate} by user {UserId}",
             request.DrawDate, currentUserId
         );
@@ -726,7 +726,7 @@ public class CreateDrawHandler : IRequestHandler<Contracts.CreateDrawRequest, Co
 
             await transaction.CommitAsync(cancellationToken);
 
-            _logger.LogInformation(
+            _logger.LogDebug(
                 "Draw {DrawId} created successfully for date {DrawDate}",
                 draw.Id, draw.DrawDate
             );

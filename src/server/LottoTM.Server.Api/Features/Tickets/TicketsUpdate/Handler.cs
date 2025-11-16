@@ -143,7 +143,7 @@ public class Handler : IRequestHandler<Contracts.Request, IResult>
             await _context.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
-            _logger.LogInformation(
+            _logger.LogDebug(
                 "Użytkownik {UserId} zaktualizował zestaw {TicketId} na liczby [{Numbers}]",
                 currentUserId,
                 request.TicketId,

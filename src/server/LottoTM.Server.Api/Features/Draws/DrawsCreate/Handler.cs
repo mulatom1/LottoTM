@@ -111,7 +111,7 @@ public class CreateDrawHandler : IRequestHandler<Contracts.Request, Contracts.Re
 
             await transaction.CommitAsync(cancellationToken);
 
-            _logger.LogInformation(
+            _logger.LogDebug(
                 "Draw {DrawId} created successfully for date {DrawDate}",
                 draw.Id, draw.DrawDate
             );

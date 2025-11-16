@@ -68,14 +68,14 @@ public class Handler : IRequestHandler<Contracts.Request, Contracts.Response>
         }
 
         // 4. Delete the draw (CASCADE DELETE will remove related DrawNumbers automatically)
-        _logger.LogInformation(
+        _logger.LogDebug(
             "Użytkownik {UserId}usuwa losowanie {DrawId} z daty {DrawDate}",
             userId, draw.Id, draw.DrawDate);
 
         _dbContext.Draws.Remove(draw);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Pomyślnie usunięto losowanie {DrawId}", request.Id);
+        _logger.LogDebug("Pomyślnie usunięto losowanie {DrawId}", request.Id);
 
         return new Contracts.Response("Losowanie usunięte pomyślnie");
     }

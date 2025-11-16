@@ -383,7 +383,7 @@ modelBuilder.Entity<TicketNumber>()
 
 **Przykład (Serilog):**
 ```csharp
-_logger.LogInformation("User {UserId} successfully deleted ticket {TicketId}", userId, request.Id);
+_logger.LogDebug("User {UserId} successfully deleted ticket {TicketId}", userId, request.Id);
 
 _logger.LogWarning("User {UserId} attempted to delete ticket {TicketId} without permission", userId, request.Id);
 ```
@@ -437,7 +437,7 @@ public async Task<Contracts.Response> Handle(Contracts.Request request, Cancella
     _dbContext.Tickets.Remove(ticket);
     await _dbContext.SaveChangesAsync(cancellationToken);
 
-    _logger.LogInformation("User {UserId} successfully deleted ticket {TicketId}", 
+    _logger.LogDebug("User {UserId} successfully deleted ticket {TicketId}", 
         userId, request.Id);
 
     return new Contracts.Response("Zestaw usunięty pomyślnie");
@@ -751,7 +751,7 @@ public class DeleteTicketHandler : IRequestHandler<Contracts.Request, Contracts.
         _dbContext.Tickets.Remove(ticket);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation(
+        _logger.LogDebug(
             "User {UserId} successfully deleted ticket {TicketId}",
             userId,
             request.Id);

@@ -46,7 +46,7 @@ public class GetByIdHandler : IRequestHandler<Contracts.Request, Contracts.Respo
         // 2. Extract UserId from JWT token
         var currentUserId = await _jwtService.GetUserIdFromJwt();
 
-        _logger.LogInformation(
+        _logger.LogDebug(
             "Pobieranie zestawu {TicketId} dla użytkownika {UserId}",
             request.Id, currentUserId
         );
@@ -81,7 +81,7 @@ public class GetByIdHandler : IRequestHandler<Contracts.Request, Contracts.Respo
             else
             {
                 // Ticket doesn't exist in the system at all - return 404 Not Found
-                _logger.LogInformation(
+                _logger.LogDebug(
                     "Zestaw {TicketId} nie istnieje w systemie",
                     request.Id
                 );

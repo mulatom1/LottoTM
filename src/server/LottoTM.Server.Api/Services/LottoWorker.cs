@@ -28,7 +28,7 @@ public class LottoWorker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("LottoWorker started. Enabled: {Enabled}, Time window: {StartTime} - {EndTime}, Interval: {Interval} minutes",
+        _logger.LogDebug("LottoWorker started. Enabled: {Enabled}, Time window: {StartTime} - {EndTime}, Interval: {Interval} minutes",
             _options.Enable, _options.StartTime, _options.EndTime, _options.IntervalMinutes);
 
         while (!stoppingToken.IsCancellationRequested)
@@ -43,7 +43,7 @@ public class LottoWorker : BackgroundService
             // Sprawdź czy worker jest włączony i czy jesteśmy w przedziale czasowym
             if (_options.Enable && currentTime >= _options.StartTime && currentTime <= _options.EndTime)
             {
-                _logger.LogInformation("LottoWorker is in active time window at: {time}", now);
+                _logger.LogDebug("LottoWorker is in active time window at: {time}", now);
 
                 // Sprawd� czy losowania na dzie� ju� istniej�
                 using var scope = _serviceScopeFactory.CreateScope();
@@ -58,11 +58,11 @@ public class LottoWorker : BackgroundService
 
                 if (lottoExists && lottoPlusExists)
                 {
-                    _logger.LogInformation("Draws for date {Date} already exist (LOTTO and LOTTO PLUS), skipping fetch", targetDate);
+                    _logger.LogDebug("Draws for date {Date} already exist (LOTTO and LOTTO PLUS), skipping fetch", targetDate);
                 }
                 else
                 {
-                    _logger.LogInformation("Draws for date {Date} do not exist or are incomplete. LOTTO exists: {LottoExists}, LOTTO PLUS exists: {LottoPlusExists}",
+                    _logger.LogDebug("Draws for date {Date} do not exist or are incomplete. LOTTO exists: {LottoExists}, LOTTO PLUS exists: {LottoPlusExists}",
                         targetDate, lottoExists, lottoPlusExists);
                     await FetchAndSaveDrawsFromLottoOpenApi(stoppingToken);
                 }
@@ -70,11 +70,11 @@ public class LottoWorker : BackgroundService
 
             if (!_options.Enable)
             {
-                _logger.LogInformation("LottoWorker is disabled (LottoWorker:Enable = false)");
+                _logger.LogDebug("LottoWorker is disabled (LottoWorker:Enable = false)");
             }
             else
             {
-                _logger.LogInformation("LottoWorker outside active window.");
+                _logger.LogDebug("LottoWorker outside active window.");
             }
             await Task.Delay(_options.IntervalMinutes * 1000 * 60, stoppingToken);
         }
@@ -95,13 +95,13 @@ public class LottoWorker : BackgroundService
                 _logger.LogWarning("API URL is not configured. Skipping ping.");
                 return;
             }
-            _logger.LogInformation($"Pinging {url}/api/version to keep the website alive");
+            _logger.LogDebug($"Pinging {url}/api/version to keep the website alive");
 
             var response = await httpClient.GetAsync($"{url}/api/version", stoppingToken);
 
             if (response.IsSuccessStatusCode)
             {
-                _logger.LogInformation("Successfully pinged Status: {StatusCode}", response.StatusCode);
+                _logger.LogDebug("Successfully pinged Status: {StatusCode}", response.StatusCode);
             }
             else
             {
@@ -120,7 +120,7 @@ public class LottoWorker : BackgroundService
     
     private async Task FetchAndSaveDrawsFromLottoOpenApi(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("Executing FetchAndSaveDrawsFromLottoOpenApi at: {time}", DateTime.Now);
+        _logger.LogDebug("Executing FetchAndSaveDrawsFromLottoOpenApi at: {time}", DateTime.Now);
 
         try
         {
@@ -130,13 +130,13 @@ public class LottoWorker : BackgroundService
 
             // Pobierz wyniki losowa� z API
             var today = DateTime.Today;
-            _logger.LogInformation("Fetching draws for date: {date}", today);
+            _logger.LogDebug("Fetching draws for date: {date}", today);
 
             // Pobierz wszystkie typy losowa� (LOTTO i LOTTO PLUS są zwracane razem)
             var jsonResults = await lottoOpenApiService.GetActualDraws(today, "LOTTO");
             await SaveInDatabase(jsonResults, dbContext, stoppingToken);
 
-            _logger.LogInformation("FetchAndSaveDrawsFromLottoOpenApi completed successfully");
+            _logger.LogDebug("FetchAndSaveDrawsFromLottoOpenApi completed successfully");
         }
         catch (Exception ex)
         {
@@ -152,7 +152,7 @@ public class LottoWorker : BackgroundService
 
             if (drawsData?.Data == null || drawsData.Data.Count == 0)
             {
-                _logger.LogInformation("No draw results found in the response");
+                _logger.LogDebug("No draw results found in the response");
                 return;
             }
 
@@ -160,7 +160,7 @@ public class LottoWorker : BackgroundService
             {
                 try
                 {
-                    _logger.LogInformation("Processing draw: Date={DrawDate}, Type={GameType}, Numbers={Numbers}",
+                    _logger.LogDebug("Processing draw: Date={DrawDate}, Type={GameType}, Numbers={Numbers}",
                         drawData.DrawDate, drawData.GameType, string.Join(",", drawData.Numbers));
 
                     var drawDate = DateOnly.Parse(drawData.DrawDate);
@@ -171,7 +171,7 @@ public class LottoWorker : BackgroundService
 
                     if (existingDraw)
                     {
-                        _logger.LogInformation("Draw for date {DrawDate} with type {LottoType} already exists, skipping",
+                        _logger.LogDebug("Draw for date {DrawDate} with type {LottoType} already exists, skipping",
                             drawDate, drawData.GameType);
                         continue;
                     }
@@ -227,7 +227,7 @@ public class LottoWorker : BackgroundService
 
                         await transaction.CommitAsync(stoppingToken);
 
-                        _logger.LogInformation("Draw {DrawId} saved successfully: Date={DrawDate}, Type={GameType}",
+                        _logger.LogDebug("Draw {DrawId} saved successfully: Date={DrawDate}, Type={GameType}",
                             draw.Id, drawDate, drawData.GameType);
                     }
                     catch (Exception ex)

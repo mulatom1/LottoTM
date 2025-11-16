@@ -103,7 +103,7 @@ public class UpdateDrawHandler : IRequestHandler<Contracts.Request, IResult>
         using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
         try
         {
-            _logger.LogInformation("Updating draw {DrawId} by admin {UserId}", request.Id, userId);
+            _logger.LogDebug("Updating draw {DrawId} by admin {UserId}", request.Id, userId);
 
             // Update Draw metadata
             draw.DrawDate = request.DrawDate;
@@ -132,7 +132,7 @@ public class UpdateDrawHandler : IRequestHandler<Contracts.Request, IResult>
             await _dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
-            _logger.LogInformation("Draw {DrawId} updated successfully", request.Id);
+            _logger.LogDebug("Draw {DrawId} updated successfully", request.Id);
 
             return Results.Ok(new Contracts.Response("Losowanie zaktualizowane pomyślnie"));
         }

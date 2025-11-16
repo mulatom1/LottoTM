@@ -498,7 +498,7 @@ catch (Exception ex)
 
 **Logowanie w Handler:**
 ```csharp
-_logger.LogInformation("Pobieranie losowania o ID: {DrawId}", request.Id);
+_logger.LogDebug("Pobieranie losowania o ID: {DrawId}", request.Id);
 
 if (draw == null)
 {
@@ -700,7 +700,7 @@ public class GetDrawByIdHandler : IRequestHandler<Contracts.Request, Contracts.R
             throw new ValidationException(validationResult.Errors);
         }
 
-        _logger.LogInformation("Pobieranie losowania o ID: {DrawId}", request.Id);
+        _logger.LogDebug("Pobieranie losowania o ID: {DrawId}", request.Id);
 
         // 2. Pobranie losowania z bazy danych (eager loading)
         var draw = await _dbContext.Draws
@@ -727,7 +727,7 @@ public class GetDrawByIdHandler : IRequestHandler<Contracts.Request, Contracts.R
             CreatedAt: draw.CreatedAt
         );
 
-        _logger.LogInformation("Losowanie o ID {DrawId} pobrane pomyślnie", request.Id);
+        _logger.LogDebug("Losowanie o ID {DrawId} pobrane pomyślnie", request.Id);
         return response;
     }
 }

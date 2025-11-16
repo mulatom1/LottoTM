@@ -81,7 +81,7 @@ public class GetDrawsHandler : IRequestHandler<Contracts.Request, Contracts.Resp
             var totalPages = (int)Math.Ceiling((double)totalCount / request.PageSize);
 
             // 9. Log success
-            _logger.LogInformation(
+            _logger.LogDebug(
                 "Pobrano {Count} losowań (strona {Page}/{TotalPages})",
                 drawDtos.Count, request.Page, totalPages);
 

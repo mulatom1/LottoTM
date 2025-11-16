@@ -39,7 +39,7 @@ public class XLottoService : IXLottoService
             var httpClient = _httpClientFactory.CreateClient();
             httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36");
             
-            _logger.LogInformation("Fetching XLotto website content...");
+            _logger.LogDebug("Fetching XLotto website content...");
             var url = _configuration.GetValue("XLotto:Url", "");
             if (string.IsNullOrEmpty(url))
             {
@@ -58,7 +58,7 @@ public class XLottoService : IXLottoService
             var encoding = GetEncodingFromContentType(response.Content.Headers.ContentType?.CharSet) ?? Encoding.UTF8;
             var htmlContent = encoding.GetString(contentBytes);
             
-            _logger.LogInformation("Successfully fetched XLotto website content. Size: {Size} bytes", htmlContent.Length);
+            _logger.LogDebug("Successfully fetched XLotto website content. Size: {Size} bytes", htmlContent.Length);
 
             // Step 2: Send content to Google Gemini API
             var geminiApiKeyBase64 = _configuration["GoogleGemini:ApiKey"]
@@ -95,12 +95,12 @@ public class XLottoService : IXLottoService
                 Encoding.UTF8,
                 "application/json");
 
-            _logger.LogInformation("Sending request to Google Gemini API...");
+            _logger.LogDebug("Sending request to Google Gemini API...");
             var geminiResponse = await geminiHttpClient.PostAsync(geminiApiUrl, geminiRequestContent);
             geminiResponse.EnsureSuccessStatusCode();
 
             var geminiResponseContent = await geminiResponse.Content.ReadAsStringAsync();
-            _logger.LogInformation("Received response from Google Gemini API");
+            _logger.LogDebug("Received response from Google Gemini API");
 
             // Step 3: Extract the text from Gemini response
             var geminiResult = JsonSerializer.Deserialize<JsonElement>(geminiResponseContent);
@@ -116,7 +116,7 @@ public class XLottoService : IXLottoService
                 throw new InvalidOperationException("Gemini API returned empty response");
             }
 
-            _logger.LogInformation("Successfully extracted draw results from Gemini response");
+            _logger.LogDebug("Successfully extracted draw results from Gemini response");
             
             // Clean up the response (remove markdown code blocks if present)
             var cleanedText = generatedText.Trim();

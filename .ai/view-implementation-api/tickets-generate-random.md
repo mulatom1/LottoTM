@@ -366,7 +366,7 @@ Wszystkie operacje INSERT w jednej transakcji (EF Core SaveChangesAsync z implic
 // Generate random numbers
 var numbers = _ticketService.GenerateRandomNumbers();
 
-_logger.LogInformation(
+_logger.LogDebug(
     "Generated random numbers for user {UserId}: {Numbers}",
     request.UserId, string.Join(", ", numbers));
 
@@ -404,7 +404,7 @@ return new Contracts.Response(numbers);
 
 - **Information:** Pomyślne utworzenie ticketu
   ```csharp
-  _logger.LogInformation("Generated random ticket {TicketId} for user {UserId}", 
+  _logger.LogDebug("Generated random ticket {TicketId} for user {UserId}", 
       ticketId, userId);
   ```
 
@@ -711,7 +711,7 @@ public class TicketService : ITicketService
         // Zapis transakcyjny (COMMIT)
         await _context.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation(
+        _logger.LogDebug(
             "Created ticket {TicketId} for user {UserId} with numbers: {Numbers}",
             ticket.Id, userId, string.Join(", ", numbers));
 
@@ -771,14 +771,14 @@ public class Handler : IRequestHandler<Contracts.Request, Contracts.Response>
         }
 
         // Logowanie UserId dla audytu
-        _logger.LogInformation(
+        _logger.LogDebug(
             "Generating random numbers for user {UserId}",
             request.UserId);
 
         // Generowanie losowych liczb
         var numbers = _ticketService.GenerateRandomNumbers();
 
-        _logger.LogInformation(
+        _logger.LogDebug(
             "Generated random numbers for user {UserId}: {Numbers}",
             request.UserId, string.Join(", ", numbers));
 

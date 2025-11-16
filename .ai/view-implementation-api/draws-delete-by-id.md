@@ -465,12 +465,12 @@ private readonly ILogger<DeleteDrawHandler> _logger;
 
 public async Task<Contracts.Response> Handle(...)
 {
-    _logger.LogInformation("Rozpoczęto usuwanie losowania {DrawId} przez użytkownika {UserId}",
+    _logger.LogDebug("Rozpoczęto usuwanie losowania {DrawId} przez użytkownika {UserId}",
         request.Id, userId);
 
     // ... logika
 
-    _logger.LogInformation("Pomyślnie usunięto losowanie {DrawId}", request.Id);
+    _logger.LogDebug("Pomyślnie usunięto losowanie {DrawId}", request.Id);
     return new Contracts.Response("Losowanie usunięte pomyślnie");
 }
 ```
@@ -684,14 +684,14 @@ public class DeleteDrawHandler : IRequestHandler<Contracts.Request, Contracts.Re
         }
 
         // 5. Usunięcie losowania (CASCADE DELETE DrawNumbers)
-        _logger.LogInformation(
+        _logger.LogDebug(
             "Użytkownik {UserId} ({Email}) usuwa losowanie {DrawId} z daty {DrawDate}",
             userId, user.Email, draw.Id, draw.DrawDate);
 
         _db.Draws.Remove(draw);
         await _db.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Pomyślnie usunięto losowanie {DrawId}", request.Id);
+        _logger.LogDebug("Pomyślnie usunięto losowanie {DrawId}", request.Id);
 
         return new Contracts.Response("Losowanie usunięte pomyślnie");
     }

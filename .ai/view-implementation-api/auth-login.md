@@ -710,7 +710,7 @@ public class LoginHandler : IRequestHandler<Contracts.LoginRequest, Contracts.Lo
             out var expiresAt
         );
 
-        _logger.LogInformation(
+        _logger.LogDebug(
             "Użytkownik {UserId} ({Email}) zalogowany pomyślnie",
             user.Id,
             user.Email

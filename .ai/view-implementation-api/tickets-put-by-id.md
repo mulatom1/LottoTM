@@ -456,7 +456,7 @@ if (ticket.UserId != currentUserId)
 ### 6.5 Logowanie bezpieczeństwa (Audit Trail)
 
 ```csharp
-_logger.LogInformation(
+_logger.LogDebug(
     "Użytkownik {UserId} zaktualizował zestaw {TicketId} na liczby [{Numbers}]",
     currentUserId,
     request.TicketId,
@@ -801,7 +801,7 @@ var stopwatch = Stopwatch.StartNew();
 // ... operacje ...
 
 stopwatch.Stop();
-_logger.LogInformation(
+_logger.LogDebug(
     "Zestaw {TicketId} zaktualizowany w {ElapsedMs}ms",
     request.TicketId,
     stopwatch.ElapsedMilliseconds
@@ -1066,7 +1066,7 @@ public class UpdateTicketHandler : IRequestHandler<Contracts.Request, IResult>
             await _context.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
-            _logger.LogInformation(
+            _logger.LogDebug(
                 "Użytkownik {UserId} zaktualizował zestaw {TicketId} na liczby [{Numbers}]",
                 currentUserId,
                 request.TicketId,

@@ -37,7 +37,7 @@ public class Handler : IRequestHandler<Contracts.Request, Contracts.Response?>
             throw new ValidationException(validationResult.Errors);
         }
 
-        _logger.LogInformation("Pobieranie losowania o ID: {DrawId}", request.Id);
+        _logger.LogDebug("Pobieranie losowania o ID: {DrawId}", request.Id);
 
         // 2. Fetch the draw from database with eager loading of numbers
         var draw = await _dbContext.Draws
@@ -65,7 +65,7 @@ public class Handler : IRequestHandler<Contracts.Request, Contracts.Response?>
             CreatedAt: draw.CreatedAt
         );
 
-        _logger.LogInformation("Losowanie o ID {DrawId} pobrane pomyślnie", request.Id);
+        _logger.LogDebug("Losowanie o ID {DrawId} pobrane pomyślnie", request.Id);
         return response;
     }
 }

@@ -3,7 +3,8 @@
 .vscode/*
 !.vscode/extensions.json
 .idea
-
+database/*
+nul
 
 # ===============================================
 # Konfiguracja narzędzi AI (Claude)

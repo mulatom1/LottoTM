@@ -64,7 +64,7 @@ public class DeleteTicketHandler : IRequestHandler<Contracts.Request, Contracts.
         _dbContext.Tickets.Remove(ticket);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation(
+        _logger.LogDebug(
             "User {UserId} successfully deleted ticket {TicketId}",
             userId,
             request.Id);

@@ -429,7 +429,7 @@ if (allNumbers != 49)
 
 **Przykład:**
 ```csharp
-_logger.LogInformation(
+_logger.LogDebug(
     "Generated 9 system tickets for UserId={UserId}, TotalTickets={TotalCount}", 
     userId, 
     newTotalCount
@@ -694,7 +694,7 @@ public class GenerateSystemTicketsHandler : IRequestHandler<Contracts.Request, C
         // Validate coverage (all numbers 1-49 must appear)
         ValidateCoverage(generatedNumbers);
 
-        _logger.LogInformation(
+        _logger.LogDebug(
             "Generated 9 system tickets for UserId={UserId}",
             userId
         );
