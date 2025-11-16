@@ -423,7 +423,7 @@ services.AddCors(options => {
 - **NIE logować:** Hasła, tokenów JWT
 
 ```csharp
-_logger.LogWarning("Nieudana próba logowania dla email: {Email} z IP: {IpAddress}",
+_logger.LogDebug("Nieudana próba logowania dla email: {Email} z IP: {IpAddress}",
     email, httpContext.Connection.RemoteIpAddress);
 ```
 
@@ -454,7 +454,7 @@ _logger.LogWarning("Nieudana próba logowania dla email: {Email} z IP: {IpAddres
 ```csharp
 if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
 {
-    _logger.LogWarning("Nieudana próba logowania dla email: {Email}", request.Email);
+    _logger.LogDebug("Nieudana próba logowania dla email: {Email}", request.Email);
     return Results.Unauthorized(new { error = "Nieprawidłowy email lub hasło" });
 }
 ```
@@ -695,7 +695,7 @@ public class LoginHandler : IRequestHandler<Contracts.LoginRequest, Contracts.Lo
 
         if (user == null || !isValidPassword)
         {
-            _logger.LogWarning(
+            _logger.LogDebug(
                 "Nieudana próba logowania dla email: {Email}",
                 request.Email
             );
@@ -710,7 +710,7 @@ public class LoginHandler : IRequestHandler<Contracts.LoginRequest, Contracts.Lo
             out var expiresAt
         );
 
-        _logger.LogInformation(
+        _logger.LogDebug(
             "Użytkownik {UserId} ({Email}) zalogowany pomyślnie",
             user.Id,
             user.Email

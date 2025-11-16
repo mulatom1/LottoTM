@@ -342,7 +342,7 @@ public class XLottoServiceTests
         // Assert
         _mockLogger.Verify(
             x => x.Log(
-                LogLevel.Information,
+                LogLevel.Debug,
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("Fetching XLotto website content")),
                 It.IsAny<Exception>(),
@@ -351,7 +351,7 @@ public class XLottoServiceTests
 
         _mockLogger.Verify(
             x => x.Log(
-                LogLevel.Information,
+                LogLevel.Debug,
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("Successfully fetched XLotto website content")),
                 It.IsAny<Exception>(),

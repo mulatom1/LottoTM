@@ -5,7 +5,6 @@ using LottoTM.Server.Api.Repositories;
 using LottoTM.Server.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
@@ -118,7 +117,10 @@ if (builder.Configuration.GetValue("Swagger:Enable", false))
 
 app.UseStaticFiles();
 
-app.UseSerilogRequestLogging();
+app.UseSerilogRequestLogging(options =>
+{
+    options.GetLevel = (httpContext, elapsed, ex) => Serilog.Events.LogEventLevel.Debug;
+});
 
 app.UseRouting();
 
@@ -150,8 +152,21 @@ LottoTM.Server.Api.Features.Verification.Check.Endpoint.AddEndpoint(app);
 LottoTM.Server.Api.Features.XLotto.ActualDraws.Endpoint.AddEndpoint(app);
 LottoTM.Server.Api.Features.XLotto.IsEnabled.Endpoint.AddEndpoint(app);
 
-
-await app.RunAsync();
+try
+{
+    Log.Debug("Application starting!");
+    // await File.AppendAllTextAsync("LogError.txt", $"App starting!");
+    await app.RunAsync();
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Application start-up failed");
+    // await File.AppendAllTextAsync("LogError.txt", $"{ex.Message} ||| {ex.InnerException?.Message} ||| {ex.StackTrace}");
+}
+finally
+{
+    await Log.CloseAndFlushAsync();
+}
 
 // Make the implicit Program class public so test projects can access it
 public partial class Program { }

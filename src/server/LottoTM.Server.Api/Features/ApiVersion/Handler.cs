@@ -30,7 +30,7 @@ public class ApiVersionHandler : IRequestHandler<Contracts.Request, Contracts.Re
         }
 
         var apiVersion = _configuration.GetValue<string>("ApiVersion");
-        _logger.LogInformation("Retrieved API version: {ApiVersion}", apiVersion);
+        _logger.LogDebug("Retrieved API version: {ApiVersion}", apiVersion);
         
         return await Task.FromResult(new Contracts.Response(apiVersion ?? "Version not found"));
     }

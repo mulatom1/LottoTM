@@ -412,7 +412,7 @@ var currentUserId = int.Parse(httpContext.User.FindFirstValue(ClaimTypes.NameIde
 // 2. Sprawdzenie czy użytkownik jest właścicielem
 if (ticket.UserId != currentUserId)
 {
-    _logger.LogWarning(
+    _logger.LogDebug(
         "Użytkownik {UserId} próbował edytować cudzy zestaw {TicketId}",
         currentUserId, 
         request.TicketId
@@ -456,7 +456,7 @@ if (ticket.UserId != currentUserId)
 ### 6.5 Logowanie bezpieczeństwa (Audit Trail)
 
 ```csharp
-_logger.LogInformation(
+_logger.LogDebug(
     "Użytkownik {UserId} zaktualizował zestaw {TicketId} na liczby [{Numbers}]",
     currentUserId,
     request.TicketId,
@@ -801,7 +801,7 @@ var stopwatch = Stopwatch.StartNew();
 // ... operacje ...
 
 stopwatch.Stop();
-_logger.LogInformation(
+_logger.LogDebug(
     "Zestaw {TicketId} zaktualizowany w {ElapsedMs}ms",
     request.TicketId,
     stopwatch.ElapsedMilliseconds
@@ -962,7 +962,7 @@ public class UpdateTicketHandler : IRequestHandler<Contracts.Request, IResult>
                     g => g.Select(e => e.ErrorMessage).ToArray()
                 );
             
-            _logger.LogWarning(
+            _logger.LogDebug(
                 "Walidacja nie powiodła się dla aktualizacji zestawu {TicketId}: {Errors}",
                 request.TicketId,
                 string.Join(", ", errors.Keys)
@@ -992,7 +992,7 @@ public class UpdateTicketHandler : IRequestHandler<Contracts.Request, IResult>
 
         if (ticket == null)
         {
-            _logger.LogWarning(
+            _logger.LogDebug(
                 "Zestaw {TicketId} nie został znaleziony",
                 request.TicketId
             );
@@ -1002,7 +1002,7 @@ public class UpdateTicketHandler : IRequestHandler<Contracts.Request, IResult>
         // 4. Sprawdzenie własności zasobu
         if (ticket.UserId != currentUserId)
         {
-            _logger.LogWarning(
+            _logger.LogDebug(
                 "Użytkownik {UserId} próbował edytować cudzy zestaw {TicketId} (właściciel: {OwnerId})",
                 currentUserId,
                 request.TicketId,
@@ -1029,7 +1029,7 @@ public class UpdateTicketHandler : IRequestHandler<Contracts.Request, IResult>
 
             if (sortedNewNumbers.SequenceEqual(sortedExisting))
             {
-                _logger.LogWarning(
+                _logger.LogDebug(
                     "Użytkownik {UserId} próbował zapisać duplikat zestawu (zestaw {ExistingTicketId} już zawiera te liczby)",
                     currentUserId,
                     existingTicket.Id
@@ -1066,7 +1066,7 @@ public class UpdateTicketHandler : IRequestHandler<Contracts.Request, IResult>
             await _context.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
-            _logger.LogInformation(
+            _logger.LogDebug(
                 "Użytkownik {UserId} zaktualizował zestaw {TicketId} na liczby [{Numbers}]",
                 currentUserId,
                 request.TicketId,

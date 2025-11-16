@@ -50,7 +50,7 @@ public class LottoOpenApiService : ILottoOpenApiService
             }
 
             var apiUrl = $"{url}/api/open/v1/lotteries/draw-results/by-date-per-game?drawDate={date:yyyy-MM-dd}&gameType=Lotto&size=10&sort=drawDate&order=DESC&index=1";
-            _logger.LogInformation("Fetching draws from Lotto Open API: {Url}", apiUrl);
+            _logger.LogDebug("Fetching draws from Lotto Open API: {Url}", apiUrl);
 
             var response = await httpClient.GetAsync(apiUrl);
 
@@ -61,14 +61,14 @@ public class LottoOpenApiService : ILottoOpenApiService
             }
 
             var jsonContent = await response.Content.ReadAsStringAsync();
-            _logger.LogInformation("Received response from Lotto Open API");
+            _logger.LogDebug("Received response from Lotto Open API");
 
             // Deserialize the Lotto Open API response
             var lottoOpenApiResponse = JsonSerializer.Deserialize<LottoOpenApiResponse>(jsonContent);
 
             if (lottoOpenApiResponse?.Items == null || lottoOpenApiResponse.Items.Count == 0)
             {
-                _logger.LogInformation("No draw items found in Lotto Open API response");
+                _logger.LogDebug("No draw items found in Lotto Open API response");
                 return CreateEmptyDrawsResponse();
             }
 
@@ -79,7 +79,7 @@ public class LottoOpenApiService : ILottoOpenApiService
             {
                 if (item.Results == null || item.Results.Count == 0)
                 {
-                    _logger.LogWarning("No results found for game type {GameType}", item.GameType);
+                    _logger.LogDebug("No results found for game type {GameType}", item.GameType);
                     continue;
                 }
 
@@ -108,7 +108,7 @@ public class LottoOpenApiService : ILottoOpenApiService
 
             // Serialize to JSON
             var jsonResults = JsonSerializer.Serialize(drawsResponse);
-            _logger.LogInformation("Successfully fetched and transformed draw results from Lotto Open API");
+            _logger.LogDebug("Successfully fetched and transformed draw results from Lotto Open API");
 
             return jsonResults;
         }

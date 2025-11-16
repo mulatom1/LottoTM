@@ -383,9 +383,9 @@ modelBuilder.Entity<TicketNumber>()
 
 **Przykład (Serilog):**
 ```csharp
-_logger.LogInformation("User {UserId} successfully deleted ticket {TicketId}", userId, request.Id);
+_logger.LogDebug("User {UserId} successfully deleted ticket {TicketId}", userId, request.Id);
 
-_logger.LogWarning("User {UserId} attempted to delete ticket {TicketId} without permission", userId, request.Id);
+_logger.LogDebug("User {UserId} attempted to delete ticket {TicketId} without permission", userId, request.Id);
 ```
 
 ---
@@ -428,7 +428,7 @@ public async Task<Contracts.Response> Handle(Contracts.Request request, Cancella
 
     if (ticket == null)
     {
-        _logger.LogWarning("User {UserId} attempted to delete ticket {TicketId} - access denied", 
+        _logger.LogDebug("User {UserId} attempted to delete ticket {TicketId} - access denied", 
             userId, request.Id);
         throw new UnauthorizedAccessException("Brak dostępu do zasobu"); // → 403
     }
@@ -437,7 +437,7 @@ public async Task<Contracts.Response> Handle(Contracts.Request request, Cancella
     _dbContext.Tickets.Remove(ticket);
     await _dbContext.SaveChangesAsync(cancellationToken);
 
-    _logger.LogInformation("User {UserId} successfully deleted ticket {TicketId}", 
+    _logger.LogDebug("User {UserId} successfully deleted ticket {TicketId}", 
         userId, request.Id);
 
     return new Contracts.Response("Zestaw usunięty pomyślnie");
@@ -469,7 +469,7 @@ public async Task InvokeAsync(HttpContext context)
         context.Response.StatusCode = StatusCodes.Status403Forbidden;
         await context.Response.WriteAsJsonAsync(new { message = ex.Message });
         
-        _logger.LogWarning(ex, "Forbidden access attempt");
+        _logger.LogDebug(ex, "Forbidden access attempt");
     }
     catch (Exception ex)
     {
@@ -739,7 +739,7 @@ public class DeleteTicketHandler : IRequestHandler<Contracts.Request, Contracts.
         {
             // Ochrona przed IDOR i enumeration attacks:
             // Nie ujawniamy czy zasób nie istnieje czy należy do innego użytkownika
-            _logger.LogWarning(
+            _logger.LogDebug(
                 "User {UserId} attempted to delete ticket {TicketId} - access denied (ticket not found or belongs to another user)",
                 userId,
                 request.Id);
@@ -751,7 +751,7 @@ public class DeleteTicketHandler : IRequestHandler<Contracts.Request, Contracts.
         _dbContext.Tickets.Remove(ticket);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation(
+        _logger.LogDebug(
             "User {UserId} successfully deleted ticket {TicketId}",
             userId,
             request.Id);
@@ -911,7 +911,7 @@ catch (UnauthorizedAccessException ex)
         message = ex.Message
     });
 
-    _logger.LogWarning(ex, "Forbidden access attempt - User: {UserId}, Path: {Path}",
+    _logger.LogDebug(ex, "Forbidden access attempt - User: {UserId}, Path: {Path}",
         context.User.FindFirstValue(ClaimTypes.NameIdentifier),
         context.Request.Path);
 }

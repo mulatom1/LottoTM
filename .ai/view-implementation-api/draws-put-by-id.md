@@ -478,10 +478,10 @@ if (dateExists)
 
 **Serilog - kluczowe punkty logowania:**
 ```csharp
-_logger.LogInformation("Updating draw {DrawId} by admin {UserId}", request.Id, userId);
-_logger.LogWarning("Draw {DrawId} not found", request.Id);
+_logger.LogDebug("Updating draw {DrawId} by admin {UserId}", request.Id, userId);
+_logger.LogDebug("Draw {DrawId} not found", request.Id);
 _logger.LogError(ex, "Failed to update draw {DrawId}", request.Id);
-_logger.LogInformation("Draw {DrawId} updated successfully in {ElapsedMs}ms", request.Id, elapsed);
+_logger.LogDebug("Draw {DrawId} updated successfully in {ElapsedMs}ms", request.Id, elapsed);
 ```
 
 ---
@@ -623,7 +623,7 @@ public class UpdateDrawHandler : IRequestHandler<Contracts.Request, IResult>
         // 3. Sprawdzenie uprawnień administratora
         if (!isAdmin)
         {
-            _logger.LogWarning("User {UserId} attempted to update draw {DrawId} without admin privileges",
+            _logger.LogDebug("User {UserId} attempted to update draw {DrawId} without admin privileges",
                 userId, request.Id);
 
             return Results.Problem(
@@ -640,7 +640,7 @@ public class UpdateDrawHandler : IRequestHandler<Contracts.Request, IResult>
 
         if (draw == null)
         {
-            _logger.LogWarning("Draw {DrawId} not found for update", request.Id);
+            _logger.LogDebug("Draw {DrawId} not found for update", request.Id);
 
             return Results.Problem(
                 statusCode: StatusCodes.Status404NotFound,
@@ -657,7 +657,7 @@ public class UpdateDrawHandler : IRequestHandler<Contracts.Request, IResult>
 
             if (dateExists)
             {
-                _logger.LogWarning("Draw date {DrawDate} already exists for another draw", request.DrawDate);
+                _logger.LogDebug("Draw date {DrawDate} already exists for another draw", request.DrawDate);
 
                 return Results.Problem(
                     statusCode: StatusCodes.Status400BadRequest,
@@ -671,7 +671,7 @@ public class UpdateDrawHandler : IRequestHandler<Contracts.Request, IResult>
         using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
         try
         {
-            _logger.LogInformation("Updating draw {DrawId} by admin {UserId}", request.Id, userId);
+            _logger.LogDebug("Updating draw {DrawId} by admin {UserId}", request.Id, userId);
 
             // Update Draw metadata
             draw.DrawDate = request.DrawDate;
@@ -694,7 +694,7 @@ public class UpdateDrawHandler : IRequestHandler<Contracts.Request, IResult>
             await _dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
-            _logger.LogInformation("Draw {DrawId} updated successfully", request.Id);
+            _logger.LogDebug("Draw {DrawId} updated successfully", request.Id);
 
             return Results.Ok(new Contracts.Response("Losowanie zaktualizowane pomyślnie"));
         }

@@ -52,7 +52,7 @@ public class DeleteTicketHandler : IRequestHandler<Contracts.Request, Contracts.
         {
             // Ochrona przed IDOR i enumeration attacks:
             // Nie ujawniamy czy zasób nie istnieje czy należy do innego użytkownika
-            _logger.LogWarning(
+            _logger.LogDebug(
                 "User {UserId} attempted to delete ticket {TicketId} - access denied (ticket not found or belongs to another user)",
                 userId,
                 request.Id);
@@ -64,7 +64,7 @@ public class DeleteTicketHandler : IRequestHandler<Contracts.Request, Contracts.
         _dbContext.Tickets.Remove(ticket);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation(
+        _logger.LogDebug(
             "User {UserId} successfully deleted ticket {TicketId}",
             userId,
             request.Id);

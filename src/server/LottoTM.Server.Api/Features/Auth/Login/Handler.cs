@@ -63,7 +63,7 @@ public class LoginHandler : IRequestHandler<Contracts.Request, Contracts.Respons
 
         if (user == null || !isValidPassword)
         {
-            _logger.LogWarning(
+            _logger.LogDebug(
                 "Nieudana próba logowania dla email: {Email}",
                 request.Email
             );
@@ -78,7 +78,7 @@ public class LoginHandler : IRequestHandler<Contracts.Request, Contracts.Respons
             out var expiresAt
         );
 
-        _logger.LogInformation(
+        _logger.LogDebug(
             "Użytkownik {UserId} ({Email}) zalogowany pomyślnie",
             user.Id,
             user.Email

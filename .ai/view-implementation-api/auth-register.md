@@ -623,7 +623,7 @@ public class RegisterHandler : IRequestHandler<Contracts.Request, Contracts.Resp
         var expiresAt = DateTime.UtcNow.AddHours(24);
 
         // 6. Logowanie sukcesu
-        _logger.LogInformation(
+        _logger.LogDebug(
             "User registered successfully: {Email}",
             request.Email);
 

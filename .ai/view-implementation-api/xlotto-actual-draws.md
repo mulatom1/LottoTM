@@ -229,11 +229,11 @@ catch (Exception ex) {
 
 ### Kluczowe punkty logowania
 ```csharp
-_logger.LogInformation("Fetching XLotto website content...");
-_logger.LogInformation("Successfully fetched XLotto website content. Size: {Size} bytes", htmlContent.Length);
-_logger.LogInformation("Sending request to Google Gemini API...");
-_logger.LogInformation("Received response from Google Gemini API");
-_logger.LogInformation("Successfully extracted draw results from Gemini response");
+_logger.LogDebug("Fetching XLotto website content...");
+_logger.LogDebug("Successfully fetched XLotto website content. Size: {Size} bytes", htmlContent.Length);
+_logger.LogDebug("Sending request to Google Gemini API...");
+_logger.LogDebug("Received response from Google Gemini API");
+_logger.LogDebug("Successfully extracted draw results from Gemini response");
 ```
 
 ### Error logging
