@@ -1,4 +1,5 @@
 using FluentValidation;
+using LottoTM.Server.Api.Filters;
 using LottoTM.Server.Api.Middlewares;
 using LottoTM.Server.Api.Options;
 using LottoTM.Server.Api.Repositories;
@@ -73,6 +74,9 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
     c.CustomSchemaIds(type => type.FullName?.Replace("+", "."));
+
+    // Support for file uploads in Swagger
+    c.OperationFilter<FileUploadOperationFilter>();
 });
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -146,8 +150,11 @@ LottoTM.Server.Api.Features.Tickets.TicketsGetList.Endpoint.AddEndpoint(app);
 LottoTM.Server.Api.Features.Tickets.TicketsGetById.Endpoint.AddEndpoint(app);
 LottoTM.Server.Api.Features.Tickets.TicketsUpdate.Endpoint.AddEndpoint(app);
 LottoTM.Server.Api.Features.Tickets.TicketsDelete.Endpoint.AddEndpoint(app);
+LottoTM.Server.Api.Features.Tickets.TicketsDeleteAll.Endpoint.AddEndpoint(app);
 LottoTM.Server.Api.Features.Tickets.GenerateRandom.Endpoint.AddEndpoint(app);
 LottoTM.Server.Api.Features.Tickets.GenerateSystem.Endpoint.AddEndpoint(app);
+LottoTM.Server.Api.Features.Tickets.ImportCsv.Endpoint.AddEndpoint(app);
+LottoTM.Server.Api.Features.Tickets.ExportCsv.Endpoint.AddEndpoint(app);
 LottoTM.Server.Api.Features.Verification.Check.Endpoint.AddEndpoint(app);
 LottoTM.Server.Api.Features.XLotto.ActualDraws.Endpoint.AddEndpoint(app);
 LottoTM.Server.Api.Features.XLotto.IsEnabled.Endpoint.AddEndpoint(app);

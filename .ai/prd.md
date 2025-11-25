@@ -51,6 +51,9 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 - Generator "systemowy" - 9 zestawów pokrywających wszystkie liczby 1-49
 - Limit 100 zestawów na użytkownika
 - Walidacja unikalności zestawów (każdy zestaw musi być unikalny dla użytkownika)
+- **Import/eksport zestawów (Feature Flag):**
+  - Import zestawów z pliku CSV
+  - Eksport zestawów do pliku CSV dla celów archiwizacji lub analizy
 
 **Weryfikacja wygranych:**
 
@@ -65,7 +68,7 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 - Wsparcie dla innych gier losowych (MINI LOTTO, Multi Multi, EuroJackpot)
 - Weryfikacja adresu email przy rejestracji
 - Automatyczne pobieranie wyników losowań z oficjalnych API (MVP zawiera ręczne pobieranie z XLotto.pl przez Google Gemini API)
-- Import/eksport zestawów z plików (CSV, PDF)
+- Import/eksport zestawów z plików w formatach innych niż CSV (np. PDF)
 - Powiadomienia email lub push
 - Funkcje społecznościowe (udostępnianie zestawów)
 - Dedykowana aplikacja mobilna (natywna iOS/Android)
@@ -523,6 +526,78 @@ private class LottoOpenApiResult
   - Body: Brak
   - Response: `{ "tickets": [ { "numbers": [...] }, ... ] }`
 
+#### F-TICKET-007: Import zestawów z pliku CSV (Feature Flag)
+**Priorytet:** Should Have (Feature Flag)
+**Opis:** Użytkownik może zaimportować wiele zestawów liczb z pliku CSV.
+
+**Feature Flag:** `Features:TicketImportExport:Enable` (true/false)
+
+**Format pliku CSV:**
+- Nagłówek: `Number1,Number2,Number3,Number4,Number5,Number6,GroupName`
+- Każdy wiersz reprezentuje jeden zestaw liczb
+- `GroupName` jest opcjonalny
+- Przykład:
+  ```
+  Number1,Number2,Number3,Number4,Number5,Number6,GroupName
+  5,14,23,29,37,41,Ulubione
+  7,15,22,33,38,45,Rodzina
+  1,10,20,30,40,49,
+  ```
+
+**Kryteria akceptacji:**
+- Przycisk "Importuj z CSV" widoczny tylko gdy Feature Flag jest włączony
+- Użytkownik wybiera plik CSV z dysku
+- Walidacja formatu pliku:
+  - Sprawdzenie nagłówka
+  - Walidacja każdego wiersza (6 liczb z zakresu 1-49, unikalne w zestawie)
+  - Walidacja limitu: sprawdzenie czy po imporcie nie przekroczony zostanie limit 100 zestawów
+- Walidacja unikalności: system blokuje duplikaty zestawów (sprawdzenie czy importowane zestawy nie są duplikatami istniejących)
+- Raport z importu:
+  - Liczba pomyślnie zaimportowanych zestawów
+  - Liczba odrzuconych zestawów (z powodu błędów walidacji lub duplikatów)
+  - Lista błędów (numer wiersza + przyczyna odrzucenia)
+- Batch insert do bazy danych dla wydajności
+- Komunikat sukcesu z podsumowaniem + odświeżenie listy zestawów
+
+**Endpointy API:**
+- `POST /api/tickets/import-csv`
+  - Body: `multipart/form-data` z plikiem CSV
+  - Response:
+    ```json
+    {
+      "imported": 15,
+      "rejected": 2,
+      "errors": [
+        { "row": 3, "reason": "Duplicate ticket" },
+        { "row": 7, "reason": "Invalid number range: 52" }
+      ]
+    }
+    ```
+
+#### F-TICKET-008: Eksport zestawów do pliku CSV (Feature Flag)
+**Priorytet:** Should Have (Feature Flag)
+**Opis:** Użytkownik może wyeksportować wszystkie swoje zestawy liczb do pliku CSV dla celów archiwizacji lub analizy.
+
+**Feature Flag:** `Features:TicketImportExport:Enable` (true/false)
+
+**Format pliku CSV:**
+- Nagłówek: `Number1,Number2,Number3,Number4,Number5,Number6,GroupName`
+- Każdy wiersz reprezentuje jeden zestaw użytkownika
+- Liczby sortowane rosnąco w każdym zestawie
+
+**Kryteria akceptacji:**
+- Przycisk "Eksportuj do CSV" widoczny tylko gdy Feature Flag jest włączony
+- Przycisk dostępny na stronie z listą zestawów
+- Generowanie pliku CSV zawierającego wszystkie zestawy użytkownika
+- Nazwa pliku: `lotto-tickets-{userId}-{YYYY-MM-DD}.csv`
+- Automatyczne pobranie pliku przez przeglądarkę
+- Komunikat sukcesu: "Wyeksportowano X zestawów do pliku CSV"
+
+**Endpointy API:**
+- `GET /api/tickets/export-csv`
+  - Response: Plik CSV z nagłówkiem `Content-Disposition: attachment; filename="lotto-tickets-{userId}-{date}.csv"`
+  - Content-Type: `text/csv; charset=utf-8`
+
 ---
 
 ### 3.4 Moduł Weryfikacji Wygranych (Verification, Checks)
@@ -760,6 +835,47 @@ private class LottoOpenApiResult
 
 **Priorytet:** Must Have
 **Story Points:** 2
+
+---
+
+#### US-TICKETS-07: Import zestawów z pliku CSV (Feature Flag)
+**Jako** użytkownik
+**Chcę** zaimportować wiele zestawów liczb z pliku CSV
+**Aby** szybko dodać duże ilości zestawów bez konieczności ręcznego wprowadzania każdego z nich
+
+**Kryteria akceptacji:**
+- Przycisk "Importuj z CSV" widoczny tylko gdy Feature Flag `Features:TicketImportExport:Enable` jest włączony
+- Możliwość wyboru pliku CSV z dysku
+- Walidacja formatu pliku i zawartości (nagłówek, zakres liczb 1-49, unikalność w zestawie)
+- Walidacja limitu 100 zestawów (sprawdzenie czy po imporcie nie zostanie przekroczony)
+- Walidacja unikalności importowanych zestawów (blokada duplikatów)
+- Wyświetlenie raportu z importu:
+  - Liczba pomyślnie zaimportowanych zestawów
+  - Liczba odrzuconych zestawów
+  - Lista błędów (numer wiersza + przyczyna)
+- Komunikat sukcesu z podsumowaniem
+- Odświeżenie listy zestawów po imporcie
+
+**Priorytet:** Should Have (Feature Flag)
+**Story Points:** 8
+
+---
+
+#### US-TICKETS-08: Eksport zestawów do pliku CSV (Feature Flag)
+**Jako** użytkownik
+**Chcę** wyeksportować wszystkie moje zestawy do pliku CSV
+**Aby** mieć kopię zapasową moich danych lub przeprowadzić analizę w zewnętrznych narzędziach
+
+**Kryteria akceptacji:**
+- Przycisk "Eksportuj do CSV" widoczny tylko gdy Feature Flag `Features:TicketImportExport:Enable` jest włączony
+- Przycisk dostępny na stronie z listą zestawów
+- Automatyczne wygenerowanie i pobranie pliku CSV zawierającego wszystkie zestawy
+- Format pliku: nagłówek + wiersze z danymi (6 liczb, nazwa grupy)
+- Nazwa pliku: `lotto-tickets-{userId}-{YYYY-MM-DD}.csv`
+- Komunikat sukcesu: "Wyeksportowano X zestawów do pliku CSV"
+
+**Priorytet:** Should Have (Feature Flag)
+**Story Points:** 5
 
 ---
 
@@ -1175,6 +1291,8 @@ PUT    /api/tickets/{id}        - Edycja istniejącego zestawu
 DELETE /api/tickets/{id}        - Usunięcie zestawu
 POST   /api/tickets/generate-random   - Generowanie losowego zestawu
 POST   /api/tickets/generate-system   - Generowanie 9 zestawów systemowych
+POST   /api/tickets/import-csv  - Import zestawów z pliku CSV (Feature Flag)
+GET    /api/tickets/export-csv  - Eksport zestawów do pliku CSV (Feature Flag)
 ```
 
 
@@ -1389,7 +1507,9 @@ src/
 - [ ] Nadawanie nazw zestawom
 - [ ] Weryfikacja email przy rejestracji
 - [ ] Powiadomienia email o nowych losowaniach
-- [ ] Eksport zestawów do CSV
+- [ ] **Import/eksport zestawów CSV (Feature Flag: `Features:TicketImportExport:Enable`)**
+  - [ ] Import zestawów z pliku CSV z walidacją i raportem błędów
+  - [ ] Eksport zestawów do pliku CSV
 - [ ] Kategorie wygranych i przybliżone kwoty
 - [ ] Statystyki użytkownika (najczęstsze liczby, historia trafień)
 - [ ] Reset hasła (Forgot Password)

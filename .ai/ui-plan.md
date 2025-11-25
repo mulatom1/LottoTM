@@ -212,6 +212,8 @@ W MVP **całkowicie zrezygnowano z widoku Dashboard** (`/dashboard`). Po zalogow
 - **"+ Dodaj ręcznie"** (primary) → otwiera Modal dodawania
 - **"🎲 Generuj losowy"** (secondary) → wywołuje generator losowy
 - **"🔢 Generuj systemowy"** (secondary) → wywołuje generator systemowy (9 zestawów)
+- **"📥 Importuj z CSV"** (secondary, warunkowo wyświetlany) → otwiera Modal importu (Feature Flag)
+- **"📤 Eksportuj do CSV"** (secondary, warunkowo wyświetlany) → pobiera plik CSV (Feature Flag)
 
 **Lista zestawów (scrollowalna, max 100):**
 - Każdy zestaw jako card/row:
@@ -265,6 +267,49 @@ W MVP **całkowicie zrezygnowano z widoku Dashboard** (`/dashboard`). Po zalogow
    - Walidacja limitu: sprawdzenie czy miejsce na 9 zestawów (100 - aktualna liczba ≥ 9)
    - Jeśli brak miejsca: ErrorModal "Brak miejsca na 9 zestawów. Dostępne: X zestawy. Usuń istniejące zestawy, aby kontynuować."
    - Po sukcesie: Toast "9 zestawów wygenerowanych i zapisanych", modal zamyka, lista odświeża
+
+6. **Modal importu zestawów z CSV (Feature Flag):**
+   - **Feature Flag:** Widoczny tylko gdy `Features:TicketImportExport:Enable = true` w konfiguracji backend
+   - Frontend sprawdza dostępność przed wyświetleniem przycisku (opcjonalnie)
+   - Tytuł: "Importuj zestawy z CSV"
+   - **Wyjaśnienie formatu:**
+     - Text: "Format pliku CSV: nagłówek + wiersze z danymi"
+     - Przykład: `Number1,Number2,Number3,Number4,Number5,Number6,GroupName`
+     - Link/tooltip z pełną dokumentacją formatu
+   - **File input:**
+     - Label: "Wybierz plik CSV"
+     - Type: file, accept=".csv,text/csv"
+     - Max size: 1MB (walidacja frontend + backend)
+   - **Preview wybranego pliku (opcjonalnie):**
+     - Nazwa pliku, rozmiar
+   - Przyciski: [Anuluj] [Importuj] (primary)
+   - **Walidacja:**
+     - Sprawdzenie formatu pliku (CSV)
+     - Backend sprawdza nagłówek, zakres liczb, limit dostępnych miejsc, unikalność
+   - **Po sukcesie:**
+     - ErrorModal z raportem importu:
+       - "Zaimportowano: 15 zestawów"
+       - "Odrzucono: 2 zestawy"
+       - Lista błędów (jeśli są): "Wiersz 3: Duplicate ticket", "Wiersz 7: Invalid number range: 52"
+     - Toast: "Import zakończony. Zaimportowano X zestawów." (jeśli imported > 0)
+     - Modal zamyka, lista odświeża
+   - **Po błędzie:**
+     - ErrorModal: komunikaty błędów z backendu (np. "Osiągnięto limit 100 zestawów. Dostępne: X zestawów.")
+
+7. **Modal/Direct download eksportu zestawów do CSV (Feature Flag):**
+   - **Feature Flag:** Widoczny tylko gdy `Features:TicketImportExport:Enable = true`
+   - **UX:** Nie modal - bezpośrednie pobranie pliku po kliknięciu przycisku "📤 Eksportuj do CSV"
+   - API call: `GET /api/tickets/export-csv`
+   - Response: Plik CSV z automatycznym pobraniem przez przeglądarkę
+   - **Format pliku:**
+     - Nazwa: `lotto-tickets-{userId}-{YYYY-MM-DD}.csv`
+     - Nagłówek: `Number1,Number2,Number3,Number4,Number5,Number6,GroupName`
+     - Wiersze: wszystkie zestawy użytkownika
+   - **Po sukcesie:**
+     - Toast: "Wyeksportowano X zestawów do pliku CSV"
+     - Plik automatycznie pobierany przez przeglądarkę
+   - **Po błędzie:**
+     - ErrorModal: komunikat błędu (np. "Wystąpił problem. Spróbuj ponownie.")
 
 **ErrorModal (używany wszędzie):**
 - Tytuł: "Błąd"
@@ -1057,6 +1102,18 @@ const variantClasses = {
 - Props: `count: number`, `max: number` (default 100)
 - Funkcja `getCounterColor(count)` dla kolorystyki
 
+**ImportCsvModal** - Modal importu zestawów z pliku CSV (Feature Flag)
+- Props: `isOpen: boolean`, `onClose: () => void`, `onImportSuccess: (report) => void`
+- Wykorzystuje file input (accept=".csv,text/csv")
+- Wyświetla raport importu po sukcesie (imported/rejected/errors)
+- API call: `POST /api/tickets/import-csv` (multipart/form-data)
+
+**ExportCsvButton** - Przycisk eksportu do CSV (Feature Flag)
+- Props: `onExportSuccess: (count) => void`
+- Bezpośrednie wywołanie API: `GET /api/tickets/export-csv`
+- Automatyczne pobranie pliku przez przeglądarkę
+- Toast notification po sukcesie
+
 #### 5.2.2 Draws Components
 
 **DrawsFilterPanel** - Panel filtrowania z date range picker
@@ -1118,6 +1175,7 @@ const variantClasses = {
 **Przykłady metod:**
 - Auth: `register()`, `login()`
 - Tickets: `getTickets()`, `createTicket()`, `updateTicket()`, `deleteTicket()`, `generateRandomTicket()`, `generateSystemTickets()`
+- Tickets Import/Export: `importTicketsFromCsv(file)`, `exportTicketsToCsv()` (Feature Flag)
 - Draws: `getDraws(page, pageSize, dateFrom?, dateTo?)`, `createDraw()`, `updateDraw()`, `deleteDraw()`
 - XLotto: `xLottoActualDraws(date, lottoType)` - pobieranie wyników z XLotto.pl przez Gemini API
 - XLotto: `xLottoIsEnabled()` - sprawdzenie Feature Flag (czy funkcja XLotto jest włączona)
@@ -1391,6 +1449,24 @@ const apiService = getApiService()
   - Tooltip wyjaśniający algorytm
   - Walidacja limitu (miejsce na 9)
 
+**F-TICKET-007: Import zestawów z pliku CSV (Feature Flag)**
+- UI: Tickets Page → Przycisk "📥 Importuj z CSV" (warunkowo wyświetlany)
+  - ImportCsvModal
+  - File input (accept=".csv,text/csv", max 1MB)
+  - Wyjaśnienie formatu CSV
+  - API: `POST /api/tickets/import-csv` (multipart/form-data)
+  - Raport importu: imported/rejected/errors
+  - ErrorModal z raportem lub błędami
+  - Toast "Import zakończony. Zaimportowano X zestawów."
+
+**F-TICKET-008: Eksport zestawów do pliku CSV (Feature Flag)**
+- UI: Tickets Page → Przycisk "📤 Eksportuj do CSV" (warunkowo wyświetlany)
+  - ExportCsvButton
+  - Bezpośrednie pobranie pliku (bez modalu)
+  - API: `GET /api/tickets/export-csv`
+  - Format: `lotto-tickets-{userId}-{YYYY-MM-DD}.csv`
+  - Toast "Wyeksportowano X zestawów do pliku CSV"
+
 **F-VERIFY-001: Weryfikacja wygranych w przedziale dat**
 - UI: Checks Page (`/checks`)
   - CheckPanel: Date range picker (default -31 dni) + Button "Sprawdź wygrane"
@@ -1439,7 +1515,8 @@ const apiService = getApiService()
 8. **Accordion dla wyników weryfikacji** (czytelność przy wielu losowaniach)
 9. **Conditional rendering** dla admin features (role-based UI)
 10. **Automatyczne pobieranie wyników z XLotto.pl** (admin) - przycisk "Pobierz z XLotto" wykorzystujący Google Gemini API
-11. **Mobile-first CSS, desktop-first UX**
+11. **Import/eksport zestawów CSV** (Feature Flag) - przyciski "📥 Importuj z CSV" i "📤 Eksportuj do CSV" dla masowego zarządzania zestawami
+12. **Mobile-first CSS, desktop-first UX**
 
 ### 9.2 Gotowość do Implementacji
 

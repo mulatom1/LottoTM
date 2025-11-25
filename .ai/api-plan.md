@@ -859,6 +859,188 @@
 
 ---
 
+#### **POST /api/tickets/import-csv** (Feature Flag)
+
+**Opis:** Import wielu zestawów liczb z pliku CSV
+
+**Feature Flag:** `Features:TicketImportExport:Enable` (true/false)
+
+**Autoryzacja:** Wymagany JWT
+
+**Parametry zapytania:** Brak
+
+**Payload żądania:**
+- Content-Type: `multipart/form-data`
+- Pole: `file` (plik CSV)
+
+**Format pliku CSV:**
+```csv
+Number1,Number2,Number3,Number4,Number5,Number6,GroupName
+5,14,23,29,37,41,Ulubione
+7,15,22,33,38,45,Rodzina
+1,10,20,30,40,49,
+```
+
+**Walidacja:**
+- Nagłówek: `Number1,Number2,Number3,Number4,Number5,Number6,GroupName`
+- `GroupName`: opcjonalny (pusty string jeśli brak)
+- `numbers`: tablica 6 liczb INT z zakresu 1-49, unikalne w zestawie
+- Limit: sprawdzenie czy po imporcie nie przekroczony zostanie limit 100 zestawów
+- Unikalność: sprawdzenie czy importowane zestawy nie są duplikatami istniejących
+
+**Payload odpowiedzi (sukces):**
+```json
+{
+  "imported": 15,
+  "rejected": 2,
+  "errors": [
+    { "row": 3, "reason": "Duplicate ticket" },
+    { "row": 7, "reason": "Invalid number range: 52" }
+  ]
+}
+```
+
+**Kody sukcesu:**
+- `200 OK` - Import zakończony (z raportem)
+
+**Kody błędów:**
+- `401 Unauthorized` - Brak tokenu
+- `400 Bad Request` - Nieprawidłowy format pliku lub limit osiągnięty
+  ```json
+  {
+    "errors": {
+      "file": ["Plik CSV jest wymagany", "Nieprawidłowy format nagłówka"],
+      "limit": ["Osiągnięto limit 100 zestawów. Dostępne: X zestawów."]
+    }
+  }
+  ```
+
+**Logika biznesowa:**
+1. Pobranie `UserId` z JWT
+2. Sprawdzenie Feature Flag: `Features:TicketImportExport:Enable`
+   - Jeśli false: zwróć 404 Not Found lub 403 Forbidden
+3. Odczyt pliku CSV i parsowanie
+4. Walidacja nagłówka CSV
+5. Sprawdzenie limitu dostępnych miejsc:
+   ```csharp
+   var count = await db.Tickets.CountAsync(t => t.UserId == currentUserId);
+   var available = 100 - count;
+   var rowsCount = csvRows.Count;
+   if (rowsCount > available) {
+       return BadRequest(new {
+           errors = new {
+               limit = new[] { $"Osiągnięto limit 100 zestawów. Dostępne: {available} zestawów." }
+           }
+       });
+   }
+   ```
+6. Dla każdego wiersza CSV:
+   - Walidacja: 6 liczb z zakresu 1-49, unikalne w zestawie
+   - Sprawdzenie unikalności zestawu dla użytkownika (pomijanie duplikatów)
+   - Jeśli błąd: dodaj do listy errors (row number + reason)
+   - Jeśli OK: dodaj do listy do importu
+7. Batch insert pomyślnie zwalidowanych zestawów (transakcja):
+   ```csharp
+   foreach (var validTicket in ticketsToImport) {
+       var ticket = new Ticket {
+           UserId = currentUserId,
+           GroupName = validTicket.GroupName,
+           CreatedAt = DateTime.UtcNow
+       };
+       db.Tickets.Add(ticket);
+       await db.SaveChangesAsync(); // Generuje ticket.Id
+
+       for (int i = 0; i < 6; i++) {
+           db.TicketNumbers.Add(new TicketNumber {
+               TicketId = ticket.Id,
+               Position = i + 1,
+               Number = validTicket.Numbers[i]
+           });
+       }
+   }
+   await db.SaveChangesAsync();
+   ```
+8. Zwrot raportu: imported count, rejected count, errors list
+
+**Wydajność:**
+- Batch insert dla wydajności (nie pojedyncze INSERT-y)
+- Limit importu: 100 zestawów maksymalnie (dla jednego użytkownika)
+- Transakcja: albo wszystkie pomyślnie zwalidowane zestawy, albo żaden
+
+---
+
+#### **GET /api/tickets/export-csv** (Feature Flag)
+
+**Opis:** Eksport wszystkich zestawów użytkownika do pliku CSV
+
+**Feature Flag:** `Features:TicketImportExport:Enable` (true/false)
+
+**Autoryzacja:** Wymagany JWT
+
+**Parametry zapytania:** Brak
+
+**Przykład:** `GET /api/tickets/export-csv`
+
+**Payload odpowiedzi (sukces):**
+- Content-Type: `text/csv; charset=utf-8`
+- Content-Disposition: `attachment; filename="lotto-tickets-{userId}-{YYYY-MM-DD}.csv"`
+- Body: Plik CSV
+
+**Format pliku CSV:**
+```csv
+Number1,Number2,Number3,Number4,Number5,Number6,GroupName
+1,10,20,30,40,49,Ulubione
+3,12,18,25,31,44,Rodzina
+```
+
+**Kody sukcesu:**
+- `200 OK` - Plik CSV wygenerowany i zwrócony
+
+**Kody błędów:**
+- `401 Unauthorized` - Brak tokenu
+
+**Logika biznesowa:**
+1. Pobranie `UserId` z JWT
+2. Sprawdzenie Feature Flag: `Features:TicketImportExport:Enable`
+   - Jeśli false: zwróć 404 Not Found lub 403 Forbidden
+3. Pobranie wszystkich zestawów użytkownika z bazy:
+   ```csharp
+   var tickets = await db.Tickets
+       .Where(t => t.UserId == currentUserId)
+       .Include(t => t.Numbers)
+       .OrderBy(t => t.CreatedAt)
+       .ToListAsync();
+   ```
+4. Generowanie CSV:
+   ```csharp
+   var csv = new StringBuilder();
+   csv.AppendLine("Number1,Number2,Number3,Number4,Number5,Number6,GroupName");
+
+   foreach (var ticket in tickets) {
+       var numbers = ticket.Numbers
+           .OrderBy(n => n.Position)
+           .Select(n => n.Number)
+           .ToArray();
+
+       var line = string.Join(",",
+           numbers[0], numbers[1], numbers[2],
+           numbers[3], numbers[4], numbers[5],
+           ticket.GroupName ?? ""
+       );
+       csv.AppendLine(line);
+   }
+   ```
+5. Nazwa pliku: `lotto-tickets-{userId}-{YYYY-MM-DD}.csv`
+6. Zwrot pliku CSV z odpowiednimi headerami:
+   - `Content-Type: text/csv; charset=utf-8`
+   - `Content-Disposition: attachment; filename="..."`
+
+**Wydajność:**
+- Eager loading: `.Include(t => t.Numbers)` aby uniknąć N+1 query
+- Maksymalnie 100 zestawów na użytkownika - plik nie będzie duży
+
+---
+
 ### 2.4 Moduł: Weryfikacja Wygranych (Verification)
 
 ---
@@ -1651,6 +1833,8 @@ public List<int[]> GenerateSystemTickets()
 | DELETE | `/api/tickets/{id}` | Usunięcie zestawu (int) | Tak |
 | POST | `/api/tickets/generate-random` | Generowanie losowego zestawu | Tak |
 | POST | `/api/tickets/generate-system` | Generowanie 9 zestawów systemowych | Tak |
+| POST | `/api/tickets/import-csv` | Import zestawów z pliku CSV (Feature Flag) | Tak |
+| GET | `/api/tickets/export-csv` | Eksport zestawów do pliku CSV (Feature Flag) | Tak |
 | POST | `/api/verification/check` | Weryfikacja wygranych | Tak |
 | GET | `/api/xlotto/actual-draws` | Pobieranie wyników z XLotto.pl przez Gemini API (admin) | Tak (IsAdmin) |
 | GET | `/api/xlotto/is-enabled` | Sprawdzenie czy funkcja XLotto jest włączona | Tak |
