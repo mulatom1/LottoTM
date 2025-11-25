@@ -28,8 +28,8 @@ public class LottoWorker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogDebug("LottoWorker started. Enabled: {Enabled}, Time window: {StartTime} - {EndTime}, Interval: {Interval} minutes",
-            _options.Enable, _options.StartTime, _options.EndTime, _options.IntervalMinutes);
+        _logger.LogDebug("LottoWorker started. Enabled: {Enabled}, Time window: {StartTime} - {EndTime}, Interval: {Interval} minutes, InWeek: {InWeek}",
+            _options.Enable, _options.StartTime, _options.EndTime, _options.IntervalMinutes, string.Join(",", _options.InWeek));
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -38,12 +38,13 @@ public class LottoWorker : BackgroundService
 
             var now = DateTime.Now;
             var currentTime = now.TimeOfDay;
+            var currentDayAbbrev = GetDayAbbreviation(now.DayOfWeek);
 
 
-            // Sprawdź czy worker jest włączony i czy jesteśmy w przedziale czasowym
-            if (_options.Enable && currentTime >= _options.StartTime && currentTime <= _options.EndTime)
+            // Sprawdź czy worker jest włączony, czy jesteśmy w przedziale czasowym i czy dzień jest w InWeek
+            if (_options.Enable && _options.InWeek.Contains(currentDayAbbrev) && currentTime >= _options.StartTime && currentTime <= _options.EndTime)
             {
-                _logger.LogDebug("LottoWorker is in active time window at: {time}", now);
+                _logger.LogDebug("LottoWorker is in active time window at: {time} on day {day}", now, currentDayAbbrev);
 
                 // Sprawd� czy losowania na dzie� ju� istniej�
                 using var scope = _serviceScopeFactory.CreateScope();
@@ -248,6 +249,21 @@ public class LottoWorker : BackgroundService
         {
             _logger.LogError(ex, "Failed to deserialize draw results JSON: {Json}", jsonResults);
         }
+    }
+
+    private static string GetDayAbbreviation(DayOfWeek dayOfWeek)
+    {
+        return dayOfWeek switch
+        {
+            DayOfWeek.Monday => "PN",
+            DayOfWeek.Tuesday => "WT",
+            DayOfWeek.Wednesday => "SR",
+            DayOfWeek.Thursday => "CZ",
+            DayOfWeek.Friday => "PT",
+            DayOfWeek.Saturday => "SO",
+            DayOfWeek.Sunday => "ND",
+            _ => throw new ArgumentOutOfRangeException(nameof(dayOfWeek), dayOfWeek, null)
+        };
     }
 
     // DTOs for deserializing draw results
