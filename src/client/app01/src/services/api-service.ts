@@ -25,6 +25,8 @@ import type { VerificationCheckResponse } from "./contracts/verification-check-r
 import type { XLottoActualDrawsRequest } from "./contracts/xlotto-actual-draws-request";
 import type { XLottoActualDrawsResponse } from "./contracts/xlotto-actual-draws-response";
 import type { XLottoIsEnabledResponse } from "./contracts/xlotto-is-enabled-response";
+import type { TicketsImportCsvResponse } from "./contracts/tickets-import-csv-response";
+import type { TicketsDeleteAllResponse } from "./contracts/tickets-delete-all-response";
 
 export class ApiService {
     private apiUrl: string = '';
@@ -921,6 +923,140 @@ export class ApiService {
       }
 
       const result: XLottoIsEnabledResponse = await response.json();
+      return result;
+    }
+
+    /**
+     * Import lottery tickets from CSV file
+     * POST /api/tickets/import-csv
+     * @param file - CSV file with ticket data (max 1MB)
+     * @returns Promise<TicketsImportCsvResponse> - Import report with imported/rejected counts and errors
+     * @throws Error if unauthorized (401), feature disabled (404), validation fails (400), limit exceeded (400), or server error occurs (500)
+     */
+    public async ticketsImportCsv(file: File): Promise<TicketsImportCsvResponse> {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Get headers without Content-Type to let browser set multipart/form-data boundary
+      const headers: Record<string, string> = {
+        'X-TOKEN': this.appToken,
+        'Authorization': `Bearer ${this.usrToken}`,
+      };
+
+      const response = await fetch(`${this.apiUrl}/api/tickets/import-csv`, {
+        method: 'POST',
+        headers: headers,
+        body: formData
+      });
+
+      if (!response.ok) {
+        // Handle different error scenarios
+        if (response.status === 401) {
+          throw new Error('Brak autoryzacji. Wymagany token JWT.');
+        }
+
+        if (response.status === 404) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Funkcja importu CSV jest wyłączona');
+        }
+
+        if (response.status === 400) {
+          const errorData = await response.json();
+
+          // Extract validation errors from the response
+          if (errorData.errors) {
+            const errorMessages = Object.entries(errorData.errors)
+              .map(([field, messages]) => {
+                const msgArray = messages as string[];
+                return `${field}: ${msgArray.join(', ')}`;
+              })
+              .join('; ');
+            throw new Error(errorMessages);
+          }
+
+          // Handle specific business logic errors (e.g., limit exceeded)
+          if (errorData.detail) {
+            throw new Error(errorData.detail);
+          }
+
+          throw new Error('Błąd walidacji pliku CSV');
+        }
+
+        if (response.status === 500) {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || 'Błąd serwera podczas importu CSV');
+        }
+
+        throw new Error(`Error importing CSV: ${response.statusText}`);
+      }
+
+      const result: TicketsImportCsvResponse = await response.json();
+      return result;
+    }
+
+    /**
+     * Export all user tickets to CSV file
+     * GET /api/tickets/export-csv
+     * @returns Promise<Blob> - CSV file content as blob for download
+     * @throws Error if unauthorized (401), feature disabled (404), or server error occurs (500)
+     */
+    public async ticketsExportCsv(): Promise<Blob> {
+      const response = await fetch(`${this.apiUrl}/api/tickets/export-csv`, {
+        method: 'GET',
+        headers: this.getHeaders()
+      });
+
+      if (!response.ok) {
+        // Handle different error scenarios
+        if (response.status === 401) {
+          throw new Error('Brak autoryzacji. Wymagany token JWT.');
+        }
+
+        if (response.status === 404) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Funkcja eksportu CSV jest wyłączona');
+        }
+
+        if (response.status === 500) {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || 'Błąd serwera podczas eksportu CSV');
+        }
+
+        throw new Error(`Error exporting CSV: ${response.statusText}`);
+      }
+
+      // Return the response as a Blob for file download
+      const blob = await response.blob();
+      return blob;
+    }
+
+    /**
+     * Delete all tickets for the authenticated user
+     * DELETE /api/tickets/all
+     * @returns Promise<TicketsDeleteAllResponse> - Success message and deleted count
+     * @throws Error if unauthorized (401) or server error occurs (500)
+     */
+    public async ticketsDeleteAll(): Promise<TicketsDeleteAllResponse> {
+      const response = await fetch(`${this.apiUrl}/api/tickets/all`, {
+        method: 'DELETE',
+        headers: this.getHeaders()
+      });
+
+      if (!response.ok) {
+        // Handle different error scenarios
+        if (response.status === 401) {
+          throw new Error('Brak autoryzacji. Wymagany token JWT.');
+        }
+
+        if (response.status === 500) {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || 'Błąd serwera podczas usuwania zestawów');
+        }
+
+        throw new Error(`Error deleting all tickets: ${response.statusText}`);
+      }
+
+      const result: TicketsDeleteAllResponse = await response.json();
       return result;
     }
 }

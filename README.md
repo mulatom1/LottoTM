@@ -23,6 +23,7 @@ LottoTM is a full-stack web application designed to solve a common problem for l
 - **Error Prevention**: Eliminates human error through automated number matching
 - **Organized Management**: Store and manage up to 100 ticket sets per user with data isolation
 - **Smart Generators**: Random ticket generator and system generator (covering all numbers 1-49)
+- **Import/Export**: Bulk import tickets from CSV files and export your tickets for backup
 - **Flexible Checking**: Verify wins across custom date ranges with visual highlighting
 - **Real-time Validation**: Input validation with instant feedback for all user entries
 
@@ -224,6 +225,7 @@ Edit `appsettings.json` or `appsettings.Development.json` in `src/server/LottoTM
 - `GoogleGemini:ApiKey` - Google Gemini API key (base64 encoded) for XLottoService
 - `GoogleGemini:Model` - Gemini model to use (default: "gemini-2.0-flash")
 - `GoogleGemini:Enable` - **Feature Flag** to enable/disable XLotto on-demand functionality (default: false)
+- `Features:TicketImportExport:Enable` - **Feature Flag** to enable/disable CSV Import/Export functionality (default: false, enabled in development)
 - `LottoWorker` - Background worker configuration (**Feature Flag**)
   - `Enable` - Enable/disable worker (default: false)
   - `StartTime` - Worker start time (default: "22:15:00")
@@ -333,6 +335,11 @@ dotnet ef database update --project src/server/LottoTM.Server.Api
 - ✅ Random ticket generator
 - ✅ System generator (creates 9 tickets covering all numbers 1-49)
 - ✅ Duplicate prevention system
+- ✅ **CSV Import** - Bulk import tickets from CSV file (Feature Flag controlled)
+  - Validates format, range (1-49), uniqueness, and limit (100 tickets)
+  - Detailed import report with imported/rejected counts and error details
+  - Max file size: 1MB
+- ✅ **CSV Export** - Export all tickets to CSV file for backup or analysis
 
 **Win Verification**
 - ✅ Check tickets against draw results within custom date range
@@ -344,8 +351,6 @@ dotnet ef database update --project src/server/LottoTM.Server.Api
 
 - ❌ Support for other lottery games (MINI LOTTO, EuroJackpot, etc.)
 - ❌ Email verification during registration
-- ❌ Automatic draw result fetching from external APIs
-- ❌ Import/Export tickets (CSV, PDF)
 - ❌ Email or push notifications for wins
 - ❌ Social features (sharing tickets)
 - ❌ Native mobile applications
@@ -372,6 +377,7 @@ The project is actively under development with a focus on delivering core MVP fu
 - ✅ Comprehensive test coverage (Unit, Integration, Service tests)
 - ✅ Integration tests with WebApplicationFactory
 - ✅ XLotto integration with Google Gemini API (29 tests passing)
+- ✅ CSV Import/Export endpoints (18 integration tests passing)
 
 ### Performance Metrics
 
@@ -379,6 +385,17 @@ The project is actively under development with a focus on delivering core MVP fu
 
 ### Recent Updates
 
+- **CSV Import/Export Feature**: Implemented bulk ticket import and export functionality
+  - **Import CSV** (`POST /api/tickets/import-csv`): Upload CSV files with ticket data
+    - Validates CSV format, number ranges (1-49), uniqueness, and user limits
+    - Returns detailed import report (imported/rejected counts, error details)
+    - Feature Flag controlled: `Features:TicketImportExport:Enable`
+    - Max file size: 1MB
+  - **Export CSV** (`GET /api/tickets/export-csv`): Download all user tickets as CSV
+    - CSV format: `Number1,Number2,Number3,Number4,Number5,Number6,GroupName`
+    - Preserves number positions and handles UTF-8 encoding
+  - **Comprehensive test coverage**: 18 integration tests (ImportCsv: 11, ExportCsv: 7)
+  - Documentation: `.ai/view-implementation-api/tickets-import-csv.md` and `tickets-export-csv.md`
 - **LottoOpenApiService - New Dedicated Service**: Refactored background worker to use dedicated service
   - New `LottoOpenApiService` for direct communication with official Lotto.pl OpenApi
   - Separates concerns: Worker uses LottoOpenApiService, XLotto endpoint uses XLottoService
@@ -416,4 +433,4 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 **Author**: Tomasz Mularczyk
 **GitHub**: [github.com/mulatom1/LottoTM](https://github.com/mulatom1/LottoTM)
 **Live Demo**: [tomsoft1.pl/lottotm](https://tomsoft1.pl/lottotm)
-**Last Updated**: November 11, 2025
+**Last Updated**: November 25, 2025

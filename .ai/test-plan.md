@@ -38,6 +38,8 @@ Główne cele procesu testowego to:
     *   [x] Składanie nowych kuponów przez użytkowników.
     *   [x] Walidacja numerów na kuponach.
     *   [x] Pobieranie kuponów użytkownika.
+    *   [x] Import kuponów z pliku CSV (Feature Flag).
+    *   [x] Eksport kuponów do pliku CSV (Feature Flag).
 *   **[x] Weryfikacja wyników (Verification):**
     *   [x] Mechanizm sprawdzania wygranych dla danego kuponu.
 *   **[x] System XLotto (On-Demand Fetching):**
@@ -130,6 +132,41 @@ Proces testowy zostanie podzielony na następujące poziomy i typy:
 *   **[ ] TC34:** Obsługa błędnych formatów danych w odpowiedzi API.
 *   **[ ] TC35:** Poprawne ustawienie headers (User-Agent, Accept, secret).
 *   **[ ] TC36:** Poprawne logowanie informacji podczas operacji LottoOpenApiService.
+
+### 4.6. Import i Eksport Kuponów CSV (Feature Flag)
+
+#### Import Kuponów (POST /api/tickets/import-csv)
+
+*   **[x] TC37:** Pomyślny import kuponów z poprawnym plikiem CSV.
+*   **[x] TC38:** Import częściowo niepoprawnych danych (niektóre wiersze odrzucone).
+*   **[x] TC39:** Próba importu z niepoprawnym nagłówkiem CSV (oczekiwany błąd 400).
+*   **[x] TC40:** Próba importu pliku nie-CSV (oczekiwany błąd 400).
+*   **[x] TC41:** Próba importu pliku przekraczającego 1MB (oczekiwany błąd 400).
+*   **[x] TC42:** Próba importu gdy osiągnięto limit 100 kuponów (oczekiwany błąd 400).
+*   **[x] TC43:** Import z duplikującymi się kuponami w pliku CSV (duplikaty odrzucone).
+*   **[x] TC44:** Import z duplikatami istniejących kuponów w bazie (duplikaty odrzucone, różna kolejność liczb).
+*   **[x] TC45:** Próba importu bez autentykacji (oczekiwany błąd 401).
+*   **[x] TC46:** Próba importu gdy Feature Flag wyłączony (oczekiwany błąd 404).
+*   **[x] TC47:** Weryfikacja izolacji danych między użytkownikami podczas importu.
+
+#### Eksport Kuponów (GET /api/tickets/export-csv)
+
+*   **[x] TC48:** Pomyślny eksport wielu kuponów do CSV.
+*   **[x] TC49:** Eksport gdy użytkownik nie ma kuponów (tylko nagłówek CSV).
+*   **[x] TC50:** Eksport kuponów ze znakami specjalnymi w GroupName (ĄĘŚ).
+*   **[x] TC51:** Weryfikacja izolacji danych - eksport tylko kuponów bieżącego użytkownika.
+*   **[x] TC52:** Weryfikacja zachowania kolejności liczb w eksportowanym CSV.
+*   **[x] TC53:** Próba eksportu bez autentykacji (oczekiwany błąd 401).
+*   **[x] TC54:** Próba eksportu gdy Feature Flag wyłączony (oczekiwany błąd 404).
+*   **[x] TC55:** Eksport dużej liczby kuponów (50+) - weryfikacja poprawności.
+
+#### Walidacja Danych CSV
+
+*   **[x] TC56:** Walidacja formatu CSV (Number1,Number2,Number3,Number4,Number5,Number6,GroupName).
+*   **[x] TC57:** Walidacja zakresu liczb (1-49) podczas importu.
+*   **[x] TC58:** Walidacja unikalności liczb w zestawie (6 unikalnych liczb).
+*   **[x] TC59:** Walidacja liczby kolumn w wierszu CSV (minimum 6).
+*   **[x] TC60:** Weryfikacja poprawności kodowania UTF-8 w importowanych/eksportowanych plikach.
 
 ---
 

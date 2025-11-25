@@ -41,7 +41,9 @@ TicketsPage (główny kontener)
 ├── Action Buttons Row
 │   ├── Button: "+ Dodaj ręcznie" (primary)
 │   ├── Button: "🎲 Generuj losowy" (secondary)
-│   └── Button: "🔢 Generuj systemowy" (secondary)
+│   ├── Button: "🔢 Generuj systemowy" (secondary)
+│   ├── Button: "📥 Importuj z CSV" (secondary, Feature Flag)
+│   └── ExportCsvButton: "📤 Eksportuj do CSV" (secondary, Feature Flag)
 │
 ├── TicketList (lista zestawów)
 │   ├── Empty State (jeśli brak zestawów)
@@ -66,6 +68,11 @@ TicketsPage (główny kontener)
 │   ├── DeleteConfirmModal
 │   │   ├── Treść: "Czy na pewno chcesz usunąć zestaw? [3, 12, 25, 31, 42, 48]"
 │   │   └── Buttons: [Anuluj] [Usuń] (danger)
+│   ├── ImportCsvModal (Feature Flag)
+│   │   ├── Wyjaśnienie formatu CSV + przykład
+│   │   ├── File input (accept=".csv", max 1MB)
+│   │   ├── Raport importu (po imporcie): imported/rejected/errors
+│   │   └── Buttons: [Anuluj] [Importuj]
 │   └── ErrorModal (dla wszystkich błędów)
 │       ├── Tytuł: "Błąd"
 │       ├── Lista błędów: • Błąd 1, • Błąd 2
@@ -101,6 +108,9 @@ Główny komponent-strona zarządzający stanem widoku Tickets, obsługujący ws
 - `onSaveGeneratedRandom(numbers)` - zapisuje wygenerowany losowy zestaw
 - `onSaveGeneratedSystem(tickets)` - zapisuje 9 wygenerowanych zestawów
 - `onConfirmDelete(ticketId)` - usuwa zestaw (API call)
+- `onImportCsv()` - otwiera modal importu CSV (Feature Flag)
+- `onImportSuccess(report)` - callback po pomyślnym imporcie, odświeża listę
+- `onExportCsv()` - wywołuje eksport do CSV, pobiera plik (Feature Flag)
 - `refreshTicketList()` - odświeża listę zestawów (API call GET /api/tickets)
 
 **Warunki walidacji:**
@@ -641,6 +651,310 @@ interface DeleteConfirmModalProps {
 
 ---
 
+### 4.9 ImportCsvModal (import zestawów z CSV)
+
+**Feature Flag:** Komponent widoczny tylko gdy `Features:TicketImportExport:Enable = true`
+
+**Opis komponentu:**
+Modal pozwalający na masowy import zestawów liczb z pliku CSV. Wyświetla formularz z file input, wyjaśnienie formatu CSV oraz raport z importu po zakończeniu operacji.
+
+**Główne elementy:**
+```tsx
+<Modal isOpen={isOpen} onClose={onClose} title="Importuj zestawy z CSV" size="lg">
+  <div className="mb-6">
+    {/* Wyjaśnienie formatu */}
+    <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded">
+      <h3 className="font-semibold mb-2">Format pliku CSV:</h3>
+      <p className="text-sm mb-2">Nagłówek + wiersze z danymi</p>
+      <code className="text-xs bg-gray-100 p-2 block rounded">
+        Number1,Number2,Number3,Number4,Number5,Number6,GroupName<br/>
+        5,14,23,29,37,41,Ulubione<br/>
+        7,15,22,33,38,45,Rodzina
+      </code>
+      <p className="text-xs text-gray-600 mt-2">
+        GroupName jest opcjonalny. Maksymalny rozmiar pliku: 1MB
+      </p>
+    </div>
+
+    {/* File input */}
+    <div className="mb-4">
+      <label htmlFor="csv-file" className="block text-sm font-medium mb-2">
+        Wybierz plik CSV
+      </label>
+      <input
+        id="csv-file"
+        type="file"
+        accept=".csv,text/csv"
+        onChange={handleFileChange}
+        className="block w-full text-sm border border-gray-300 rounded p-2"
+      />
+      {selectedFile && (
+        <p className="text-xs text-gray-600 mt-1">
+          Wybrany plik: {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)
+        </p>
+      )}
+    </div>
+
+    {/* Raport z importu (wyświetlany po imporcie) */}
+    {importReport && (
+      <div className={`p-4 rounded mb-4 ${
+        importReport.rejected === 0 ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'
+      }`}>
+        <h4 className="font-semibold mb-2">Raport importu:</h4>
+        <p className="text-sm">✅ Zaimportowano: {importReport.imported} zestawów</p>
+        <p className="text-sm">❌ Odrzucono: {importReport.rejected} zestawów</p>
+        {importReport.errors.length > 0 && (
+          <div className="mt-2">
+            <p className="text-sm font-semibold">Błędy:</p>
+            <ul className="text-xs list-disc list-inside">
+              {importReport.errors.map((error, idx) => (
+                <li key={idx}>Wiersz {error.row}: {error.reason}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    )}
+
+    {/* Loading state */}
+    {isLoading && (
+      <div className="flex items-center justify-center py-4">
+        <Spinner size="md" text="Importowanie..." />
+      </div>
+    )}
+  </div>
+
+  <div className="flex justify-end gap-2">
+    <Button onClick={onClose} variant="secondary" disabled={isLoading}>
+      {importReport ? 'Zamknij' : 'Anuluj'}
+    </Button>
+    {!importReport && (
+      <Button
+        onClick={handleImport}
+        variant="primary"
+        disabled={!selectedFile || isLoading}
+      >
+        Importuj
+      </Button>
+    )}
+  </div>
+</Modal>
+```
+
+**Obsługiwane interakcje:**
+- **Wybór pliku:** `<input type="file">` z validacją rozmiaru (max 1MB)
+- **Kliknięcie [Importuj]:**
+  - Walidacja frontend: czy plik wybrany, czy rozmiar ≤ 1MB
+  - API call `POST /api/tickets/import-csv` (multipart/form-data)
+  - Loading state: disabled buttons, spinner
+  - Po sukcesie: wyświetlenie raportu importu w modalu
+  - Toast: "Import zakończony. Zaimportowano X zestawów." (jeśli imported > 0)
+  - Lista zestawów odświeża się automatycznie po zamknięciu modalu
+  - Po błędzie: ErrorModal z komunikatami z backendu
+- **Kliknięcie [Anuluj]/[Zamknij]:** Zamyka modal, czyści stan
+
+**Obsługiwana walidacja:**
+- **Frontend:**
+  - Sprawdzenie typu pliku (.csv)
+  - Sprawdzenie rozmiaru (max 1MB)
+  - Disabled [Importuj] button jeśli brak pliku
+- **Backend:**
+  - Walidacja nagłówka CSV
+  - Walidacja każdego wiersza (6 liczb 1-49, unikalność)
+  - Sprawdzenie limitu 100 zestawów
+  - Sprawdzenie unikalności zestawów (pomijanie duplikatów)
+
+**Typy:**
+```tsx
+interface ImportCsvModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onImportSuccess: (report: ImportReport) => void;
+}
+
+interface ImportReport {
+  imported: number;
+  rejected: number;
+  errors: ImportError[];
+}
+
+interface ImportError {
+  row: number;
+  reason: string;
+}
+```
+
+**Stan lokalny komponentu:**
+```tsx
+const [selectedFile, setSelectedFile] = useState<File | null>(null);
+const [isLoading, setIsLoading] = useState(false);
+const [importReport, setImportReport] = useState<ImportReport | null>(null);
+```
+
+**Logika importu:**
+```tsx
+const handleImport = async () => {
+  if (!selectedFile) return;
+
+  setIsLoading(true);
+  const formData = new FormData();
+  formData.append('file', selectedFile);
+
+  try {
+    const report = await apiService.importTicketsFromCsv(formData);
+    setImportReport(report);
+
+    if (report.imported > 0) {
+      showToast(`Import zakończony. Zaimportowano ${report.imported} zestawów.`, 'success');
+      onImportSuccess(report);
+    }
+  } catch (error) {
+    handleApiError(error);
+    onClose();
+  } finally {
+    setIsLoading(false);
+  }
+};
+```
+
+**Accessibility:**
+- Label powiązany z file input (`htmlFor="csv-file"`)
+- Loading state z tekstem "Importowanie..." dla screen readers
+- Raport z emoji (✅, ❌) + text dla semantyki
+
+---
+
+### 4.10 ExportCsvButton (eksport zestawów do CSV)
+
+**Feature Flag:** Komponent widoczny tylko gdy `Features:TicketImportExport:Enable = true`
+
+**Opis komponentu:**
+Przycisk uruchamiający bezpośredni eksport wszystkich zestawów użytkownika do pliku CSV. Nie wymaga modalu - po kliknięciu natychmiast pobiera plik.
+
+**Główne elementy:**
+```tsx
+<Button
+  onClick={handleExport}
+  variant="secondary"
+  disabled={isLoading || ticketCount === 0}
+  aria-label="Eksportuj zestawy do pliku CSV"
+>
+  {isLoading ? (
+    <>
+      <Spinner size="sm" />
+      <span className="ml-2">Eksportowanie...</span>
+    </>
+  ) : (
+    <>
+      <span className="mr-2">📤</span>
+      Eksportuj do CSV
+    </>
+  )}
+</Button>
+```
+
+**Obsługiwane interakcje:**
+- **Kliknięcie przycisku:**
+  - Loading state: disabled button, spinner
+  - API call `GET /api/tickets/export-csv`
+  - Response: Plik CSV z automatycznym pobraniem
+  - Po sukcesie:
+    - Toast: "Wyeksportowano X zestawów do pliku CSV"
+    - Plik pobiera się automatycznie (Content-Disposition: attachment)
+  - Po błędzie: ErrorModal z komunikatem
+- **Disabled gdy:**
+  - `ticketCount === 0` (brak zestawów do eksportu)
+  - `isLoading === true` (trwa eksport)
+
+**Typy:**
+```tsx
+interface ExportCsvButtonProps {
+  ticketCount: number;                    // Liczba zestawów użytkownika
+  onExportSuccess: (count: number) => void;
+}
+```
+
+**Stan lokalny komponentu:**
+```tsx
+const [isLoading, setIsLoading] = useState(false);
+```
+
+**Logika eksportu:**
+```tsx
+const handleExport = async () => {
+  setIsLoading(true);
+
+  try {
+    // API zwraca Blob z plikiem CSV
+    const blob = await apiService.exportTicketsToCsv();
+
+    // Automatyczne pobranie pliku
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `lotto-tickets-${userId}-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+
+    showToast(`Wyeksportowano ${ticketCount} zestawów do pliku CSV`, 'success');
+    onExportSuccess(ticketCount);
+  } catch (error) {
+    handleApiError(error);
+  } finally {
+    setIsLoading(false);
+  }
+};
+```
+
+**Alternatywna implementacja (jeśli backend zwraca URL):**
+```tsx
+const handleExport = async () => {
+  setIsLoading(true);
+
+  try {
+    // Bezpośrednie wywołanie endpointu - przeglądarka pobierze plik automatycznie
+    const response = await fetch('/api/tickets/export-csv', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) throw new Error('Export failed');
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `lotto-tickets-${userId}-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    window.URL.revokeObjectURL(url);
+
+    showToast(`Wyeksportowano ${ticketCount} zestawów do pliku CSV`, 'success');
+    onExportSuccess(ticketCount);
+  } catch (error) {
+    handleApiError(error);
+  } finally {
+    setIsLoading(false);
+  }
+};
+```
+
+**Accessibility:**
+- `aria-label="Eksportuj zestawy do pliku CSV"` dla screen readers
+- Loading state z tekstem "Eksportowanie..."
+- Disabled state gdy brak zestawów (z odpowiednim visual feedback)
+
+**UX considerations:**
+- Przycisk secondary (nie primary) - mniej prominentny niż główne akcje
+- Icon 📤 dla wizualnej identyfikacji
+- Tooltip (opcjonalnie): "Pobierz wszystkie zestawy w formacie CSV"
+- Disabled gdy `ticketCount === 0` z tooltip: "Brak zestawów do eksportu"
+
+---
+
 ## 5. Typy
 
 ### 5.1 DTO (Data Transfer Objects) - kontrakty z API
@@ -692,6 +1006,23 @@ interface GenerateRandomResponse {
 interface GenerateSystemResponse {
   message: string;                        // "9 zestawów wygenerowanych i zapisanych pomyślnie"
 }
+
+// POST /api/tickets/import-csv response (Feature Flag)
+interface ImportCsvResponse {
+  imported: number;                       // Liczba pomyślnie zaimportowanych zestawów
+  rejected: number;                       // Liczba odrzuconych zestawów
+  errors: ImportError[];                  // Lista błędów
+}
+
+interface ImportError {
+  row: number;                            // Numer wiersza w pliku CSV (1-based)
+  reason: string;                         // Przyczyna odrzucenia
+}
+
+// GET /api/tickets/export-csv response (Feature Flag)
+// Response: Blob (plik CSV) z headers:
+//   Content-Type: text/csv; charset=utf-8
+//   Content-Disposition: attachment; filename="lotto-tickets-{userId}-{YYYY-MM-DD}.csv"
 
 // Błąd API (400 Bad Request)
 interface ApiErrorResponse {
@@ -785,6 +1116,17 @@ interface DeleteConfirmModalProps {
   onClose: () => void;
   ticket: Ticket;
   onConfirm: (ticketId: number) => Promise<void>;
+}
+
+interface ImportCsvModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onImportSuccess: (report: ImportCsvResponse) => void;
+}
+
+interface ExportCsvButtonProps {
+  ticketCount: number;
+  onExportSuccess: (count: number) => void;
 }
 ```
 

@@ -34,6 +34,9 @@ Wielu graczy LOTTO posiada liczne, często zróżnicowane zestawy liczb. Ręczne
     *   **Pojedynczy zestaw losowy:** Automatyczne generowanie nowego, unikalnego zestawu liczb.
     *   **Generowanie "systemowe":** Tworzenie do 9 zestawów, które łącznie pokrywają wszystkie 49 liczb w grze, maksymalizując szanse na trafienie.
 *   **Usuwanie zestawów:** Możliwość łatwego usunięcia wybranego zestawu.
+*   **Imort/export zestawów (Feature Flag):**
+    *   **Import z pliku CSV:** Umożliwienie użytkownikowi importu wielu zestawów liczb z pliku CSV.
+    *   **Eksport do pliku CSV:** Możliwość eksportu zapisanych zestawów do pliku CSV dla celów archiwizacji lub analizy.
 *   **Weryfikacja wygranych:**
     *   Funkcja sprawdzania, czy któryś z zapisanych zestawów okazał się wygrany w określonym przedziale dat.
     *   System precyzyjnie wskaże zwycięski zestaw oraz wyróżni trafione liczby.
@@ -42,7 +45,7 @@ Wielu graczy LOTTO posiada liczne, często zróżnicowane zestawy liczb. Ręczne
 
 #### **Funkcje wyłączone z zakresu MVP (do rozważenia w przyszłości):**
 
-*   Import i eksport zestawów liczb z plików zewnętrznych (np. CSV, PDF).
+*   Import i eksport zestawów liczb z plików zewnętrznych innych niż CSV (np. PDF).
 *   Funkcje społecznościowe, takie jak współdzielenie zestawów z innymi użytkownikami.
 *   Integracje z zewnętrznymi systemami (np. automatyczne pobieranie wyników losowań).
 *   Dedykowana aplikacja mobilna (w pierwszej fazie projekt dostępny będzie jako aplikacja webowa).
