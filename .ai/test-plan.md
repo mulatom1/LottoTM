@@ -1,4 +1,3 @@
-
 # Plan Testów Aplikacji LottoTM
 
 ---
@@ -40,6 +39,7 @@ Główne cele procesu testowego to:
     *   [x] Pobieranie kuponów użytkownika.
     *   [x] Import kuponów z pliku CSV (Feature Flag).
     *   [x] Eksport kuponów do pliku CSV (Feature Flag).
+    *   [x] Usuwanie wszystkich kuponów użytkownika.
 *   **[x] Weryfikacja wyników (Verification):**
     *   [x] Mechanizm sprawdzania wygranych dla danego kuponu.
 *   **[x] System XLotto (On-Demand Fetching):**
@@ -168,6 +168,16 @@ Proces testowy zostanie podzielony na następujące poziomy i typy:
 *   **[x] TC59:** Walidacja liczby kolumn w wierszu CSV (minimum 6).
 *   **[x] TC60:** Weryfikacja poprawności kodowania UTF-8 w importowanych/eksportowanych plikach.
 
+### 4.7. Usuwanie Wszystkich Kuponów (DELETE /api/tickets/all)
+
+*   **[x] TC61:** Pomyślne usunięcie wszystkich kuponów zalogowanego użytkownika (zwraca liczbę usuniętych kuponów).
+*   **[x] TC62:** Usunięcie gdy użytkownik nie ma żadnych kuponów (zwraca 0 i odpowiedni komunikat).
+*   **[x] TC63:** Weryfikacja izolacji danych - usuwane są tylko kupony zalogowanego użytkownika, kupony innych pozostają nienaruszone.
+*   **[x] TC64:** Usunięcie dużej liczby kuponów (20+) - weryfikacja poprawności operacji.
+*   **[x] TC65:** Próba usunięcia bez autentykacji (oczekiwany błąd 401).
+*   **[x] TC66:** Próba usunięcia z niepoprawnym tokenem JWT (oczekiwany błąd 401).
+*   **[x] TC67:** Weryfikacja kaskadowego usuwania powiązanych TicketNumbers (integralność danych).
+
 ---
 
 ## 5. Środowisko Testowe
@@ -267,4 +277,4 @@ Zostaną przygotowane trzy główne środowiska:
     *   **Załączniki:** Zrzuty ekranu, logi, nagrania wideo.
 3.  Błąd jest przypisywany do odpowiedniego dewelopera.
 4.  Po naprawieniu błędu, Inżynier QA przeprowadza re-testy w celu weryfikacji poprawki.
-5.  Błąd zostaje zamknięty po pomyślnej weryfikacji.
+5.  Błąd zostaje zamknięty po pomyślnym weryfikacji.
