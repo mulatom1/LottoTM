@@ -2,7 +2,7 @@
 
 ## 1. Przegląd punktu końcowego
 
-Ten punkt końcowy umożliwia zalogowanemu użytkownikowi weryfikację wszystkich swoich zapisanych zestawów liczb (kuponów) względem oficjalnych wyników losowań w zadanym zakresie dat. System porównuje każdy kupon z każdym losowaniem i zwraca listę trafień (minimum 3 zgodne liczby).
+Ten punkt końcowy umożliwia zalogowanemu użytkownikowi weryfikację swoich zapisanych zestawów liczb (kuponów) względem oficjalnych wyników losowań w zadanym zakresie dat. System porównuje każdy kupon z każdym losowaniem i zwraca listę trafień (minimum 3 zgodne liczby). Opcjonalnie użytkownik może przefiltrować kupony według nazwy grupy (groupName) - w takim przypadku weryfikowane będą tylko kupony należące do wybranej grupy.
 
 ## 2. Szczegóły żądania
 
@@ -16,19 +16,21 @@ Ten punkt końcowy umożliwia zalogowanemu użytkownikowi weryfikację wszystkic
   ```json
   {
     "dateFrom": "2025-10-01",
-    "dateTo": "2025-10-31"
+    "dateTo": "2025-10-31",
+    "groupName": "Ulubione"
   }
   ```
 
   - `dateFrom` (string, "YYYY-MM-DD"): Data początkowa okresu weryfikacji.
   - `dateTo` (string, "YYYY-MM-DD"): Data końcowa okresu weryfikacji.
+  - `groupName` (string, opcjonalne): Nazwa grupy kuponów do filtrowania (wyszukiwanie częściowe). Jeśli podane, weryfikowane są tylko kupony, których nazwa grupy zawiera podany tekst (case-insensitive). Jeśli puste lub nie podane, weryfikowane są wszystkie kupony użytkownika.
 
 ## 3. Wykorzystywane typy
 
 Wszystkie typy zostaną zdefiniowane w nowym folderze `Features/Verification/Check`.
 
 - **`Contracts.cs`**:
-  - `Request(DateOnly DateFrom, DateOnly DateTo)`: Model żądania.
+  - `Request(DateOnly DateFrom, DateOnly DateTo, string? GroupName)`: Model żądania.
   - `Response(List<TicketVerificationResult> Results, int TotalTickets, int TotalDraws, long ExecutionTimeMs)`: Model odpowiedzi.
   - `TicketVerificationResult(int TicketId, string GroupName, List<int> TicketNumbers, List<DrawVerificationResult> Draws)`: Wynik dla pojedynczego kuponu.
   - `DrawVerificationResult(int DrawId, DateOnly DrawDate, string LottoType, List<int> DrawNumbers, int Hits, List<int> WinningNumbers)`: Wynik trafienia w losowaniu.
@@ -82,9 +84,9 @@ Wszystkie typy zostaną zdefiniowane w nowym folderze `Features/Verification/Che
 5. Handler pobiera `UserId` z `ClaimsPrincipal` (z `IHttpContextAccessor`).
 6. Handler uruchamia `Stopwatch` do pomiaru czasu.
 7. Handler wykonuje dwa równoległe zapytania do bazy danych (`AppDbContext`):
-   a. Pobiera wszystkie kupony (`Tickets`) wraz z ich numerami (`TicketNumbers`) i nazwami grup (`GroupName`) dla danego `UserId`.
+   a. Pobiera kupony (`Tickets`) wraz z ich numerami (`TicketNumbers`) i nazwami grup (`GroupName`) dla danego `UserId`. Jeśli w żądaniu podano `GroupName`, filtruje kupony tylko do tych, których `GroupName` zawiera podany tekst (wyszukiwanie częściowe, case-insensitive używając `.ToLower().Contains()`).
    b. Pobiera wszystkie losowania (`Draws`) wraz z ich numerami (`DrawNumbers`) i typami gry (`LottoType`) w zadanym zakresie dat.
-8. W pamięci serwera, handler iteruje po każdym kuponie użytkownika.
+8. W pamięci serwera, handler iteruje po każdym pobranym kuponie użytkownika.
 9. Dla każdego kuponu, iteruje po każdym pobranym losowaniu.
 10. Za pomocą `Enumerable.Intersect`, znajduje liczbę trafień między numerami kuponu a numerami losowania.
 11. Jeśli liczba trafień jest równa lub większa niż 3, tworzy obiekt `DrawVerificationResult` i dodaje go do listy trafień dla danego kuponu.
@@ -113,7 +115,7 @@ Wszystkie typy zostaną zdefiniowane w nowym folderze `Features/Verification/Che
 ## 9. Etapy wdrożenia
 
 1. Utworzenie nowego folderu w projekcie `LottoTM.Server.Api`: `src/server/LottoTM.Server.Api/Features/Verification/Check`.
-2. W folderze `Check` utwórz plik `Contracts.cs` i zdefiniuj w nim rekordy: `Request`, `Response`, `TicketVerificationResult`, `DrawVerificationResult`.
+2. W folderze `Check` utwórz plik `Contracts.cs` i zdefiniuj w nim rekordy: `Request` (z opcjonalnym parametrem `GroupName`), `Response`, `TicketVerificationResult`, `DrawVerificationResult`.
 3. Utwórz plik `Validator.cs` i zaimplementuj logikę walidacji dla `Request` przy użyciu `FluentValidation`, sprawdzając poprawność i zakres dat (max 31 dni).
 4. Utwórz plik `Handler.cs` i zaimplementuj klasę `CheckVerificationHandler` dziedziczącą po `IRequestHandler<Contracts.Request, Contracts.Response>`.
 5. Wstrzyknij `AppDbContext`, `IHttpContextAccessor` i `IValidator<Contracts.Request>` do konstruktora handlera.
@@ -121,9 +123,10 @@ Wszystkie typy zostaną zdefiniowane w nowym folderze `Features/Verification/Che
    a. Uruchom walidację.
    b. Pobierz `UserId` z `HttpContext`.
    c. Uruchom `Stopwatch`.
-   d. Asynchronicznie pobierz dane kuponów i losowań z bazy.
-   e. Zaimplementuj logikę porównywania w pętlach.
-   f. Zatrzymaj `Stopwatch` i zbuduj obiekt odpowiedzi.
+   d. Asynchronicznie pobierz dane kuponów z bazy. Jeśli w żądaniu podano `GroupName`, zastosuj filtr `.Where(t => t.GroupName != null && t.GroupName.ToLower().Contains(request.GroupName.ToLower()))` do zapytania o kupony (wyszukiwanie częściowe, case-insensitive).
+   e. Asynchronicznie pobierz dane losowań z bazy.
+   f. Zaimplementuj logikę porównywania w pętlach.
+   g. Zatrzymaj `Stopwatch` i zbuduj obiekt odpowiedzi.
 7. Utwórz plik `Endpoint.cs` i zdefiniuj w nim metodę rozszerzającą `AddEndpoint`, która mapuje `POST /api/verification/check` do logiki handlera. Zabezpiecz endpoint za pomocą `.RequireAuthorization()`.
 8. W głównym pliku `Program.cs` zarejestruj nowo utworzony endpoint, wywołując `LottoTM.Server.Api.Features.Verification.Check.Endpoint.AddEndpoint(app);`.
 9. Zarejestruj walidator w kontenerze DI w `Program.cs`: `builder.Services.AddScoped<IValidator<Features.Verification.Check.Contracts.Request>, Features.Verification.Check.Validator>();`.

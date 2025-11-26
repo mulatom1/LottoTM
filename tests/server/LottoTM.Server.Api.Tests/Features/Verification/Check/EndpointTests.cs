@@ -49,7 +49,8 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var request = new Contracts.Request(
             DateOnly.Parse("2025-10-01"),
-            DateOnly.Parse("2025-10-31")
+            DateOnly.Parse("2025-10-31"),
+            null // No group filter
         );
 
         // Act
@@ -103,7 +104,8 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var request = new Contracts.Request(
             DateOnly.Parse("2025-10-01"),
-            DateOnly.Parse("2025-10-31")
+            DateOnly.Parse("2025-10-31"),
+            null // No group filter
         );
 
         // Act
@@ -146,7 +148,8 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var request = new Contracts.Request(
             DateOnly.Parse("2025-10-01"),
-            DateOnly.Parse("2025-10-31")
+            DateOnly.Parse("2025-10-31"),
+            null // No group filter
         );
 
         // Act
@@ -185,7 +188,8 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var request = new Contracts.Request(
             DateOnly.Parse("2025-10-01"),
-            DateOnly.Parse("2025-10-31")
+            DateOnly.Parse("2025-10-31"),
+            null // No group filter
         );
 
         // Act
@@ -223,7 +227,8 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var request = new Contracts.Request(
             DateOnly.Parse("2025-10-01"),
-            DateOnly.Parse("2025-10-31")
+            DateOnly.Parse("2025-10-31"),
+            null // No group filter
         );
 
         // Act
@@ -255,7 +260,8 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var request = new Contracts.Request(
             DateOnly.Parse("2025-10-31"),
-            DateOnly.Parse("2025-10-01") // DateTo before DateFrom
+            DateOnly.Parse("2025-10-01"), // DateTo before DateFrom
+            null // No group filter
         );
 
         // Act
@@ -283,7 +289,8 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var request = new Contracts.Request(
             DateOnly.Parse("2025-10-01"),
-            DateOnly.Parse("2025-11-05") // 35 days - exceeds 31 day limit
+            DateOnly.Parse("2025-11-05"), // 35 days - exceeds 31 day limit
+            null // No group filter
         );
 
         // Act
@@ -306,7 +313,8 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var request = new Contracts.Request(
             DateOnly.Parse("2025-10-01"),
-            DateOnly.Parse("2025-10-31")
+            DateOnly.Parse("2025-10-31"),
+            null // No group filter
         );
 
         // Act - no authorization header
@@ -337,7 +345,8 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var request = new Contracts.Request(
             DateOnly.Parse("2025-10-01"),
-            DateOnly.Parse("2025-10-31")
+            DateOnly.Parse("2025-10-31"),
+            null // No group filter
         );
 
         // Act
@@ -376,7 +385,8 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var request = new Contracts.Request(
             DateOnly.Parse("2025-10-01"),
-            DateOnly.Parse("2025-10-31")
+            DateOnly.Parse("2025-10-31"),
+            null // No group filter
         );
 
         // Act
@@ -418,7 +428,8 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var request = new Contracts.Request(
             DateOnly.Parse("2025-10-01"),
-            DateOnly.Parse("2025-10-31")
+            DateOnly.Parse("2025-10-31"),
+            null // No group filter
         );
 
         // Act
@@ -460,7 +471,8 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var request = new Contracts.Request(
             DateOnly.Parse("2025-10-01"),
-            DateOnly.Parse("2025-10-31")
+            DateOnly.Parse("2025-10-31"),
+            null // No group filter
         );
 
         // Act
@@ -509,7 +521,8 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var request = new Contracts.Request(
             DateOnly.Parse("2025-10-01"),
-            DateOnly.Parse("2025-10-31")
+            DateOnly.Parse("2025-10-31"),
+            null // No group filter
         );
 
         // Act
@@ -521,6 +534,176 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
         Assert.NotNull(result);
         Assert.True(result.ExecutionTimeMs >= 0);
+    }
+
+    /// <summary>
+    /// Test filtering by GroupName - partial match (contains) - only tickets with group names containing the search text are checked
+    /// </summary>
+    [Fact]
+    public async Task CheckVerification_WithGroupNameFilter_UsesPartialMatch()
+    {
+        // Arrange
+        var testDbName = "TestDb_Check_GroupFilter_" + Guid.NewGuid();
+        var factory = CreateTestFactory(testDbName);
+
+        var userId = SeedTestUser(testDbName, "user@example.com", "Password123!", false);
+
+        // Create tickets with different group names
+        var ticket1Id = SeedTestTicketWithGroup(factory, userId, new[] { 5, 14, 23, 29, 37, 41 }, "Ulubione");
+        var ticket2Id = SeedTestTicketWithGroup(factory, userId, new[] { 10, 20, 30, 40, 45, 48 }, "Testowe");
+        var ticket3Id = SeedTestTicketWithGroup(factory, userId, new[] { 1, 2, 3, 4, 5, 6 }, "Ulubione 2024");
+
+        // Create a draw that matches all tickets
+        SeedTestDraw(factory, userId, DateOnly.Parse("2025-10-15"), new[] { 5, 14, 23, 31, 32, 33 });
+
+        var client = factory.CreateClient();
+        var token = GenerateTestToken(factory, userId, "user@example.com", false);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var request = new Contracts.Request(
+            DateOnly.Parse("2025-10-01"),
+            DateOnly.Parse("2025-10-31"),
+            "ubi" // Partial match - should find "Ulubione" and "Ulubione 2024"
+        );
+
+        // Act
+        var response = await client.PostAsJsonAsync("/api/verification/check", request);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
+        Assert.NotNull(result);
+        Assert.Equal(2, result.TotalTickets); // Only 2 tickets containing "ubi"
+        Assert.Equal(1, result.TotalDraws);
+        Assert.Single(result.Results); // Only one ticket from matching groups has hits
+        Assert.All(result.Results, r => Assert.Contains("ubi", r.GroupName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Test filtering by GroupName - case-insensitive matching
+    /// </summary>
+    [Fact]
+    public async Task CheckVerification_WithGroupNameFilter_CaseInsensitive()
+    {
+        // Arrange
+        var testDbName = "TestDb_Check_GroupCaseInsensitive_" + Guid.NewGuid();
+        var factory = CreateTestFactory(testDbName);
+
+        var userId = SeedTestUser(testDbName, "user@example.com", "Password123!", false);
+
+        // Create tickets with mixed case group names
+        var ticket1Id = SeedTestTicketWithGroup(factory, userId, new[] { 5, 14, 23, 29, 37, 41 }, "Ulubione");
+        var ticket2Id = SeedTestTicketWithGroup(factory, userId, new[] { 10, 20, 30, 40, 45, 48 }, "TESTOWE");
+
+        // Create a draw that matches first ticket
+        SeedTestDraw(factory, userId, DateOnly.Parse("2025-10-15"), new[] { 5, 14, 23, 31, 32, 33 });
+
+        var client = factory.CreateClient();
+        var token = GenerateTestToken(factory, userId, "user@example.com", false);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var request = new Contracts.Request(
+            DateOnly.Parse("2025-10-01"),
+            DateOnly.Parse("2025-10-31"),
+            "ULU" // Uppercase search should match "Ulubione"
+        );
+
+        // Act
+        var response = await client.PostAsJsonAsync("/api/verification/check", request);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
+        Assert.NotNull(result);
+        Assert.Equal(1, result.TotalTickets); // Only 1 ticket matches (case-insensitive)
+        Assert.Equal(1, result.TotalDraws);
+        Assert.Single(result.Results);
+        Assert.Equal("Ulubione", result.Results[0].GroupName);
+    }
+
+    /// <summary>
+    /// Test filtering by non-matching partial GroupName returns empty results
+    /// </summary>
+    [Fact]
+    public async Task CheckVerification_WithNonExistentGroupName_ReturnsEmptyResults()
+    {
+        // Arrange
+        var testDbName = "TestDb_Check_NonExistentGroup_" + Guid.NewGuid();
+        var factory = CreateTestFactory(testDbName);
+
+        var userId = SeedTestUser(testDbName, "user@example.com", "Password123!", false);
+
+        // Create tickets with group name "Ulubione"
+        SeedTestTicketWithGroup(factory, userId, new[] { 5, 14, 23, 29, 37, 41 }, "Ulubione");
+
+        // Create a draw that matches the ticket
+        SeedTestDraw(factory, userId, DateOnly.Parse("2025-10-15"), new[] { 5, 14, 23, 31, 32, 33 });
+
+        var client = factory.CreateClient();
+        var token = GenerateTestToken(factory, userId, "user@example.com", false);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var request = new Contracts.Request(
+            DateOnly.Parse("2025-10-01"),
+            DateOnly.Parse("2025-10-31"),
+            "xyz" // No group contains "xyz"
+        );
+
+        // Act
+        var response = await client.PostAsJsonAsync("/api/verification/check", request);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
+        Assert.NotNull(result);
+        Assert.Equal(0, result.TotalTickets); // No tickets in "Testowe" group
+        Assert.Equal(1, result.TotalDraws);
+        Assert.Empty(result.Results);
+    }
+
+    /// <summary>
+    /// Test with empty GroupName checks all tickets
+    /// </summary>
+    [Fact]
+    public async Task CheckVerification_WithEmptyGroupName_ChecksAllTickets()
+    {
+        // Arrange
+        var testDbName = "TestDb_Check_EmptyGroup_" + Guid.NewGuid();
+        var factory = CreateTestFactory(testDbName);
+
+        var userId = SeedTestUser(testDbName, "user@example.com", "Password123!", false);
+
+        // Create tickets with different groups
+        SeedTestTicketWithGroup(factory, userId, new[] { 5, 14, 23, 29, 37, 41 }, "Ulubione");
+        SeedTestTicketWithGroup(factory, userId, new[] { 10, 20, 30, 40, 45, 48 }, "Testowe");
+
+        // Create a draw that matches both tickets
+        SeedTestDraw(factory, userId, DateOnly.Parse("2025-10-15"), new[] { 5, 14, 23, 31, 32, 33 });
+
+        var client = factory.CreateClient();
+        var token = GenerateTestToken(factory, userId, "user@example.com", false);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var request = new Contracts.Request(
+            DateOnly.Parse("2025-10-01"),
+            DateOnly.Parse("2025-10-31"),
+            "" // Empty group name should check all
+        );
+
+        // Act
+        var response = await client.PostAsJsonAsync("/api/verification/check", request);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
+        Assert.NotNull(result);
+        Assert.Equal(2, result.TotalTickets); // All tickets checked
+        Assert.Equal(1, result.TotalDraws);
+        Assert.Single(result.Results); // Only one ticket has hits
     }
 
     /// <summary>
@@ -620,6 +803,45 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         {
             UserId = userId,
             GroupName = $"TestTicket: {DateTime.Now:yyyy-MM-dd HH:mm:ss}",
+            CreatedAt = DateTime.UtcNow
+        };
+
+        dbContext.Tickets.Add(ticket);
+        dbContext.SaveChanges();
+
+        // Add numbers
+        for (int i = 0; i < numbers.Length; i++)
+        {
+            var ticketNumber = new TicketNumber
+            {
+                TicketId = ticket.Id,
+                Number = numbers[i],
+                Position = (byte)(i + 1)
+            };
+            dbContext.TicketNumbers.Add(ticketNumber);
+        }
+
+        dbContext.SaveChanges();
+        return ticket.Id;
+    }
+
+    /// <summary>
+    /// Helper method to seed a test ticket with specified numbers and group name
+    /// </summary>
+    private static int SeedTestTicketWithGroup(WebApplicationFactory<Program> factory, int userId, int[] numbers, string groupName)
+    {
+        if (numbers.Length != 6)
+        {
+            throw new ArgumentException("Ticket must have exactly 6 numbers", nameof(numbers));
+        }
+
+        using var scope = factory.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var ticket = new Ticket
+        {
+            UserId = userId,
+            GroupName = groupName,
             CreatedAt = DateTime.UtcNow
         };
 

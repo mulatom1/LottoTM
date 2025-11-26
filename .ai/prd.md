@@ -613,8 +613,11 @@ private class LottoOpenApiResult
 **Kryteria akceptacji:**
 - Date range picker do wyboru zakresu dat (od - do)
 - Domyślna wartość zakresu dat - ostanie 31 dni
+- Textbox z filtrem groupName (opcjonalny) - pozwala przefiltrować kupony według nazwy grupy (wyszukiwanie częściowe)
 - Przycisk "Sprawdź wygrane"
-- System porównuje wszystkie zestawy użytkownika z wynikami losowań w wybranym zakresie
+- System porównuje zestawy użytkownika z wynikami losowań w wybranym zakresie
+  - Jeśli filtr groupName jest podany, weryfikowane są tylko kupony, których nazwa grupy zawiera podany tekst (LIKE/Contains - wyszukiwanie częściowe, case-insensitive)
+  - Jeśli filtr groupName jest pusty, weryfikowane są wszystkie zestawy użytkownika
 - Algorytm weryfikacji:
   - Dla każdego zestawu użytkownika
   - Dla każdego losowania w zakresie
@@ -624,7 +627,7 @@ private class LottoOpenApiResult
 
 **Endpointy API:**
 - `POST /api/verification/check`
-  - Body: `{ "dateFrom": "2025-10-01", "dateTo": "2025-10-30" }`
+  - Body: `{ "dateFrom": "2025-10-01", "dateTo": "2025-10-30", "groupName": "string" }` (groupName jest opcjonalny)
   - Response: `{ "results": [ { "ticketId": "1", "groupName": "string", "numbers": [...], "draws": [ { "drawId": "2", "drawDate": "date", "drawNumbers": [...], "matchCount": 3, "matchedNumbers": [5, 14, 29] } ] } ], "totalTickets": 42, "totalDraws": 8, "executionTimeMs": 1234 }`
 
 #### F-VERIFY-002: Prezentacja wyników weryfikacji

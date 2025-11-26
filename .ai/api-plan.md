@@ -1071,7 +1071,8 @@ Number1,Number2,Number3,Number4,Number5,Number6,GroupName
 ```json
 {
   "dateFrom": "2025-10-01",
-  "dateTo": "2025-10-30"
+  "dateTo": "2025-10-30",
+  "groupName": "Ulubione"
 }
 ```
 
@@ -1079,6 +1080,9 @@ Number1,Number2,Number3,Number4,Number5,Number6,GroupName
 - `dateFrom`: wymagane, format DATE (YYYY-MM-DD)
 - `dateTo`: wymagane, format DATE, musi być ≥ `dateFrom`
 - Zakres dat nie może przekraczać 31 dni (NFR-005)
+- `groupName`: opcjonalne, string - filtr na nazwę grupy kuponów (wyszukiwanie częściowe)
+  - Jeśli podane, weryfikowane są tylko kupony, których nazwa grupy zawiera podany tekst (LIKE/Contains, case-insensitive)
+  - Jeśli puste lub nie podane, weryfikowane są wszystkie kupony użytkownika
 
 **Payload odpowiedzi (sukces):**
 ```json
@@ -1133,10 +1137,19 @@ Number1,Number2,Number3,Number4,Number5,Number6,GroupName
 2. Timestamp start (dla executionTimeMs)
 3. **Faza 1: Pobranie danych z bazy**
    ```csharp
-   var tickets = await db.Tickets
-       .Where(t => t.UserId == userId)
+   var ticketsQuery = db.Tickets
+       .Where(t => t.UserId == userId);
+
+   // Filtrowanie po groupName jeśli podane (wyszukiwanie częściowe, case-insensitive)
+   if (!string.IsNullOrWhiteSpace(request.GroupName))
+   {
+       ticketsQuery = ticketsQuery.Where(t => t.GroupName != null &&
+           t.GroupName.ToLower().Contains(request.GroupName.ToLower()));
+   }
+
+   var tickets = await ticketsQuery
        .Include(t => t.Numbers) // Eager loading TicketNumbers
-       .ToListAsync(); // np. 100 zestawów
+       .ToListAsync(); // np. 100 zestawów lub mniej jeśli filtrowane
 
    var draws = await db.Draws
        .Where(d => d.DrawDate >= dateFrom && d.DrawDate <= dateTo)
@@ -1145,6 +1158,7 @@ Number1,Number2,Number3,Number4,Number5,Number6,GroupName
    ```
    - Użycie indeksów: IX_Tickets_UserId, IX_Draws_DrawDate
    - Draws nie filtrowany po UserId - globalna tabela dostępna dla wszystkich
+   - Filtr groupName stosowany opcjonalnie na poziomie zapytania SQL (wyszukiwanie częściowe LIKE z ToLower() dla case-insensitive)
 
 4. **Faza 2: Weryfikacja w pamięci (LINQ Intersect)**
    ```csharp

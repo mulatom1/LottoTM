@@ -29,8 +29,9 @@ public static class Endpoint
         .WithOpenApi(operation =>
         {
             operation.Summary = "Verify user tickets against lottery draws";
-            operation.Description = "Compares all user tickets against lottery draw results in the specified date range. " +
+            operation.Description = "Compares user tickets against lottery draw results in the specified date range. " +
                                   "Returns tickets with 3 or more matching numbers. " +
+                                  "Optional GroupName parameter filters tickets to verify only those from a specific group. " +
                                   "Maximum date range is 31 days. " +
                                   "Requires JWT authentication.";
             return operation;

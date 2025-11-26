@@ -551,6 +551,14 @@ W MVP **całkowicie zrezygnowano z widoku Dashboard** (`/dashboard`). Po zalogow
   - Layout:
     - Mobile: stacked vertically (Od nad Do)
     - Desktop: inline (Od | Do obok siebie)
+- **Input "Grupa kuponów (opcjonalnie):"**
+  - Label: "Grupa kuponów (opcjonalnie):"
+  - Type: text
+  - Placeholder: "np. Ulubione"
+  - Default: puste
+  - Opis pomocniczy: "Wyszukiwanie częściowe - wpisz fragment nazwy grupy (np. 'ulu' znajdzie 'Ulubione')"
+  - Walidacja: brak (pole opcjonalne)
+  - Layout: full-width na mobile i desktop
 - **Button submit:** "Sprawdź wygrane" (primary, duży, prominent)
 
 **Sekcja wyników:**
@@ -588,6 +596,8 @@ Struktura accordion - każde losowanie jako rozwijalna sekcja:
 **UX, dostępność i względy bezpieczeństwa:**
 - **UX:**
   - Domyślny zakres dat (-31 dni) redukuje friction (użytkownik może od razu kliknąć "Sprawdź wygrane")
+  - Opcjonalny filtr grupy kuponów z wyszukiwaniem częściowym pozwala na elastyczną weryfikację (np. 'ulu' znajdzie 'Ulubione', 'Ulubione 2024')
+  - Opis pomocniczy "Wyszukiwanie częściowe - wpisz fragment nazwy grupy" jasno komunikuje działanie filtra
   - Accordion pozwala na stopniowe odkrywanie wyników (czytelność przy wielu losowaniach)
   - Visual highlight wygranych liczb (pogrubienie) ułatwia szybkie skanowanie
   - Badges wygranych z emoji (🏆, 🎉) i kolorami przyciągają uwagę

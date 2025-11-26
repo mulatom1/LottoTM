@@ -12,7 +12,8 @@ public class Contracts
     /// </summary>
     /// <param name="DateFrom">Start date of verification period (YYYY-MM-DD)</param>
     /// <param name="DateTo">End date of verification period (YYYY-MM-DD)</param>
-    public record Request(DateOnly DateFrom, DateOnly DateTo) : IRequest<Response>;
+    /// <param name="GroupName">Optional group name to filter tickets (partial match, case-insensitive). If provided, only tickets whose group name contains this text will be verified</param>
+    public record Request(DateOnly DateFrom, DateOnly DateTo, string? GroupName) : IRequest<Response>;
 
     /// <summary>
     /// Response containing verification results for all user tickets

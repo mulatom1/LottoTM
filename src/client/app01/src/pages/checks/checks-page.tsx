@@ -15,6 +15,7 @@ import type { TicketVerificationResult } from '../../services/contracts/verifica
  * Checks Page - Main page for verifying user's lottery tickets against draw results
  * Features:
  * - Date range selection (default: last 31 days)
+ * - Optional group name filter (partial match, case-insensitive)
  * - Automatic verification via API
  * - Results displayed in accordion format grouped by draws
  * - Highlighted matched numbers
@@ -27,6 +28,7 @@ export default function ChecksPage() {
   // State management
   const [dateFrom, setDateFrom] = useState<string>(getDefaultDateFrom());
   const [dateTo, setDateTo] = useState<string>(getDefaultDateTo());
+  const [groupName, setGroupName] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [results, setResults] = useState<TicketVerificationResult[] | null>(null);
   const [totalTickets, setTotalTickets] = useState<number>(0);
@@ -37,7 +39,7 @@ export default function ChecksPage() {
    * Handle verification submission
    * Calls API and updates results state
    */
-  const handleSubmit = async (dateFromValue: string, dateToValue: string) => {
+  const handleSubmit = async (dateFromValue: string, dateToValue: string, groupNameValue: string) => {
     if (!apiService) {
       setError('Błąd inicjalizacji API. Spróbuj odświeżyć stronę.');
       return;
@@ -50,7 +52,8 @@ export default function ChecksPage() {
     try {
       const response = await apiService.verificationCheck({
         dateFrom: dateFromValue,
-        dateTo: dateToValue
+        dateTo: dateToValue,
+        groupName: groupNameValue && groupNameValue.trim() !== '' ? groupNameValue : null
       });
 
       setResults(response.results);
@@ -101,8 +104,10 @@ export default function ChecksPage() {
           <CheckPanel
             dateFrom={dateFrom}
             dateTo={dateTo}
+            groupName={groupName}
             onDateFromChange={setDateFrom}
             onDateToChange={setDateTo}
+            onGroupNameChange={setGroupName}
             onSubmit={handleSubmit}
             isLoading={isLoading}
           />

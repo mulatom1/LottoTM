@@ -822,7 +822,7 @@ export class ApiService {
     /**
      * Verify all user tickets against draws within a given date range
      * POST /api/verification/check
-     * @param request - Date range for verification (dateFrom, dateTo)
+     * @param request - Date range for verification (dateFrom, dateTo) and optional groupName filter
      * @returns Promise<VerificationCheckResponse> - Verification results with hits
      * @throws Error if unauthorized (401), validation fails (400), or server error occurs (500)
      */

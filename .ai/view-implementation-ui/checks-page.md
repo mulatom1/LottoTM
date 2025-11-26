@@ -6,7 +6,8 @@ Checks Page to widok umożliwiający użytkownikom weryfikację swoich zestawów
 
 **Główne funkcjonalności:**
 - Wybór zakresu dat do weryfikacji (domyślnie ostatnie 31 dni)
-- Automatyczne porównanie wszystkich zestawów użytkownika z losowaniami w wybranym okresie
+- Opcjonalne filtrowanie kuponów według nazwy grupy (groupName) z wyszukiwaniem częściowym (Contains)
+- Automatyczne porównanie zestawów użytkownika z losowaniami w wybranym okresie
 - Prezentacja wyników w formie rozwijalnego accordion (grupowanie po losowaniach)
 - Wyróżnienie trafionych liczb (pogrubienie)
 - Wizualne oznaczenie wygranych (badges dla ≥3 trafień)
@@ -28,6 +29,7 @@ ChecksPage (główny komponent strony)
 ├── CheckPanel (panel z formularzem zakresu dat)
 │   ├── DatePicker (data Od)
 │   ├── DatePicker (data Do)
+│   ├── TextInput (nazwa grupy - opcjonalnie)
 │   └── Button (Sprawdź wygrane)
 ├── Spinner (wyświetlany podczas weryfikacji)
 └── CheckResults (sekcja z wynikami)
@@ -54,8 +56,9 @@ Główny kontener strony weryfikacji wygranych. Zarządza stanem formularza zakr
 - `<CheckResults />` - sekcja z wynikami (warunkowe renderowanie)
 
 **Obsługiwane zdarzenia:**
-- `onSubmitCheck(dateFrom, dateTo)` - wywołanie API weryfikacji
+- `onSubmitCheck(dateFrom, dateTo, groupName)` - wywołanie API weryfikacji
 - `onDateChange` - aktualizacja stanu dat w formularzu
+- `onGroupNameChange` - aktualizacja nazwy grupy w formularzu
 
 **Warunki walidacji:**
 - `dateFrom` nie może być późniejsza niż `dateTo`
@@ -76,6 +79,7 @@ Brak (komponent strony, nie przyjmuje propsów)
 interface ChecksPageState {
   dateFrom: string;          // Format YYYY-MM-DD
   dateTo: string;            // Format YYYY-MM-DD
+  groupName: string;         // Nazwa grupy (opcjonalnie)
   isLoading: boolean;        // Stan ładowania
   results: VerificationResult[] | null;  // Wyniki weryfikacji
   error: string | null;      // Komunikat błędu
@@ -94,11 +98,13 @@ Panel zawierający formularz wyboru zakresu dat z dwoma date pickerami i przycis
 - `<form>` - formularz
 - `<div>` - wrapper dla date pickerów (flex layout)
 - `<DatePicker />` × 2 - inputy dat (Od/Do)
+- `<TextInput />` - input dla nazwy grupy (opcjonalny)
 - `<Button />` - przycisk "Sprawdź wygrane"
 
 **Obsługiwane interakcje:**
 - `onChange` dla date pickerów - aktualizacja stanu
-- `onSubmit` formularza - wywołanie callback `onSubmit(dateFrom, dateTo)`
+- `onChange` dla pola groupName - aktualizacja stanu
+- `onSubmit` formularza - wywołanie callback `onSubmit(dateFrom, dateTo, groupName)`
 - Inline validation - komunikaty błędów pod polami
 
 **Obsługiwana walidacja:**
@@ -118,7 +124,7 @@ interface DateRange {
 **Propsy:**
 ```typescript
 interface CheckPanelProps {
-  onSubmit: (dateFrom: string, dateTo: string) => void;
+  onSubmit: (dateFrom: string, dateTo: string, groupName: string) => void;
   isLoading: boolean;  // Dla dezaktywacji buttona podczas ładowania
 }
 ```
@@ -350,6 +356,7 @@ interface DatePickerProps {
 interface CheckRequest {
   dateFrom: string;  // YYYY-MM-DD
   dateTo: string;    // YYYY-MM-DD
+  groupName?: string; // Opcjonalny filtr nazwy grupy (wyszukiwanie częściowe, case-insensitive)
 }
 
 // Response z API
@@ -422,6 +429,7 @@ const WIN_LABELS: Record<WinLevel, string> = {
 ```typescript
 const [dateFrom, setDateFrom] = useState<string>(getDefaultDateFrom());  // -31 dni
 const [dateTo, setDateTo] = useState<string>(getDefaultDateTo());        // dzisiaj
+const [groupName, setGroupName] = useState<string>('');                   // puste domyślnie
 const [isLoading, setIsLoading] = useState<boolean>(false);
 const [results, setResults] = useState<VerificationResult[] | null>(null);
 const [error, setError] = useState<string | null>(null);
@@ -502,9 +510,12 @@ function useVerification() {
 ```json
 {
   "dateFrom": "2025-10-09",
-  "dateTo": "2025-11-09"
+  "dateTo": "2025-11-09",
+  "groupName": "Ulubione"
 }
 ```
+
+**Uwaga:** Pole `groupName` jest opcjonalne. Jeśli jest podane, API zwróci wyniki tylko dla kuponów, których nazwa grupy zawiera podany tekst (wyszukiwanie częściowe, case-insensitive). Jeśli nie jest podane lub jest puste, API zwróci wyniki dla wszystkich kuponów użytkownika.
 
 **Response payload (sukces):**
 ```json
@@ -533,14 +544,21 @@ function useVerification() {
 **ApiService method:**
 ```typescript
 class ApiService {
-  async checkWinnings(dateFrom: string, dateTo: string): Promise<CheckResponse> {
+  async checkWinnings(dateFrom: string, dateTo: string, groupName?: string): Promise<CheckResponse> {
+    const payload: CheckRequest = { dateFrom, dateTo };
+
+    // Dodaj groupName tylko jeśli nie jest puste
+    if (groupName && groupName.trim() !== '') {
+      payload.groupName = groupName;
+    }
+
     const response = await this.request('/api/verification/check', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${this.token}`
       },
-      body: JSON.stringify({ dateFrom, dateTo })
+      body: JSON.stringify(payload)
     });
 
     return response.json();
@@ -563,7 +581,7 @@ async function handleSubmit() {
 
   try {
     const apiService = getApiService();
-    const response = await apiService.checkWinnings(dateFrom, dateTo);
+    const response = await apiService.checkWinnings(dateFrom, dateTo, groupName);
     setResults(response.results);
   } catch (error) {
     if (error instanceof ApiError) {
@@ -596,10 +614,12 @@ async function handleSubmit() {
 1. **Użytkownik wchodzi na stronę /checks**
    - Widzi formularz z pre-wypełnionym zakresem dat (ostatnie 31 dni)
    - Date pickers: Od = dzisiaj - 31 dni, Do = dzisiaj
+   - Pole groupName: puste (opcjonalne)
 
-2. **Użytkownik opcjonalnie zmienia daty**
+2. **Użytkownik opcjonalnie zmienia daty i/lub filtr grupy**
    - Klika w pole "Od" → wybiera datę z date pickera
    - Klika w pole "Do" → wybiera datę z date pickera
+   - Opcjonalnie wpisuje fragment nazwy grupy (np. "ulu" lub "Ulubione") - wyszukiwanie częściowe znajdzie wszystkie grupy zawierające ten tekst
    - Inline validation: jeśli Od > Do → komunikat błędu pod polem "Do"
 
 3. **Użytkownik klika "Sprawdź wygrane"**
@@ -868,15 +888,17 @@ numbers.map(num => {
 - Conditional rendering (loading spinner vs results)
 
 ### Krok 9: Implementacja CheckPanel
-- Formularz z 2 date pickerami
+- Formularz z 2 date pickerami i text inputem dla groupName
 - Inline validation (dateFrom ≤ dateTo)
+- Pole groupName (opcjonalne) z placeholderem "np. Ulubione"
+- Opis pomocniczy: "Wyszukiwanie częściowe - wpisz fragment nazwy grupy (np. 'ulu' znajdzie 'Ulubione')"
 - Button "Sprawdź wygrane" z disabled state
-- Callback `onSubmit(dateFrom, dateTo)`
+- Callback `onSubmit(dateFrom, dateTo, groupName)`
 
 ### Krok 10: Implementacja ChecksPage (główny komponent)
-- Stan lokalny (dateFrom, dateTo, isLoading, results, error)
+- Stan lokalny (dateFrom, dateTo, groupName, isLoading, results, error)
 - Helper functions (getDefaultDateFrom, getDefaultDateTo, validateDateRange)
-- Handler `handleSubmit()` z API call
+- Handler `handleSubmit()` z API call (przekazuje dateFrom, dateTo, groupName)
 - Renderowanie: CheckPanel + Spinner + CheckResults
 - Error handling z ErrorModal
 

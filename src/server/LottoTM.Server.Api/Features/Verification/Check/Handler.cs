@@ -53,9 +53,19 @@ public class CheckVerificationHandler : IRequestHandler<Contracts.Request, Contr
         try
         {
             // 4. Fetch user tickets and draws sequentially (DbContext is not thread-safe)
-            var tickets = await _dbContext.Tickets
+            var ticketsQuery = _dbContext.Tickets
                 .AsNoTracking()
-                .Where(t => t.UserId == userId)
+                .Where(t => t.UserId == userId);
+
+            // Filter by GroupName if provided (partial match, case-insensitive)
+            if (!string.IsNullOrWhiteSpace(request.GroupName))
+            {
+                var groupNameLower = request.GroupName.ToLower();
+                ticketsQuery = ticketsQuery.Where(t => t.GroupName != null &&
+                    t.GroupName.ToLower().Contains(groupNameLower));
+            }
+
+            var tickets = await ticketsQuery
                 .Include(t => t.Numbers)
                 .ToListAsync(cancellationToken);
 

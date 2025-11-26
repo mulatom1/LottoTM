@@ -43,6 +43,7 @@ Główne cele procesu testowego to:
     *   [x] Usuwanie wszystkich kuponów użytkownika.
 *   **[x] Weryfikacja wyników (Verification):**
     *   [x] Mechanizm sprawdzania wygranych dla danego kuponu.
+    *   [x] Filtrowanie weryfikacji po nazwie grupy (opcjonalne).
 *   **[x] System XLotto (On-Demand Fetching):**
     *   [x] XLottoService - Pobieranie aktualnych wyników z XLotto przez Gemini API.
     *   [x] Obsługa różnych typów gier (LOTTO, LOTTO PLUS).
@@ -105,6 +106,27 @@ Proces testowy zostanie podzielony na następujące poziomy i typy:
 *   **[x] TC12:** Sprawdzenie kuponu z częściową wygraną.
 *   **[x] TC13:** Sprawdzenie kuponu, który nie wygrał.
 *   **[x] TC14:** Próba sprawdzenia wyników dla losowania, które jeszcze się nie odbyło.
+
+#### Weryfikacja z filtrowaniem po GroupName (POST /api/verification/check) - wyszukiwanie częściowe (Contains, case-insensitive)
+
+*   **[x] TC14a:** Pomyślna weryfikacja z trafionymi kuponami bez filtrowania (groupName=null).
+*   **[x] TC14b:** Weryfikacja z filtrowaniem po fragmencie nazwy grupy - zwracane tylko kupony, których GroupName zawiera podany tekst (np. "ulu" znajdzie "Ulubione", "Ulubione 2024").
+*   **[x] TC14b2:** Weryfikacja z filtrowaniem case-insensitive - "ULU" znajdzie "Ulubione" i "ulubione".
+*   **[x] TC14c:** Weryfikacja z filtrowaniem po nieistniejącym fragmencie - zwraca puste wyniki (totalTickets=0).
+*   **[x] TC14d:** Weryfikacja z pustym groupName ("") - sprawdza wszystkie kupony użytkownika.
+*   **[x] TC14e:** Weryfikacja z wieloma kuponami z różnych grup - filtr częściowy działa poprawnie (np. "2024" znajduje "Ulubione 2024" i "Losowe 2024").
+*   **[x] TC14f:** Weryfikacja zwraca tylko kupony z minimum 3 trafieniami.
+*   **[x] TC14g:** Weryfikacja z kuponami mającymi dokładnie 3 trafienia - są uwzględniane.
+*   **[x] TC14h:** Weryfikacja z kuponami mającymi tylko 2 trafienia - nie są uwzględniane.
+*   **[x] TC14i:** Weryfikacja zakresu dat - DateTo przed DateFrom zwraca błąd 400.
+*   **[x] TC14j:** Weryfikacja zakresu dat przekraczającego 31 dni - zwraca błąd 400.
+*   **[x] TC14k:** Weryfikacja bez autentykacji - zwraca błąd 401.
+*   **[x] TC14l:** Weryfikacja izolacji użytkowników - zwracane tylko kupony zalogowanego użytkownika.
+*   **[x] TC14m:** Weryfikacja z różnymi typami losowań (LOTTO, LOTTO PLUS) - poprawne rozpoznanie typów.
+*   **[x] TC14n:** Weryfikacja zwraca czas wykonania (ExecutionTimeMs >= 0).
+*   **[x] TC14o:** Weryfikacja z pustą listą kuponów - totalTickets=0, puste wyniki.
+*   **[x] TC14p:** Weryfikacja z pustą listą losowań w zakresie dat - totalDraws=0, puste wyniki.
+
 
 ### 4.4. System XLotto - Pobieranie Aktualnych Wyników (On-Demand via XLottoService)
 
