@@ -1,10 +1,12 @@
 /**
  * Request contract for GET /api/tickets
- * No parameters needed - returns all tickets for authenticated user
+ * Optional query parameters for filtering tickets
  * UserId is extracted from JWT token
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface TicketsGetListRequest {
-  // Empty interface - no parameters needed
-  // The endpoint uses JWT authentication to identify the user
+  /**
+   * Optional partial match filter by group name (case-sensitive, max 100 chars)
+   * Uses LIKE/Contains search
+   */
+  groupName?: string;
 }

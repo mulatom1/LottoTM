@@ -35,6 +35,7 @@ function TicketsPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(false);
+  const [searchTerm, setSearchTerm] = useState<string>('');
 
   // Modal state
   const [isTicketFormOpen, setIsTicketFormOpen] = useState<boolean>(false);
@@ -57,14 +58,16 @@ function TicketsPage() {
   const [toastVariant, setToastVariant] = useState<'success' | 'error' | 'info'>('success');
 
   /**
-   * Fetch all tickets from API
+   * Fetch all tickets from API with optional filter
    */
-  const fetchTickets = useCallback(async () => {
+  const fetchTickets = useCallback(async (groupName?: string) => {
     if (!apiService) return;
 
     setLoading(true);
     try {
-      const response = await apiService.ticketsGetList();
+      const response = await apiService.ticketsGetList(
+        groupName ? { groupName } : undefined
+      );
       setTickets(response.tickets);
       setTotalCount(response.totalCount);
     } catch (error) {
@@ -158,6 +161,22 @@ function TicketsPage() {
   };
 
   /**
+   * Handler: Wyszukiwanie po nazwie grupy
+   */
+  const handleSearch = useCallback((term: string) => {
+    setSearchTerm(term);
+    fetchTickets(term || undefined);
+  }, [fetchTickets]);
+
+  /**
+   * Handler: Czyszczenie filtra wyszukiwania
+   */
+  const handleClearSearch = useCallback(() => {
+    setSearchTerm('');
+    fetchTickets();
+  }, [fetchTickets]);
+
+  /**
    * Handler: Zapisz zestaw (dodawanie lub edycja)
    */
   const handleSaveTicket = async (numbers: number[], groupName: string, ticketId?: number) => {
@@ -184,7 +203,7 @@ function TicketsPage() {
 
       setToastVariant('success');
       setIsTicketFormOpen(false);
-      await fetchTickets();
+      await fetchTickets(searchTerm || undefined);
     } catch (error) {
       handleApiError(error);
     }
@@ -202,7 +221,7 @@ function TicketsPage() {
       setToastVariant('success');
       setIsDeleteConfirmOpen(false);
       setTicketToDelete(null);
-      await fetchTickets();
+      await fetchTickets(searchTerm || undefined);
     } catch (error) {
       handleApiError(error);
     }
@@ -251,7 +270,7 @@ function TicketsPage() {
       setToastMessage('Zestaw wygenerowany i zapisany');
       setToastVariant('success');
       setIsGeneratorPreviewOpen(false);
-      await fetchTickets();
+      await fetchTickets(searchTerm || undefined);
     } catch (error) {
       handleApiError(error);
     }
@@ -315,7 +334,7 @@ function TicketsPage() {
       setToastMessage('9 zestawów systemowych zapisanych pomyślnie');
       setToastVariant('success');
       setIsGeneratorPreviewOpen(false);
-      await fetchTickets();
+      await fetchTickets(searchTerm || undefined);
     } catch (error) {
       handleApiError(error);
     }
@@ -357,7 +376,7 @@ function TicketsPage() {
 
       // Jeśli zaimportowano jakiekolwiek zestawy, odśwież listę
       if (result.imported > 0) {
-        await fetchTickets();
+        await fetchTickets(searchTerm || undefined);
       }
     } catch (error) {
       handleApiError(error);
@@ -435,7 +454,7 @@ function TicketsPage() {
       setToastMessage(result.message);
       setToastVariant('success');
       setIsDeleteAllConfirmOpen(false);
-      await fetchTickets();
+      await fetchTickets(searchTerm || undefined);
     } catch (error) {
       handleApiError(error);
     } finally {
@@ -455,7 +474,7 @@ function TicketsPage() {
         </div>
 
         {/* Action Buttons Row */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-8">
+        <div className="flex flex-col sm:flex-row gap-3 mb-6">
           <Button onClick={handleAddTicket} variant="primary">
             + Dodaj ręcznie
           </Button>
@@ -476,6 +495,13 @@ function TicketsPage() {
           </Button>
         </div>
 
+        {/* Search Filter */}
+        <SearchFilter
+          searchTerm={searchTerm}
+          onSearch={handleSearch}
+          onClear={handleClearSearch}
+        />
+
         {/* Hidden file input for CSV import */}
         <input
           ref={fileInputRef}
@@ -491,6 +517,8 @@ function TicketsPage() {
           loading={loading}
           onEdit={handleEditTicket}
           onDelete={handleDeleteTicket}
+          searchTerm={searchTerm}
+          onClearSearch={handleClearSearch}
         />
       </div>
 
@@ -574,6 +602,79 @@ function TicketsPage() {
         />
       )}
     </>
+  );
+}
+
+/**
+ * SearchFilter - Filter tickets by group name
+ */
+interface SearchFilterProps {
+  searchTerm: string;
+  onSearch: (term: string) => void;
+  onClear: () => void;
+}
+
+function SearchFilter({ searchTerm, onSearch, onClear }: SearchFilterProps) {
+  const [localTerm, setLocalTerm] = useState(searchTerm);
+  const timeoutRef = useRef<number | null>(null);
+
+  // Synchronize local state with props (when parent changes searchTerm externally)
+  useEffect(() => {
+    setLocalTerm(searchTerm);
+  }, [searchTerm]);
+
+  // Debounced search
+  useEffect(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    timeoutRef.current = setTimeout(() => {
+      onSearch(localTerm);
+    }, 300);
+
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [localTerm, onSearch]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setLocalTerm(e.target.value);
+  };
+
+  const handleClear = () => {
+    setLocalTerm('');
+    onClear();
+  };
+
+  return (
+    <div className="flex flex-col sm:flex-row items-stretch gap-2 mb-8">
+      <div className="relative flex-1">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+          🔍
+        </span>
+        <input
+          type="text"
+          value={localTerm}
+          onChange={handleInputChange}
+          placeholder="Szukaj w grupach..."
+          maxLength={100}
+          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+          aria-label="Wyszukaj zestawy po nazwie grupy"
+        />
+      </div>
+      {searchTerm && (
+        <button
+          onClick={handleClear}
+          className="px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors whitespace-nowrap"
+          aria-label="Wyczyść filtr"
+        >
+          ✕ Wyczyść
+        </button>
+      )}
+    </div>
   );
 }
 

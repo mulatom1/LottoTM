@@ -62,6 +62,7 @@ public class LottoOpenApiService : ILottoOpenApiService
 
             var jsonContent = await response.Content.ReadAsStringAsync();
             _logger.LogDebug("Received response from Lotto Open API");
+            _logger.LogDebug("{JsonContent}", jsonContent);
 
             // Deserialize the Lotto Open API response
             var lottoOpenApiResponse = JsonSerializer.Deserialize<LottoOpenApiResponse>(jsonContent);

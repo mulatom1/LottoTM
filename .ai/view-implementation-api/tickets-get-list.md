@@ -8,6 +8,7 @@ Endpoint służy do pobierania kompletnej listy zestawów liczb LOTTO należący
 - Wyświetlenie wszystkich zestawów użytkownika w interfejsie użytkownika
 - Zapewnienie bezpieczeństwa poprzez izolację danych (każdy użytkownik widzi tylko swoje zestawy)
 - Obsługa znormalizowanej struktury bazy danych (eager loading TicketNumbers)
+- Opcjonalne filtrowanie zestawów według nazwy grupy (groupName)
 
 ---
 
@@ -19,7 +20,8 @@ Endpoint służy do pobierania kompletnej listy zestawów liczb LOTTO należący
 
 **Parametry:**
 - **Wymagane:** Brak parametrów zapytania
-- **Opcjonalne:** Brak
+- **Opcjonalne:**
+  - `groupName` (string) - Filtrowanie zestawów według nazwy grupy
 
 **Headers:**
 - `Authorization: Bearer <JWT token>` (wymagany)
@@ -41,6 +43,14 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 Content-Type: application/json
 ```
 
+**Przykład z filtrowaniem:**
+```http
+GET /api/tickets?groupName=Ulubione HTTP/1.1
+Host: api.lottotm.com
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Content-Type: application/json
+```
+
 ---
 
 ## 3. Wykorzystywane typy
@@ -53,7 +63,7 @@ namespace LottoTM.Server.Api.Features.Tickets;
 public class Contracts
 {
     // Request implementuje IRequest<Response> z MediatR
-    public record GetTicketsRequest : IRequest<GetTicketsResponse>;
+    public record GetTicketsRequest(string? GroupName = null) : IRequest<GetTicketsResponse>;
 
     // Response DTO
     public record GetTicketsResponse(
@@ -78,8 +88,14 @@ public class Contracts
 Endpoint używa wzorca CQRS z MediatR, więc `GetTicketsRequest` jest jednocześnie command modelem:
 
 ```csharp
-public record GetTicketsRequest : IRequest<GetTicketsResponse>;
+public record GetTicketsRequest(string? GroupName = null) : IRequest<GetTicketsResponse>;
 ```
+
+**Parametr GroupName:**
+- Opcjonalny (nullable) - jeśli null, zwraca wszystkie zestawy
+- Jeśli podany, filtruje zestawy używając częściowego dopasowania (LIKE/Contains - case-sensitive)
+- Przykład: `groupName=test` znajdzie: "test", "testing", "my test group"
+- Puste zestawy (GroupName = "") można filtrować przekazując pusty string
 
 ### Encje bazodanowe (już istniejące)
 
@@ -144,10 +160,25 @@ public class TicketNumber
 | Kod | Nazwa | Scenariusz |
 |-----|-------|-----------|
 | **200 OK** | Sukces | Lista zestawów zwrócona pomyślnie (nawet jeśli pusta) |
+| **400 Bad Request** | Błąd walidacji | Parametr groupName przekracza maksymalną długość (100 znaków) |
 | **401 Unauthorized** | Brak autoryzacji | Brak tokenu JWT lub token nieprawidłowy/wygasły |
 | **500 Internal Server Error** | Błąd serwera | Błąd bazy danych lub nieobsłużony wyjątek |
 
 ### Struktura odpowiedzi błędów
+
+**400 Bad Request (Walidacja):**
+```json
+{
+  "type": "https://tools.ietf.org/html/rfc7231#section-6.5.1",
+  "title": "One or more validation errors occurred.",
+  "status": 400,
+  "errors": {
+    "GroupName": [
+      "Nazwa grupy nie może być dłuższa niż 100 znaków"
+    ]
+  }
+}
+```
 
 **401 Unauthorized:**
 ```json
@@ -904,7 +935,7 @@ namespace LottoTM.Server.Api.Features.Tickets;
 public static class GetTicketsContracts
 {
     // Request - implementuje IRequest<Response> dla MediatR
-    public record Request : IRequest<Response>;
+    public record Request(string? GroupName = null) : IRequest<Response>;
 
     // Response - główny DTO zwracany przez endpoint
     public record Response(
@@ -989,19 +1020,29 @@ public class GetTicketsHandler : IRequestHandler<GetTicketsContracts.Request, Ge
         try
         {
             // 3. Zapytanie do bazy z eager loading (MUST HAVE - zapobiega N+1)
-            var tickets = await _dbContext.Tickets
+            var query = _dbContext.Tickets
                 .AsNoTracking() // Read-only, szybsze
-                .Where(t => t.UserId == currentUserId) // KRYTYCZNE - izolacja danych
+                .Where(t => t.UserId == currentUserId); // KRYTYCZNE - izolacja danych
+
+            // 4. Filtrowanie po GroupName (jeśli podane) - częściowe dopasowanie
+            if (!string.IsNullOrEmpty(request.GroupName))
+            {
+                query = query.Where(t => t.GroupName.Contains(request.GroupName));
+            }
+
+            var tickets = await query
                 .Include(t => t.Numbers.OrderBy(n => n.Position)) // Eager loading TicketNumbers
                 .OrderByDescending(t => t.CreatedAt) // Sortowanie (najnowsze pierwsze)
                 .ToListAsync(cancellationToken);
 
             _logger.LogDebug(
-                "Znaleziono {Count} zestawów dla użytkownika {UserId}",
+                "Znaleziono {Count} zestawów dla użytkownika {UserId}" +
+                (request.GroupName != null ? " w grupie {GroupName}" : ""),
                 tickets.Count,
-                currentUserId);
+                currentUserId,
+                request.GroupName);
 
-            // 4. Mapowanie encji na DTOs
+            // 5. Mapowanie encji na DTOs
             var ticketDtos = tickets.Select(ticket => new GetTicketsContracts.TicketDto(
                 Id: ticket.Id,
                 UserId: ticket.UserId,
@@ -1012,14 +1053,14 @@ public class GetTicketsHandler : IRequestHandler<GetTicketsContracts.Request, Ge
                 CreatedAt: ticket.CreatedAt
             )).ToList();
 
-            // 5. Kalkulacja metadanych
+            // 6. Kalkulacja metadanych
             var totalCount = ticketDtos.Count;
             var page = 1; // Brak paginacji w MVP
             var pageSize = totalCount; // Wszystkie zestawy na jednej stronie
             var totalPages = totalCount > 0 ? 1 : 0;
             var limit = 100; // Max limit zestawów/użytkownik
 
-            // 6. Zwrot response
+            // 7. Zwrot response
             return new GetTicketsContracts.Response(
                 Tickets: ticketDtos,
                 TotalCount: totalCount,
@@ -1059,13 +1100,16 @@ public class GetTicketsValidator : AbstractValidator<GetTicketsContracts.Request
 {
     public GetTicketsValidator()
     {
-        // Request nie ma parametrów, więc validator jest pusty
-        // Możemy go pominąć lub zostawić dla spójności architektury
+        // Walidacja GroupName (opcjonalny parametr)
+        RuleFor(x => x.GroupName)
+            .MaximumLength(100)
+            .When(x => !string.IsNullOrEmpty(x.GroupName))
+            .WithMessage("Nazwa grupy nie może być dłuższa niż 100 znaków");
     }
 }
 ```
 
-**Uwaga:** Validator jest pusty, ponieważ request nie ma parametrów do walidacji. Można go pominąć, ale zostawiamy dla spójności z wzorcem Vertical Slice Architecture.
+**Uwaga:** Validator sprawdza długość parametru GroupName (max 100 znaków), jeśli został podany.
 
 ### Krok 5: Implementacja Endpoint.cs
 
@@ -1080,15 +1124,16 @@ public static class GetTicketsEndpoint
 {
     public static void AddEndpoint(this IEndpointRouteBuilder app)
     {
-        app.MapGet("api/tickets", async (IMediator mediator) =>
+        app.MapGet("api/tickets", async (IMediator mediator, string? groupName = null) =>
         {
-            var request = new GetTicketsContracts.Request();
+            var request = new GetTicketsContracts.Request(groupName);
             var result = await mediator.Send(request);
             return Results.Ok(result);
         })
         .WithName("GetTickets")
         .RequireAuthorization() // KRYTYCZNE - wymaga JWT tokenu
         .Produces<GetTicketsContracts.Response>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status400BadRequest)
         .Produces(StatusCodes.Status401Unauthorized)
         .Produces(StatusCodes.Status500InternalServerError)
         .WithOpenApi(operation =>
@@ -1291,6 +1336,64 @@ public class GetTicketsHandlerTests
         result.TotalCount.Should().Be(1);
         result.Tickets.All(t => t.UserId == currentUserId).Should().BeTrue();
     }
+
+    [Fact]
+    public async Task Handle_WithGroupName_ReturnsOnlyMatchingTickets()
+    {
+        // Arrange
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(databaseName: "TestDb_GetTickets_GroupFilter")
+            .Options;
+
+        await using var context = new ApplicationDbContext(options);
+
+        var userId = 123;
+        var ticket1 = new Ticket { Id = Guid.NewGuid(), UserId = userId, GroupName = "Ulubione", CreatedAt = DateTime.UtcNow };
+        var ticket2 = new Ticket { Id = Guid.NewGuid(), UserId = userId, GroupName = "Testowe", CreatedAt = DateTime.UtcNow };
+        var ticket3 = new Ticket { Id = Guid.NewGuid(), UserId = userId, GroupName = "Ulubione", CreatedAt = DateTime.UtcNow.AddHours(-1) };
+
+        context.Tickets.AddRange(ticket1, ticket2, ticket3);
+        await context.SaveChangesAsync();
+
+        var handler = new GetTicketsHandler(context, mockHttpContextAccessor, mockValidator, mockLogger);
+        var request = new GetTicketsContracts.Request(GroupName: "Ulubione");
+
+        // Act
+        var result = await handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.TotalCount.Should().Be(2);
+        result.Tickets.Should().HaveCount(2);
+        result.Tickets.All(t => t.GroupName == "Ulubione").Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Handle_WithNullGroupName_ReturnsAllTickets()
+    {
+        // Arrange
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(databaseName: "TestDb_GetTickets_NoFilter")
+            .Options;
+
+        await using var context = new ApplicationDbContext(options);
+
+        var userId = 123;
+        var ticket1 = new Ticket { Id = Guid.NewGuid(), UserId = userId, GroupName = "Ulubione", CreatedAt = DateTime.UtcNow };
+        var ticket2 = new Ticket { Id = Guid.NewGuid(), UserId = userId, GroupName = "Testowe", CreatedAt = DateTime.UtcNow };
+
+        context.Tickets.AddRange(ticket1, ticket2);
+        await context.SaveChangesAsync();
+
+        var handler = new GetTicketsHandler(context, mockHttpContextAccessor, mockValidator, mockLogger);
+        var request = new GetTicketsContracts.Request(GroupName: null);
+
+        // Act
+        var result = await handler.Handle(request, CancellationToken.None);
+
+        // Assert
+        result.TotalCount.Should().Be(2);
+        result.Tickets.Should().HaveCount(2);
+    }
 }
 ```
 
@@ -1364,6 +1467,40 @@ public class GetTicketsEndpointTests : IClassFixture<WebApplicationFactory<Progr
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
+
+    [Fact]
+    public async Task GetTickets_WithGroupNameFilter_Returns200AndFilteredList()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+        var token = await GetValidJwtToken(); // Helper method
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        // Act
+        var response = await client.GetAsync("/api/tickets?groupName=Ulubione");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var content = await response.Content.ReadAsStringAsync();
+        content.Should().Contain("tickets");
+        // Dodatkowo można sprawdzić czy wszystkie zwrócone zestawy mają GroupName = "Ulubione"
+    }
+
+    [Fact]
+    public async Task GetTickets_WithTooLongGroupName_Returns400()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+        var token = await GetValidJwtToken(); // Helper method
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var tooLongGroupName = new string('a', 101); // 101 znaków
+
+        // Act
+        var response = await client.GetAsync($"/api/tickets?groupName={tooLongGroupName}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
 }
 ```
 
@@ -1383,6 +1520,14 @@ public class GetTicketsEndpointTests : IClassFixture<WebApplicationFactory<Progr
 
 ```http
 GET https://localhost:5001/api/tickets
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Content-Type: application/json
+```
+
+**B.1) Przez Postman z filtrowaniem:**
+
+```http
+GET https://localhost:5001/api/tickets?groupName=Ulubione
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 Content-Type: application/json
 ```
@@ -1504,6 +1649,8 @@ Console.WriteLine($"Czas wykonania: {stopwatch.ElapsedMilliseconds}ms");
 - [ ] Response zawiera metadane (totalCount, page, pageSize, totalPages, limit)
 - [ ] Pusta lista jest zwracana poprawnie (nie błąd 404)
 - [ ] Zestawy są sortowane według CreatedAt DESC (najnowsze pierwsze)
+- [ ] Filtrowanie po groupName działa poprawnie (zwraca tylko zestawy z daną nazwą grupy)
+- [ ] Brak parametru groupName zwraca wszystkie zestawy użytkownika
 
 ### Bezpieczeństwo
 
@@ -1531,7 +1678,10 @@ Console.WriteLine($"Czas wykonania: {stopwatch.ElapsedMilliseconds}ms");
 ### Testy
 
 - [ ] Testy jednostkowe dla handlera (happy path, empty list, izolacja danych)
+- [ ] Testy jednostkowe dla filtrowania po groupName
 - [ ] Testy integracyjne dla endpointu (200 OK, 401 Unauthorized)
+- [ ] Testy integracyjne dla filtrowania po groupName
+- [ ] Testy walidacji (groupName za długi -> 400 Bad Request)
 - [ ] Performance test (< 500ms dla 100 zestawów)
 
 ### Dokumentacja
@@ -1596,18 +1746,54 @@ query = request.SortBy switch
 
 ### Filtrowanie
 
-**Post-MVP:** Filtrowanie po liczbach (np. zestawy zawierające liczbę 7)
+**Zaimplementowane (MVP):** Filtrowanie po nazwie grupy (GroupName)
+- Parametr `groupName` w query string
+- Filtrowanie po dokładnej nazwie grupy (case-sensitive)
+
+**Post-MVP:** Dodatkowe opcje filtrowania:
+
+**A) Filtrowanie po liczbach (np. zestawy zawierające liczbę 7)**
 
 ```csharp
 // Contracts.cs
-public record Request(int? ContainsNumber = null) : IRequest<Response>;
+public record Request(
+    string? GroupName = null,
+    int? ContainsNumber = null
+) : IRequest<Response>;
 
 // Handler.cs
 var query = _dbContext.Tickets.Where(t => t.UserId == currentUserId);
 
+if (!string.IsNullOrEmpty(request.GroupName))
+{
+    query = query.Where(t => t.GroupName == request.GroupName);
+}
+
 if (request.ContainsNumber.HasValue)
 {
     query = query.Where(t => t.Numbers.Any(n => n.Number == request.ContainsNumber.Value));
+}
+```
+
+**B) Filtrowanie po dacie utworzenia**
+
+```csharp
+// Contracts.cs
+public record Request(
+    string? GroupName = null,
+    DateTime? CreatedAfter = null,
+    DateTime? CreatedBefore = null
+) : IRequest<Response>;
+
+// Handler.cs
+if (request.CreatedAfter.HasValue)
+{
+    query = query.Where(t => t.CreatedAt >= request.CreatedAfter.Value);
+}
+
+if (request.CreatedBefore.HasValue)
+{
+    query = query.Where(t => t.CreatedAt <= request.CreatedBefore.Value);
 }
 ```
 
@@ -1669,6 +1855,7 @@ Endpoint `GET /api/tickets` jest kluczowym elementem aplikacji LottoTM, umożliw
 - ✅ Bezpieczeństwo: izolacja danych (filtrowanie po UserId z JWT)
 - ✅ Wydajność: eager loading (`.Include()`) + indeksy
 - ✅ Poprawność: mapowanie znormalizowanej struktury (TicketNumbers → int[])
+- ✅ Filtrowanie: opcjonalne częściowe filtrowanie po nazwie grupy (groupName parameter, LIKE/Contains)
 
 **Priorytet 2 (SHOULD HAVE):**
 - ✅ Obsługa błędów: 401/500 przez middleware

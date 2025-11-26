@@ -493,13 +493,15 @@
 
 #### **GET /api/tickets**
 
-**Opis:** Pobieranie listy zestawów liczb użytkownika
+**Opis:** Pobieranie listy zestawów liczb użytkownika z opcjonalnym filtrowaniem po nazwie grupy
 
 **Autoryzacja:** Wymagany JWT
 
-**Parametry zapytania:** BRAK
+**Parametry zapytania:**
+- `groupName` (opcjonalny): Częściowe filtrowanie zestawów według nazwy grupy (string, max 100 znaków, case-sensitive, LIKE/Contains)
 
 **Przykład:** `GET /api/tickets`
+**Przykład z filtrowaniem:** `GET /api/tickets?groupName=Ulubione`
 
 **Payload odpowiedzi (sukces):**
 ```json
@@ -529,13 +531,25 @@
 - `200 OK` - Lista zwrócona
 
 **Kody błędów:**
+- `400 Bad Request` - Nieprawidłowe parametry (groupName za długi)
+  ```json
+  {
+    "errors": {
+      "groupName": ["Nazwa grupy nie może być dłuższa niż 100 znaków"]
+    }
+  }
+  ```
 - `401 Unauthorized` - Brak tokenu
 
 **Logika biznesowa:**
 1. Pobranie `UserId` z JWT
-2. Zapytanie: `SELECT * FROM Tickets WHERE UserId = @currentUserId ORDER BY CreatedAt DESC`
-3. Użycie indeksu IX_Tickets_UserId
-4. Zwrot listy
+2. Walidacja parametru `groupName` (jeśli podany):
+   - Maksymalna długość: 100 znaków
+3. Zapytanie bazowe: `SELECT * FROM Tickets WHERE UserId = @currentUserId`
+4. Opcjonalne filtrowanie: jeśli `groupName` podany, dodaj `AND GroupName LIKE '%' + @groupName + '%'` (częściowe dopasowanie)
+5. Sortowanie: `ORDER BY CreatedAt DESC`
+6. Użycie indeksu IX_Tickets_UserId
+7. Zwrot listy (może być pusta jeśli brak zestawów pasujących do wzorca)
 
 ---
 
@@ -1826,7 +1840,7 @@ public List<int[]> GenerateSystemTickets()
 | POST | `/api/draws` | Dodanie wyniku losowania (admin) | Tak (IsAdmin) |
 | PUT | `/api/draws/{id}` | Edycja wyniku losowania (admin) | Tak (IsAdmin) |
 | DELETE | `/api/draws/{id}` | Usunięcie losowania (admin) | Tak (IsAdmin) |
-| GET | `/api/tickets` | Lista zestawów użytkownika | Tak |
+| GET | `/api/tickets` | Lista zestawów użytkownika (z opcjonalnym filtrowaniem po groupName) | Tak |
 | GET | `/api/tickets/{id}` | Szczegóły zestawu (int) | Tak |
 | POST | `/api/tickets` | Dodanie zestawu ręcznie | Tak |
 | PUT | `/api/tickets/{id}` | Edycja zestawu (int) | Tak |

@@ -38,6 +38,11 @@ TicketsPage (główny kontener)
 │   ├── h1: "Moje zestawy"
 │   └── TicketCounter (licznik "X/100")
 │
+├── SearchFilter (filtrowanie po nazwie grupy)
+│   ├── Input tekstowy (debounced search, 300ms)
+│   ├── Ikona: 🔍
+│   └── Przycisk: "✕ Wyczyść" (conditional)
+│
 ├── Action Buttons Row
 │   ├── Button: "+ Dodaj ręcznie" (primary)
 │   ├── Button: "🎲 Generuj losowy" (secondary)
@@ -93,12 +98,15 @@ Główny komponent-strona zarządzający stanem widoku Tickets, obsługujący ws
 - `<Layout>` (wrapper z Navbar)
 - `<div className="container">` (główny kontener)
   - Header section z nagłówkiem h1 i TicketCounter
+  - SearchFilter (filtrowanie po nazwie grupy)
   - Row z 3 action buttons
   - TicketList (lub Empty State)
   - 5 modalnych komponentów (conditional rendering)
   - ToastContainer
 
 **Obsługiwane zdarzenia:**
+- `onSearch(term)` - filtruje zestawy po nazwie grupy (debounced 300ms, API call GET /api/tickets?groupName={term})
+- `onClearSearch()` - czyści filtr wyszukiwania (API call GET /api/tickets)
 - `onAddTicket()` - otwiera modal dodawania zestawu
 - `onEditTicket(ticketId)` - otwiera modal edycji z pre-wypełnionymi danymi
 - `onDeleteTicket(ticketId)` - otwiera modal potwierdzenia usunięcia
@@ -111,7 +119,7 @@ Główny komponent-strona zarządzający stanem widoku Tickets, obsługujący ws
 - `onImportCsv()` - otwiera modal importu CSV (Feature Flag)
 - `onImportSuccess(report)` - callback po pomyślnym imporcie, odświeża listę
 - `onExportCsv()` - wywołuje eksport do CSV, pobiera plik (Feature Flag)
-- `refreshTicketList()` - odświeża listę zestawów (API call GET /api/tickets)
+- `refreshTicketList(groupName?)` - odświeża listę zestawów (API call GET /api/tickets z opcjonalnym filtrem groupName)
 
 **Warunki walidacji:**
 - **Limit zestawów:** Sprawdzenie `tickets.length < 100` przed otwarciem modalu dodawania/generatora
@@ -175,6 +183,9 @@ const [tickets, setTickets] = useState<Ticket[]>([]);
 const [totalCount, setTotalCount] = useState<number>(0);
 const [loading, setLoading] = useState<boolean>(false);
 
+// Search/Filter
+const [searchTerm, setSearchTerm] = useState<string>('');
+
 // Modale
 const [isTicketFormOpen, setIsTicketFormOpen] = useState<boolean>(false);
 const [ticketFormState, setTicketFormState] = useState<TicketFormState | null>(null);
@@ -237,14 +248,14 @@ Jeśli `count > 95`: Toast "Uwaga: Pozostało tylko {100 - count} wolnych miejsc
 ### 4.3 TicketList (lista zestawów)
 
 **Opis komponentu:**
-Wyświetla listę wszystkich zestawów użytkownika w formie scrollowalnego kontenera (max 100 zestawów, bez paginacji). Zestawy sortowane według daty utworzenia (najnowsze na górze).
+Wyświetla listę wszystkich zestawów użytkownika w formie scrollowalnego kontenera (max 100 zestawów, bez paginacji). Zestawy sortowane według daty utworzenia (najnowsze na górze). Obsługuje różne stany pustej listy w zależności od aktywnego filtra wyszukiwania.
 
 **Główne elementy:**
 - `<div className="space-y-4">` (vertical stack)
-  - Jeśli `tickets.length === 0`: Empty State
+  - Jeśli `tickets.length === 0`: Empty State (wariant zależy od searchTerm)
   - Jeśli `tickets.length > 0`: Array.map → TicketItem[]
 
-**Empty State:**
+**Empty State (brak zestawów, brak filtra):**
 ```tsx
 <div className="text-center py-12 text-gray-500">
   <p>Nie masz jeszcze żadnych zestawów.</p>
@@ -252,8 +263,22 @@ Wyświetla listę wszystkich zestawów użytkownika w formie scrollowalnego kont
 </div>
 ```
 
+**Empty State (brak wyników po filtrowaniu):**
+```tsx
+<div className="text-center py-12 text-gray-500">
+  <p>Nie znaleziono zestawów pasujących do frazy "{searchTerm}".</p>
+  <button
+    onClick={onClearSearch}
+    className="mt-2 text-blue-600 hover:underline"
+  >
+    Wyczyść filtr
+  </button>
+</div>
+```
+
 **Obsługiwane interakcje:**
-Przekazuje handlery onEdit/onDelete do TicketItem
+- Przekazuje handlery onEdit/onDelete do TicketItem
+- onClearSearch - wywoływany gdy użytkownik klika "Wyczyść filtr" w empty state
 
 **Obsługiwana walidacja:**
 Brak (walidacja w TicketFormModal)
@@ -263,16 +288,20 @@ Brak (walidacja w TicketFormModal)
 interface TicketListProps {
   tickets: Ticket[];
   loading: boolean;
+  searchTerm?: string;                   // Opcjonalny term wyszukiwania (dla wariantu Empty State)
   onEdit: (ticketId: number) => void;
   onDelete: (ticketId: number) => void;
+  onClearSearch?: () => void;            // Callback czyszczenia filtra (wymagany gdy searchTerm !== '')
 }
 ```
 
 **Propsy:**
 - `tickets: Ticket[]` - lista zestawów do wyświetlenia
 - `loading: boolean` - flag loading state (Spinner podczas fetch)
+- `searchTerm?: string` - aktualny term wyszukiwania (dla conditional Empty State)
 - `onEdit: (ticketId) => void` - callback edycji zestawu
 - `onDelete: (ticketId) => void` - callback usunięcia zestawu
+- `onClearSearch?: () => void` - callback czyszczenia filtra wyszukiwania
 
 ---
 
@@ -955,6 +984,226 @@ const handleExport = async () => {
 
 ---
 
+### 4.11 SearchFilter (filtrowanie po nazwie grupy)
+
+**Opis komponentu:**
+Komponent filtrowania zestawów po nazwie grupy (groupName). Wyświetla pole tekstowe z ikoną 🔍 i przyciskiem "✕ Wyczyść". Wykorzystuje debouncing (300ms) przed wykonaniem zapytania API, aby ograniczyć liczbę requestów podczas wpisywania.
+
+**Główne elementy:**
+```tsx
+<div className="flex items-center gap-2 mb-4">
+  <div className="relative flex-1 max-w-md">
+    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+      🔍
+    </span>
+    <input
+      type="text"
+      value={searchTerm}
+      onChange={handleInputChange}
+      placeholder="Szukaj w grupach..."
+      maxLength={100}
+      className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+      aria-label="Wyszukaj zestawy po nazwie grupy"
+    />
+  </div>
+  {searchTerm && (
+    <button
+      onClick={handleClear}
+      className="px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+      aria-label="Wyczyść filtr"
+    >
+      ✕ Wyczyść
+    </button>
+  )}
+</div>
+```
+
+**Obsługiwane interakcje:**
+1. **Wpisywanie tekstu:**
+   - Użytkownik wpisuje tekst w pole tekstowe
+   - Debouncing 300ms przed wywołaniem `onSearch(searchTerm)`
+   - Max 100 znaków (HTML attribute + wizualne ograniczenie)
+
+2. **Czyszczenie filtra:**
+   - Kliknięcie przycisku "✕ Wyczyść" (conditional rendering gdy `searchTerm !== ''`)
+   - Wywołuje `onClear()` → czyszczenie `searchTerm` → nowe API call bez filtra
+
+**Obsługiwana walidacja:**
+- MaxLength 100 znaków (HTML attribute `maxLength={100}`)
+- Backend validacja w FluentValidation (redundantna, ale dla bezpieczeństwa)
+
+**Typy:**
+```tsx
+interface SearchFilterProps {
+  searchTerm: string;                    // Kontrolowana wartość inputa
+  onSearch: (term: string) => void;      // Callback wywoływany po debounce
+  onClear: () => void;                   // Callback czyszczenia filtra
+}
+```
+
+**Propsy:**
+- `searchTerm: string` - wartość kontrolowana przez parent (TicketsPage state)
+- `onSearch: (term: string) => void` - callback wywoływany po 300ms debounce z aktualnym termem
+- `onClear: () => void` - callback czyszczenia searchTerm (resetuje filtr i fetchuje wszystkie zestawy)
+
+**Implementacja debouncing:**
+```tsx
+const SearchFilter: React.FC<SearchFilterProps> = ({ searchTerm, onSearch, onClear }) => {
+  const [localTerm, setLocalTerm] = useState(searchTerm);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Synchronizuj local state z props (gdy parent zmieni searchTerm zewnętrznie)
+  useEffect(() => {
+    setLocalTerm(searchTerm);
+  }, [searchTerm]);
+
+  // Debounced search
+  useEffect(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    timeoutRef.current = setTimeout(() => {
+      onSearch(localTerm);
+    }, 300);
+
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [localTerm, onSearch]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setLocalTerm(e.target.value);
+  };
+
+  const handleClear = () => {
+    setLocalTerm('');
+    onClear();
+  };
+
+  return (
+    <div className="flex items-center gap-2 mb-4">
+      <div className="relative flex-1 max-w-md">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+          🔍
+        </span>
+        <input
+          type="text"
+          value={localTerm}
+          onChange={handleInputChange}
+          placeholder="Szukaj w grupach..."
+          maxLength={100}
+          className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          aria-label="Wyszukaj zestawy po nazwie grupy"
+        />
+      </div>
+      {localTerm && (
+        <button
+          onClick={handleClear}
+          className="px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+          aria-label="Wyczyść filtr"
+        >
+          ✕ Wyczyść
+        </button>
+      )}
+    </div>
+  );
+};
+```
+
+**Integracja z TicketsPage:**
+```tsx
+// W TicketsPage component
+const [searchTerm, setSearchTerm] = useState<string>('');
+
+// Aktualizacja fetchTickets() z parametrem groupName
+const fetchTickets = async (groupName?: string) => {
+  setLoading(true);
+  try {
+    const apiService = getApiService();
+    const response = await apiService.getTickets(groupName);
+    setTickets(response.tickets);
+    setTotalCount(response.totalCount);
+  } catch (error) {
+    handleApiError(error);
+  } finally {
+    setLoading(false);
+  }
+};
+
+// Callback dla SearchFilter
+const handleSearch = (term: string) => {
+  setSearchTerm(term);
+  fetchTickets(term || undefined); // Pusty string = undefined (bez filtra)
+};
+
+const handleClearSearch = () => {
+  setSearchTerm('');
+  fetchTickets(); // Fetch bez filtra
+};
+
+// Rendering
+<SearchFilter
+  searchTerm={searchTerm}
+  onSearch={handleSearch}
+  onClear={handleClearSearch}
+/>
+```
+
+**Aktualizacja ApiService:**
+```tsx
+// W src/services/api-service.ts
+async getTickets(groupName?: string): Promise<TicketsGetListResponse> {
+  const params = new URLSearchParams();
+  if (groupName) {
+    params.append('groupName', groupName);
+  }
+
+  const queryString = params.toString();
+  const url = queryString ? `/api/tickets?${queryString}` : '/api/tickets';
+
+  const response = await this.get<TicketsGetListResponse>(url);
+  return response;
+}
+```
+
+**Partial match behavior (Backend):**
+- Backend używa `Contains()` (LINQ) → SQL `LIKE '%value%'`
+- Przykład: `searchTerm="test"` znajdzie: "test", "testing", "my test group", "contest"
+- Case-sensitive matching (zgodnie z backend implementation)
+
+**Empty State przy filtrowaniu:**
+Jeśli `searchTerm !== ''` i `tickets.length === 0`, wyświetl specjalny komunikat w TicketList:
+```tsx
+<div className="text-center py-12 text-gray-500">
+  <p>Nie znaleziono zestawów pasujących do frazy "{searchTerm}".</p>
+  <button
+    onClick={onClearSearch}
+    className="mt-2 text-blue-600 hover:underline"
+  >
+    Wyczyść filtr
+  </button>
+</div>
+```
+
+**Accessibility:**
+- `aria-label="Wyszukaj zestawy po nazwie grupy"` dla inputa
+- `aria-label="Wyczyść filtr"` dla przycisku clear
+- `maxLength={100}` dla HTML-level validation
+- Focus states (`:focus:ring-2`) dla keyboard navigation
+
+**UX considerations:**
+- Debouncing 300ms → użytkownik nie czeka na każdy keystroke
+- Loading indicator podczas API call (inherited z TicketList `loading` prop)
+- Clear button tylko gdy `searchTerm !== ''` (conditional rendering)
+- Placeholder "Szukaj w grupach..." sugeruje funkcjonalność
+- Max-width (max-w-md) → nie rozciąga się na całą szerokość ekranu
+- Icon 🔍 wizualnie identyfikuje search field
+
+---
+
 ## 5. Typy
 
 ### 5.1 DTO (Data Transfer Objects) - kontrakty z API
@@ -1076,8 +1325,10 @@ interface TicketCounterProps {
 interface TicketListProps {
   tickets: Ticket[];
   loading: boolean;
+  searchTerm?: string;                   // Opcjonalny term wyszukiwania (dla wariantu Empty State)
   onEdit: (ticketId: number) => void;
   onDelete: (ticketId: number) => void;
+  onClearSearch?: () => void;            // Callback czyszczenia filtra (wymagany gdy searchTerm !== '')
 }
 
 interface TicketItemProps {
@@ -1127,6 +1378,12 @@ interface ImportCsvModalProps {
 interface ExportCsvButtonProps {
   ticketCount: number;
   onExportSuccess: (count: number) => void;
+}
+
+interface SearchFilterProps {
+  searchTerm: string;                    // Kontrolowana wartość inputa
+  onSearch: (term: string) => void;      // Callback wywoływany po debounce (300ms)
+  onClear: () => void;                   // Callback czyszczenia filtra
 }
 ```
 
@@ -1190,6 +1447,7 @@ interface ButtonProps {
 - `tickets: Ticket[]` - lista zestawów użytkownika (fetch z API przy mount)
 - `totalCount: number` - liczba zestawów (dla TicketCounter)
 - `loading: boolean` - flag loading state (podczas API calls)
+- `searchTerm: string` - aktualny term wyszukiwania dla filtrowania po groupName
 - State modalnych komponentów (isOpen flags, dane do wyświetlenia)
 - State toast notifications (message, variant, visible)
 
@@ -1208,8 +1466,12 @@ interface UseTicketsReturn {
   totalCount: number;
   loading: boolean;
 
+  // Search/Filter
+  searchTerm: string;
+  setSearchTerm: (term: string) => void;
+
   // CRUD operations
-  fetchTickets: () => Promise<void>;
+  fetchTickets: (groupName?: string) => Promise<void>;
   addTicket: (numbers: number[]) => Promise<void>;
   updateTicket: (ticketId: number, numbers: number[]) => Promise<void>;
   deleteTicket: (ticketId: number) => Promise<void>;
@@ -1232,6 +1494,23 @@ function useTickets(): UseTicketsReturn {
   const [totalCount, setTotalCount] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState<string>('');
+
+  // Implementacja fetchTickets z opcjonalnym filtrowaniem
+  const fetchTickets = async (groupName?: string) => {
+    setLoading(true);
+    try {
+      const response = await apiService.getTickets(groupName);
+      setTickets(response.tickets);
+      setTotalCount(response.totalCount);
+      setError(null);
+    } catch (err) {
+      setError('Nie udało się pobrać zestawów');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // useEffect dla initial fetch
   useEffect(() => {
@@ -1245,6 +1524,8 @@ function useTickets(): UseTicketsReturn {
     tickets,
     totalCount,
     loading,
+    searchTerm,
+    setSearchTerm,
     fetchTickets,
     addTicket,
     updateTicket,
@@ -1265,6 +1546,8 @@ function TicketsPage() {
     tickets,
     totalCount,
     loading,
+    searchTerm,
+    setSearchTerm,
     fetchTickets,
     addTicket,
     updateTicket,
@@ -1274,8 +1557,35 @@ function TicketsPage() {
     error
   } = useTickets();
 
+  // Handlers dla SearchFilter
+  const handleSearch = (term: string) => {
+    setSearchTerm(term);
+    fetchTickets(term || undefined);
+  };
+
+  const handleClearSearch = () => {
+    setSearchTerm('');
+    fetchTickets();
+  };
+
   // Reszta logiki UI (modale, toast, handlers)
   // ...
+
+  return (
+    <div>
+      <SearchFilter
+        searchTerm={searchTerm}
+        onSearch={handleSearch}
+        onClear={handleClearSearch}
+      />
+      <TicketList
+        tickets={tickets}
+        loading={loading}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+      />
+    </div>
+  );
 }
 ```
 
@@ -1300,9 +1610,17 @@ class ApiService {
 
   // ... constructor, setAuthToken, clearAuthToken
 
-  // GET /api/tickets
-  async getTickets(): Promise<GetTicketsResponse> {
-    const response = await this.request('/api/tickets', {
+  // GET /api/tickets?groupName={value}
+  async getTickets(groupName?: string): Promise<GetTicketsResponse> {
+    const params = new URLSearchParams();
+    if (groupName) {
+      params.append('groupName', groupName);
+    }
+
+    const queryString = params.toString();
+    const url = queryString ? `/api/tickets?${queryString}` : '/api/tickets';
+
+    const response = await this.request(url, {
       method: 'GET'
     });
     return response;

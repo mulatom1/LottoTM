@@ -4,13 +4,16 @@ namespace LottoTM.Server.Api.Features.Tickets.TicketsGetList;
 
 /// <summary>
 /// Validator for GetListRequest
-/// Since the request has no parameters, this validator is empty but kept for architecture consistency
+/// Validates optional GroupName parameter
 /// </summary>
 public class GetListValidator : AbstractValidator<Contracts.Request>
 {
     public GetListValidator()
     {
-        // Request has no parameters to validate
-        // Validator is kept for consistency with Vertical Slice Architecture pattern
+        // Validate GroupName if provided
+        RuleFor(x => x.GroupName)
+            .MaximumLength(100)
+            .When(x => !string.IsNullOrEmpty(x.GroupName))
+            .WithMessage("Nazwa grupy nie może być dłuższa niż 100 znaków");
     }
 }

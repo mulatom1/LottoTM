@@ -46,28 +46,40 @@ public class GetListHandler : IRequestHandler<Contracts.Request, Contracts.Respo
         var currentUserId = await _jwtService.GetUserIdFromJwt();
 
         _logger.LogDebug(
-            "Pobieranie zestawów dla użytkownika {UserId}",
-            currentUserId
+            "Pobieranie zestawów dla użytkownika {UserId}" +
+            (request.GroupName != null ? " w grupie {GroupName}" : ""),
+            currentUserId,
+            request.GroupName
         );
 
         try
         {
-            // 3. Query database with eager loading (prevents N+1 queries)
-            // CRITICAL: Filter by UserId for data isolation - user can only see their own tickets
-            var tickets = await _dbContext.Tickets
+            // 3. Build query with user isolation (CRITICAL for security)
+            var query = _dbContext.Tickets
                 .AsNoTracking() // Read-only optimization
-                .Where(t => t.UserId == currentUserId) // CRITICAL: User data isolation
+                .Where(t => t.UserId == currentUserId); // CRITICAL: User data isolation
+
+            // 4. Apply optional GroupName filter (partial match - case-sensitive)
+            if (!string.IsNullOrEmpty(request.GroupName))
+            {
+                query = query.Where(t => t.GroupName.Contains(request.GroupName));
+            }
+
+            // 5. Execute query with eager loading and ordering
+            var tickets = await query
                 .Include(t => t.Numbers) // Eager loading to prevent N+1
                 .OrderByDescending(t => t.CreatedAt) // Newest first
                 .ToListAsync(cancellationToken);
 
             _logger.LogDebug(
-                "Znaleziono {Count} zestawów dla użytkownika {UserId}",
+                "Znaleziono {Count} zestawów dla użytkownika {UserId}" +
+                (request.GroupName != null ? " w grupie {GroupName}" : ""),
                 tickets.Count,
-                currentUserId
+                currentUserId,
+                request.GroupName
             );
 
-            // 4. Map entities to DTOs
+            // 6. Map entities to DTOs
             var ticketDtos = tickets.Select(ticket => new Contracts.TicketDto(
                 Id: ticket.Id,
                 UserId: ticket.UserId,
@@ -79,11 +91,11 @@ public class GetListHandler : IRequestHandler<Contracts.Request, Contracts.Respo
                 CreatedAt: ticket.CreatedAt
             )).ToList();
 
-            // 5. Calculate metadata
+            // 7. Calculate metadata
             var totalCount = ticketDtos.Count;
             var limit = 100; // Max tickets per user (enforced in Create endpoint)
 
-            // 6. Return response
+            // 8. Return response
             return new Contracts.Response(
                 Tickets: ticketDtos,
                 TotalCount: totalCount,

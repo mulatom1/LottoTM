@@ -14,6 +14,7 @@ import type { DrawsUpdateResponse } from "./contracts/draws-update-response";
 import type { TicketsCreateRequest } from "./contracts/tickets-create-request";
 import type { TicketsCreateResponse } from "./contracts/tickets-create-response";
 import type { TicketsGetByIdResponse } from "./contracts/tickets-get-by-id-response";
+import type { TicketsGetListRequest } from "./contracts/tickets-get-list-request";
 import type { TicketsGetListResponse } from "./contracts/tickets-get-list-response";
 import type { TicketsPutByIdRequest } from "./contracts/tickets-put-by-id-request";
 import type { TicketsPutByIdResponse } from "./contracts/tickets-put-by-id-response";
@@ -525,13 +526,26 @@ export class ApiService {
     }
 
     /**
-     * Get all lottery tickets for the authenticated user
+     * Get all lottery tickets for the authenticated user with optional filtering
      * GET /api/tickets
+     * @param request - Optional query parameters (groupName filter)
      * @returns Promise<TicketsGetListResponse> - List of tickets with pagination metadata
-     * @throws Error if unauthorized (401) or server error occurs (500)
+     * @throws Error if unauthorized (401), validation fails (400), or server error occurs (500)
      */
-    public async ticketsGetList(): Promise<TicketsGetListResponse> {
-      const response = await fetch(`${this.apiUrl}/api/tickets`, {
+    public async ticketsGetList(request?: TicketsGetListRequest): Promise<TicketsGetListResponse> {
+      // Build query parameters
+      const params = new URLSearchParams();
+
+      if (request?.groupName) {
+        params.append('groupName', request.groupName);
+      }
+
+      const queryString = params.toString();
+      const url = queryString
+        ? `${this.apiUrl}/api/tickets?${queryString}`
+        : `${this.apiUrl}/api/tickets`;
+
+      const response = await fetch(url, {
         method: 'GET',
         headers: this.getHeaders()
       });
@@ -540,6 +554,23 @@ export class ApiService {
         // Handle different error scenarios
         if (response.status === 401) {
           throw new Error('Brak autoryzacji. Wymagany token JWT.');
+        }
+
+        if (response.status === 400) {
+          const errorData = await response.json();
+
+          // Extract validation errors from the response
+          if (errorData.errors) {
+            const errorMessages = Object.entries(errorData.errors)
+              .map(([field, messages]) => {
+                const msgArray = messages as string[];
+                return `${field}: ${msgArray.join(', ')}`;
+              })
+              .join('; ');
+            throw new Error(errorMessages);
+          }
+
+          throw new Error('Błąd walidacji parametrów zapytania');
         }
 
         if (response.status === 500) {

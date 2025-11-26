@@ -9,9 +9,9 @@ public class Contracts
 {
     /// <summary>
     /// Request to get list of tickets for authenticated user
-    /// No parameters needed - returns all tickets for current user
     /// </summary>
-    public record Request : IRequest<Response>;
+    /// <param name="GroupName">Optional partial match filter by group name (case-sensitive, max 100 chars). Uses LIKE/Contains search.</param>
+    public record Request(string? GroupName = null) : IRequest<Response>;
 
     /// <summary>
     /// Response containing list of tickets with pagination metadata

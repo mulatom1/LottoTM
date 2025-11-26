@@ -19,7 +19,7 @@ System LottoTM to aplikacja webowa do zarządzania kuponami loterii LOTTO, zbudo
 - **Modalne interakcje** - formularze edycji, preview generatorów, potwierdzenia usunięcia w modalach (nie dedykowane routes)
 - **Centralized error handling** - wszystkie błędy (walidacja inline + błędy biznesowe) wyświetlane w ErrorModal po submit
 - **Paginacja selektywna** - tylko dla Draws (20/strona domyślnie, max 100), Tickets bez paginacji (max 100 zestawów, scrollowanie)
-- **Filtrowanie opcjonalne** - Draws wspiera filtrowanie po zakresie dat (dateFrom/dateTo), Tickets bez filtrów w MVP
+- **Filtrowanie opcjonalne** - Draws wspiera filtrowanie po zakresie dat (dateFrom/dateTo), Tickets wspiera częściowe filtrowanie po nazwie grupy (groupName, LIKE/Contains)
 
 ### Rezygnacja z Dashboard:
 
@@ -192,7 +192,8 @@ W MVP **całkowicie zrezygnowano z widoku Dashboard** (`/dashboard`). Po zalogow
 **Główny cel:** Zarządzanie zestawami liczb użytkownika (przeglądanie, dodawanie, edycja, usuwanie, generatory)
 
 **Kluczowe informacje do wyświetlenia:**
-- Lista zestawów użytkownika (6 liczb, data utworzenia)
+- Pole filtrowania/wyszukiwania po nazwie grupy (textbox, częściowe dopasowanie)
+- Lista zestawów użytkownika (6 liczb, nazwa grupy, data utworzenia)
 - Licznik: "X/100 zestawów" z progresywną kolorystyką
 - Przyciski akcji: Dodaj ręcznie, Generator losowy, Generator systemowy
 - Przyciski CRUD przy każdym zestawie: Edytuj, Usuń
@@ -208,6 +209,25 @@ W MVP **całkowicie zrezygnowano z widoku Dashboard** (`/dashboard`). Po zalogow
     - 91-100: `text-red-600` (limit bliski)
   - Toast ostrzegawczy jeśli >95: "Uwaga: Pozostało tylko X wolnych miejsc"
 
+**Search/Filter section:**
+- **Input tekstowy (textbox):**
+  - Label: "Szukaj w grupach" lub "Filtruj po nazwie grupy"
+  - Placeholder: "np. Ulubione, test, rodzina..."
+  - Type: text, max 100 znaków
+  - Ikona: 🔍 (po lewej stronie inputa)
+  - **Zachowanie:**
+    - Częściowe dopasowanie (LIKE/Contains, case-sensitive)
+    - Debounced search (300ms opóźnienie przed wywołaniem API)
+    - Przykład: wpisanie "test" znajduje: "test", "testing", "my test group"
+  - **Wskazówka wizualna:**
+    - Jeśli pole aktywne (focus): border podświetlony
+    - Jeśli filtr aktywny (wartość niepusta): wyświetl przycisk "✕ Wyczyść" po prawej stronie
+  - **API call:**
+    - Endpoint: `GET /api/tickets?groupName={wartość}`
+    - Jeśli pole puste/null: `GET /api/tickets` (wszystkie zestawy)
+  - **Empty state po filtrowaniu:**
+    - Jeśli brak wyników: "Nie znaleziono zestawów pasujących do '{wartość filtra}'. Spróbuj zmienić kryteria wyszukiwania."
+
 **Action buttons (horizontal row):**
 - **"+ Dodaj ręcznie"** (primary) → otwiera Modal dodawania
 - **"🎲 Generuj losowy"** (secondary) → wywołuje generator losowy
@@ -218,15 +238,22 @@ W MVP **całkowicie zrezygnowano z widoku Dashboard** (`/dashboard`). Po zalogow
 **Lista zestawów (scrollowalna, max 100):**
 - Każdy zestaw jako card/row:
   - **Liczby:** [3, 12, 25, 31, 42, 48] (wyświetlone jako badges lub inline)
+  - **Nazwa grupy:** "Ulubione" (wyświetlona jako tag/badge lub tekst, opcjonalnie)
   - **Data utworzenia:** "Utworzono: 2025-10-15 14:30"
   - **Przyciski akcji:** [Edytuj] [Usuń]
 - Sortowanie: według daty utworzenia (najnowsze na górze, malejąco)
 - **Empty state** (jeśli brak zestawów): "Nie masz jeszcze żadnych zestawów. Dodaj swój pierwszy zestaw używając przycisków powyżej."
+- **Empty state po filtrowaniu**: "Nie znaleziono zestawów pasujących do '{wartość filtra}'. Spróbuj zmienić kryteria wyszukiwania."
 
 **Modale:**
 
 1. **Modal dodawania zestawu ręcznie:**
    - Tytuł: "Dodaj nowy zestaw"
+   - **Pole tekstowe - Nazwa grupy (opcjonalne):**
+     - Label: "Nazwa grupy (opcjonalnie)"
+     - Placeholder: "np. Ulubione, Rodzina, Test..."
+     - Type: text, max 100 znaków
+     - Opcjonalne (może być puste)
    - **6 pól numerycznych:**
      - Labels: "Liczba 1" do "Liczba 6"
      - Type: number, min="1", max="49", required
@@ -239,7 +266,8 @@ W MVP **całkowicie zrezygnowano z widoku Dashboard** (`/dashboard`). Po zalogow
 
 2. **Modal edycji zestawu:**
    - Identyczny jak dodawanie, ale tytuł: "Edytuj zestaw"
-   - Pola pre-wypełnione aktualnymi wartościami
+   - Pola pre-wypełnione aktualnymi wartościami (nazwa grupy + 6 liczb)
+   - Pole nazwa grupy również edytowalne
    - Walidacja unikalności pomija edytowany zestaw
    - Po sukcesie: Toast "Zestaw zaktualizowany pomyślnie"
 

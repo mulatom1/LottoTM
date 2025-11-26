@@ -428,8 +428,12 @@ private class LottoOpenApiResult
 - Przycisk akcji przy każdym zestawie: Edytuj, Usuń
 
 **Endpointy API:**
-- `GET /api/tickets`
-  - Response: `{ "tickets": [...], "totalCount": 42 }`
+- `GET /api/tickets?groupName={nazwa}`
+  - Parametry opcjonalne:
+    - `groupName` (string, max 100 znaków): częściowe filtrowanie zestawów według nazwy grupy (wyszukiwanie LIKE/Contains, case-sensitive)
+  - Response: `{ "tickets": [...], "totalCount": 42, "limit": 100 }`
+  - Przykład: `GET /api/tickets?groupName=test` - zwraca zestawy zawierające "test" w nazwie (np. "test", "testing", "my test group")
+  - Przykład: `GET /api/tickets` - zwraca wszystkie zestawy użytkownika
 
 #### F-TICKET-002: Dodawanie zestawu ręcznie
 **Priorytet:** Must Have
@@ -747,7 +751,7 @@ private class LottoOpenApiResult
 - Wyświetlenie: 6 liczb, nazwa grupy (jeśli przypisana), data utworzenia
 - Licznik: "X / 100 zestawów"
 - Możliwość filtrowania po nazwie grupy (opcjonalnie)
-- Paginacja lub scroll dla wielu zestawów
+- Scroll dla wielu zestawów
 - Przycisk akcji: Edytuj, Usuń
 
 **Priorytet:** Must Have
@@ -1030,75 +1034,75 @@ src/server/LottoTM.Server.Api/
 │   │   │   ├── Validator.cs     // Walidacja (jeśli potrzebna)
 │   │   │   ├── Handler.cs       // Logika obsługi (jeśli potrzebna)
 │   │   │   └── Endpoint.cs      // POST /api/auth/register
-│   │   ├── Login/
-│   │   │   ├── Contracts.cs
-│   │   │   ├── Validator.cs     // Walidacja (jeśli potrzebna)
-│   │   │   ├── Handler.cs       // Logika obsługi (jeśli potrzebna)
-│   │   │   └── Endpoint.cs      // POST /api/auth/login
-│   │   └── Logout/
+│   │   └── Login/
 │   │       ├── Contracts.cs
 │   │       ├── Validator.cs     // Walidacja (jeśli potrzebna)
 │   │       ├── Handler.cs       // Logika obsługi (jeśli potrzebna)
-│   │       └── Endpoint.cs      // POST /api/auth/logout
+│   │       └── Endpoint.cs      // POST /api/auth/login
 │   ├── Draws/
-│   │   ├── AddDrawResult/
+│   │   ├── DrawsCreate/
 │   │   │   ├── Contracts.cs
 │   │   │   ├── Validator.cs     // Walidacja (jeśli potrzebna)
 │   │   │   ├── Handler.cs       // Logika obsługi (jeśli potrzebna)
 │   │   │   └── Endpoint.cs      // POST /api/draws
-│   │   ├── ListDrawResults/
+│   │   ├── DrawsGetList/
 │   │   │   ├── Contracts.cs
 │   │   │   ├── Validator.cs     // Walidacja (jeśli potrzebna)
 │   │   │   ├── Handler.cs       // Logika obsługi (jeśli potrzebna)
 │   │   │   └── Endpoint.cs      // GET /api/draws
-│   │   ├── GetDrawResult/
+│   │   ├── DrawsGetById/
 │   │   │   ├── Contracts.cs
 │   │   │   ├── Validator.cs     // Walidacja (jeśli potrzebna)
 │   │   │   ├── Handler.cs       // Logika obsługi (jeśli potrzebna)
 │   │   │   └── Endpoint.cs      // GET /api/draws/{id}
-│   │   ├── UpdateDrawResult/
+│   │   ├── DrawsUpdate/
 │   │   │   ├── Contracts.cs
 │   │   │   ├── Validator.cs     // Walidacja (jeśli potrzebna)
 │   │   │   ├── Handler.cs       // Logika obsługi (jeśli potrzebna)
 │   │   │   └── Endpoint.cs      // PUT /api/draws/{id}
-│   │   └── DeleteDrawResult/
+│   │   └── DrawsDelete/
 │   │       ├── Contracts.cs
 │   │       ├── Validator.cs     // Walidacja (jeśli potrzebna)
 │   │       ├── Handler.cs       // Logika obsługi (jeśli potrzebna)
 │   │       └── Endpoint.cs      // DELETE /api/draws/{id}
 │   ├── Tickets/
-│   │   ├── ListTickets/
+│   │   ├── TicketsGetList/
 │   │   │   ├── Contracts.cs
 │   │   │   ├── Validator.cs     // Walidacja (jeśli potrzebna)
 │   │   │   ├── Handler.cs       // Logika obsługi (jeśli potrzebna)
 │   │   │   └── Endpoint.cs      // GET /api/tickets
-│   │   ├── AddTicket/
+│   │   ├── TicketsCreate/
 │   │   │   ├── Contracts.cs
 │   │   │   ├── Validator.cs     // Walidacja (jeśli potrzebna)
 │   │   │   ├── Handler.cs       // Logika obsługi (jeśli potrzebna)
 │   │   │   └── Endpoint.cs      // POST /api/tickets
-│   │   ├── UpdateTicket/
+│   │   ├── TicketsUpdate/
 │   │   │   ├── Contracts.cs
 │   │   │   ├── Validator.cs     // Walidacja (jeśli potrzebna)
 │   │   │   ├── Handler.cs       // Logika obsługi (jeśli potrzebna)
 │   │   │   └── Endpoint.cs      // PUT /api/tickets/{id}
-│   │   ├── DeleteTicket/
+│   │   ├── TicketsDelete/
 │   │   │   ├── Contracts.cs
 │   │   │   ├── Validator.cs     // Walidacja (jeśli potrzebna)
 │   │   │   ├── Handler.cs       // Logika obsługi (jeśli potrzebna)
 │   │   │   └── Endpoint.cs      // DELETE /api/tickets/{id}
-│   │   ├── GenerateRandomTicket/
+│   │   ├── TicketsDeleteAll/
+│   │   │   ├── Contracts.cs
+│   │   │   ├── Validator.cs     // Walidacja (jeśli potrzebna)
+│   │   │   ├── Handler.cs       // Logika obsługi (jeśli potrzebna)
+│   │   │   └── Endpoint.cs      // DELETE /api/tickets/all
+│   │   ├── GenerateRandom/
 │   │   │   ├── Contracts.cs
 │   │   │   ├── Validator.cs     // Walidacja (jeśli potrzebna)
 │   │   │   ├── Handler.cs       // Logika obsługi (jeśli potrzebna)
 │   │   │   └── Endpoint.cs      // POST /api/tickets/generate-random
-│   │   └── GenerateSystemTickets/
+│   │   └── GenerateSystem/
 │   │       ├── Contracts.cs
 │   │       ├── Validator.cs     // Walidacja (jeśli potrzebna)
 │   │       ├── Handler.cs       // Logika obsługi (jeśli potrzebna)
 │   │       └── Endpoint.cs      // POST /api/tickets/generate-system
 │   └── Verification/
-│       └── CheckWinnings/
+│       └── Check/
 │           ├── Contracts.cs
 │           ├── Validator.cs     // Walidacja (jeśli potrzebna)
 │           ├── Handler.cs       // Logika obsługi (jeśli potrzebna)
@@ -1284,7 +1288,7 @@ DELETE /api/draws/{id}          - Usunięcie wyniku losowania
 
 #### Tickets Module
 ```
-GET    /api/tickets             - Lista zestawów użytkownika (z paginacją)
+GET    /api/tickets             - Lista zestawów użytkownika (z opcjonalnym filtrowaniem po groupName)
 GET    /api/tickets/{id}        - Szczegóły pojedynczego zestawu
 POST   /api/tickets             - Dodanie nowego zestawu ręcznie
 PUT    /api/tickets/{id}        - Edycja istniejącego zestawu
@@ -1785,13 +1789,15 @@ Response:
 
 **Ekran: Lista zestawów**
 - Nagłówek: "Moje zestawy (42/100)"
+- Filtr: [🔍 Szukaj w grupach: ____] (textbox z wyszukiwaniem częściowym, opcjonalny)
 - Przyciski: [+ Dodaj ręcznie] [🎲 Generuj losowy] [🔢 Generuj systemowy]
 - Lista zestawów:
-  - Zestaw #1: [3, 12, 25, 31, 42, 48] | Utworzono: 2025-10-15 | [Usuń]
-  - Zestaw #2: [5, 14, 23, 29, 37, 41] | Utworzono: 2025-10-14 | [Usuń]
+  - Zestaw #1: [3, 12, 25, 31, 42, 48] | Grupa: "Ulubione" | Utworzono: 2025-10-15 | [Edytuj] [Usuń]
+  - Zestaw #2: [5, 14, 23, 29, 37, 41] | Grupa: "Testowe" | Utworzono: 2025-10-14 | [Edytuj] [Usuń]
 
 **Ekran: Formularz dodawania zestawu**
 - Nagłówek: "Dodaj nowy zestaw"
+- Pole tekstowe: Nazwa grupy [____] (opcjonalne, max 100 znaków, placeholder: "np. Ulubione")
 - 6 pól numerycznych:
   - Liczba 1: [____] (placeholder: "1-49")
   - ...

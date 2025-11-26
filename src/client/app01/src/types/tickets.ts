@@ -85,6 +85,8 @@ export interface TicketListProps {
   loading: boolean;
   onEdit: (ticketId: number) => void;
   onDelete: (ticketId: number) => void;
+  searchTerm?: string;
+  onClearSearch?: () => void;
 }
 
 export interface TicketItemProps {
