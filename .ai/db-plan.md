@@ -1,7 +1,7 @@
 # Schemat Bazy Danych SQL Server - LottoTM MVP
 
-**Wersja:** 2.2
-**Data:** 2025-11-11
+**Wersja:** 2.3
+**Data:** 2025-11-27
 **Baza danych:** SQL Server 2022
 **ORM:** Entity Framework Core 9
 
@@ -53,10 +53,20 @@ CREATE INDEX IX_Users_Email ON Users(Email);
 ```sql
 CREATE TABLE Draws (
     Id INT PRIMARY KEY IDENTITY(1,1),
+    DrawSystemId INT NOT NULL,
     DrawDate DATE NOT NULL,
-    LottoType NVARCHAR(20) NOT NULL CHECK (LottoType IN ('LOTTO', 'LOTTO PLUS')),
+    LottoType NVARCHAR(50) NOT NULL CHECK (LottoType IN ('LOTTO', 'LOTTO PLUS')),
     CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
     CreatedByUserId INT NULL,
+    TicketPrice NUMERIC(18,2) NULL,
+    WinPoolCount1 INT NULL,
+    WinPoolAmount1 NUMERIC(18,2) NULL,
+    WinPoolCount2 INT NULL,
+    WinPoolAmount2 NUMERIC(18,2) NULL,
+    WinPoolCount3 INT NULL,
+    WinPoolAmount3 NUMERIC(18,2) NULL,
+    WinPoolCount4 INT NULL,
+    WinPoolAmount4 NUMERIC(18,2) NULL,
     CONSTRAINT UQ_Draws_DrawDateLottoType UNIQUE (DrawDate, LottoType),
     CONSTRAINT FK_Draws_Users FOREIGN KEY (CreatedByUserId)
         REFERENCES Users(Id) ON DELETE CASCADE
@@ -69,10 +79,20 @@ CREATE INDEX IX_Draws_LottoType ON Draws(LottoType);
 
 **Kolumny:**
 - `Id` - INT IDENTITY, klucz główny
+- `DrawSystemId` - INT, identyfikator numeryczny losowania (z systemu losowania)
 - `DrawDate` - DATE, data losowania (bez godziny)
-- `LottoType` - NVARCHAR(20), typ gry ("LOTTO" lub "LOTTO PLUS")
+- `LottoType` - NVARCHAR(50), typ gry ("LOTTO" lub "LOTTO PLUS")
 - `CreatedAt` - DATETIME2, data wprowadzenia wyniku do systemu (UTC)
 - `CreatedByUserId` - INT NULL, klucz obcy do Users (kto wprowadził wynik), nullable dla wyników generowanych przez workera
+- `TicketPrice` - NUMERIC(18,2) NULL, cena za kupon dla tego losowania
+- `WinPoolCount1` - INT NULL, ilość wygranych 1 stopnia (6 trafionych)
+- `WinPoolAmount1` - NUMERIC(18,2) NULL, kwota wygranych 1 stopnia (6 trafionych)
+- `WinPoolCount2` - INT NULL, ilość wygranych 2 stopnia (5 trafionych)
+- `WinPoolAmount2` - NUMERIC(18,2) NULL, kwota wygranych 2 stopnia (5 trafionych)
+- `WinPoolCount3` - INT NULL, ilość wygranych 3 stopnia (4 trafione)
+- `WinPoolAmount3` - NUMERIC(18,2) NULL, kwota wygranych 3 stopnia (4 trafione)
+- `WinPoolCount4` - INT NULL, ilość wygranych 4 stopnia (3 trafione)
+- `WinPoolAmount4` - NUMERIC(18,2) NULL, kwota wygranych 4 stopnia (3 trafione)
 
 **Ograniczenia:**
 - PRIMARY KEY na `Id`
@@ -92,6 +112,13 @@ CREATE INDEX IX_Draws_LottoType ON Draws(LottoType);
 - **ZMIENIONO UNIQUE constraint** - z `DrawDate` na `(DrawDate, LottoType)` - w tym samym dniu może być losowanie LOTTO i LOTTO PLUS
 - **DODANO CHECK constraint** - walidacja wartości LottoType na poziomie bazy danych
 - **DODANO indeks `IX_Draws_LottoType`** - dla szybkiego filtrowania po typie gry
+
+**Zmiany vs. wersja 2.2:**
+- **DODANO kolumnę `DrawSystemId`** - identyfikator numeryczny losowania z systemu losowania
+- **DODANO kolumnę `TicketPrice`** - cena za kupon dla tego losowania
+- **DODANO kolumny `WinPoolCount1-4`** - ilości wygranych dla poszczególnych stopni (6, 5, 4, 3 trafienia)
+- **DODANO kolumny `WinPoolAmount1-4`** - kwoty wygranych dla poszczególnych stopni (6, 5, 4, 3 trafienia)
+- **ZMIENIONO typ `LottoType`** - z NVARCHAR(20) na NVARCHAR(50) dla większej elastyczności
 
 ---
 
@@ -303,19 +330,29 @@ foreach (var ticket in existingTickets)
 │ Position (1-6)       │
 └──────────────────────┘
 
-┌──────────────────┐
-│      Draws       │
-│------------------|
-│ Id (PK)          │
-│ DrawDate         │
-│ LottoType        │
-│ CreatedAt        │
-│ CreatedByUserId  │──┐
-└────────┬─────────┘  │
-         │            │ FK (Cascade Delete)
-         │ 1:6        │
-         │            ▼
-         ▼         [Users]
+┌──────────────────────┐
+│      Draws           │
+│----------------------|
+│ Id (PK)              │
+│ DrawSystemId         │
+│ DrawDate             │
+│ LottoType            │
+│ CreatedAt            │
+│ CreatedByUserId      │──┐
+│ TicketPrice          │  │
+│ WinPoolCount1        │  │
+│ WinPoolAmount1       │  │
+│ WinPoolCount2        │  │
+│ WinPoolAmount2       │  │
+│ WinPoolCount3        │  │
+│ WinPoolAmount3       │  │
+│ WinPoolCount4        │  │
+│ WinPoolAmount4       │  │
+└────────┬─────────────┘  │
+         │                │ FK (Cascade Delete)
+         │ 1:6            │
+         │                ▼
+         ▼             [Users]
 ┌──────────────────────┐
 │    DrawNumbers       │
 │----------------------|
@@ -1103,9 +1140,15 @@ protected override void OnModelCreating(ModelBuilder modelBuilder)
         entity.HasIndex(e => e.DrawDate);
         entity.HasIndex(e => e.CreatedByUserId);
         entity.HasIndex(e => e.LottoType);
+        entity.Property(e => e.DrawSystemId).IsRequired();
         entity.Property(e => e.DrawDate).IsRequired();
-        entity.Property(e => e.LottoType).HasMaxLength(20).IsRequired();
+        entity.Property(e => e.LottoType).HasMaxLength(50).IsRequired();
         entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+        entity.Property(e => e.TicketPrice).HasColumnType("decimal(18,2)");
+        entity.Property(e => e.WinPoolAmount1).HasColumnType("decimal(18,2)");
+        entity.Property(e => e.WinPoolAmount2).HasColumnType("decimal(18,2)");
+        entity.Property(e => e.WinPoolAmount3).HasColumnType("decimal(18,2)");
+        entity.Property(e => e.WinPoolAmount4).HasColumnType("decimal(18,2)");
 
         // UNIQUE constraint na (DrawDate, LottoType)
         entity.HasIndex(e => new { e.DrawDate, e.LottoType }).IsUnique();
@@ -1190,10 +1233,20 @@ public class TicketNumber
 public class Draw
 {
     public int Id { get; set; }
+    public int DrawSystemId { get; set; }
     public DateTime DrawDate { get; set; }
     public string LottoType { get; set; } = null!;
     public DateTime CreatedAt { get; set; }
     public int? CreatedByUserId { get; set; } // Nullable for worker-generated draws
+    public decimal? TicketPrice { get; set; }
+    public int? WinPoolCount1 { get; set; }
+    public decimal? WinPoolAmount1 { get; set; }
+    public int? WinPoolCount2 { get; set; }
+    public decimal? WinPoolAmount2 { get; set; }
+    public int? WinPoolCount3 { get; set; }
+    public decimal? WinPoolAmount3 { get; set; }
+    public int? WinPoolCount4 { get; set; }
+    public decimal? WinPoolAmount4 { get; set; }
 
     // Navigation properties
     public User? CreatedByUser { get; set; } // Nullable for worker-generated draws
@@ -1351,6 +1404,29 @@ catch
 - **Jest:** UNIQUE constraint na `(DrawDate, LottoType)`
 - **Powód:** W tym samym dniu może odbyć się losowanie LOTTO i LOTTO PLUS
 
+### 📊 Główne zmiany w wersji 2.3
+
+**1. Identyfikator systemowy losowania:**
+- **Dodano:** `Draws.DrawSystemId` (INT NOT NULL)
+- **Powód:** Przechowywanie identyfikatora numerycznego losowania z zewnętrznego systemu losowania
+
+**2. Informacje o cenie kuponu:**
+- **Dodano:** `Draws.TicketPrice` (NUMERIC(18,2) NULL)
+- **Powód:** Rejestracja ceny kuponu dla danego losowania (może się zmieniać w czasie)
+
+**3. Statystyki wygranych:**
+- **Dodano:** `Draws.WinPoolCount1-4` (INT NULL) - ilość wygranych dla poszczególnych stopni
+- **Dodano:** `Draws.WinPoolAmount1-4` (NUMERIC(18,2) NULL) - kwoty wygranych dla poszczególnych stopni
+- **Powód:** Przechowywanie pełnych informacji o wygranych z każdego losowania:
+  - Stopień 1: 6 trafionych liczb
+  - Stopień 2: 5 trafionych liczb
+  - Stopień 3: 4 trafione liczby
+  - Stopień 4: 3 trafione liczby
+
+**4. Zwiększenie rozmiaru typu gry:**
+- **Zmieniono:** `Draws.LottoType` z NVARCHAR(20) na NVARCHAR(50)
+- **Powód:** Większa elastyczność na przyszłe rozszerzenia nazw typów gier
+
 ---
 
 ## 7. Checklist wdrożenia
@@ -1421,6 +1497,7 @@ catch
 | 2.0 | 2025-11-05 | Tomasz Mularczyk | Normalizacja struktury danych: wprowadzenie TicketNumbers i DrawNumbers, dodanie IsAdmin do Users, dodanie CreatedByUserId do Draws, zmiana GETDATE() na GETUTCDATE(), aktualizacja strategii weryfikacji i indeksów, zmiana polityki duplikatów (blokowanie zamiast dozwolenia), aktualizacja przykładów EF Core |
 | 2.1 | 2025-11-05 | Tomasz Mularczyk | Zmiana Tickets.Id z UNIQUEIDENTIFIER (GUID) na INT IDENTITY dla prostszej struktury |
 | 2.2 | 2025-11-11 | Tomasz Mularczyk | Rozszerzenie modelu danych: dodanie pola GroupName (NVARCHAR(100) NOT NULL DEFAULT '') do tabeli Tickets dla grupowania zestawów; dodanie pola LottoType (NVARCHAR(20) NOT NULL) z CHECK constraint do tabeli Draws dla obsługi różnych typów gier (LOTTO, LOTTO PLUS); zmiana UNIQUE constraint na Draws z DrawDate na kombinację (DrawDate, LottoType); aktualizacja encji EF Core, DbContext configuration, przykładów użycia oraz diagramu relacji |
+| 2.3 | 2025-11-27 | Tomasz Mularczyk | Rozszerzenie tabeli Draws: dodanie pola DrawSystemId (INT NOT NULL) - identyfikator numeryczny losowania; dodanie pola TicketPrice (NUMERIC(18,2) NULL) - cena za kupon; dodanie pól WinPoolCount1-4 i WinPoolAmount1-4 dla statystyk wygranych (ilość i kwota wygranych dla poszczególnych stopni: 6, 5, 4, 3 trafienia); zmiana typu LottoType z NVARCHAR(20) na NVARCHAR(50); aktualizacja encji Draw.cs i konfiguracji EF Core |
 
 ---
 

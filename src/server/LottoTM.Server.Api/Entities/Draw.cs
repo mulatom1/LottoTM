@@ -14,6 +14,11 @@ public class Draw
     public int Id { get; set; }
 
     /// <summary>
+    /// DrawSystemId integer identifier
+    /// </summary>
+    public int DrawSystemId { get; set; }
+
+    /// <summary>
     /// Date of the lottery draw (without time component).
     /// Must be unique - only one draw per day and LottoType allowed.
     /// </summary>
@@ -50,4 +55,57 @@ public class Draw
     /// Numbers must be in range 1-49 and unique within the draw.
     /// </summary>
     public ICollection<DrawNumber> Numbers { get; set; } = new List<DrawNumber>();
+
+    /// <summary>
+    /// Ticket price for this draw
+    /// /// Nullable if not available
+    /// </summary>
+    public decimal? TicketPrice { get; set; }
+
+    /// <summary>
+    /// Count for 1 prize tier
+    /// Nullable if not available
+    /// </summary>
+    public int? WinPoolCount1 { get; set; }
+
+    /// <summary>
+    /// Amount for 1 prize tier
+    /// Nullable if not available
+    /// </summary>
+    public decimal? WinPoolAmount1 { get; set; }
+
+    /// <summary>
+    /// Count for 2 prize tier
+    /// Nullable if not available
+    /// </summary>
+    public int? WinPoolCount2 { get; set; }
+
+    /// <summary>
+    /// Amount for 2 prize tier
+    /// Nullable if not available
+    /// </summary>
+    public decimal? WinPoolAmount2 { get; set; }
+
+    /// <summary>
+    /// Count for 3 prize tier
+    /// Nullable if not available
+    /// </summary>
+    public int? WinPoolCount3 { get; set; }
+
+    /// <summary>
+    /// Amount for 3 prize tier
+    /// Nullable if not available
+    /// </summary>
+    public decimal? WinPoolAmount3 { get; set; }
+
+    /// <summary>
+    /// Count for 4 prize tier
+    /// Nullable if not available
+    /// </summary>
+    public int? WinPoolCount4 { get; set; }
+
+    /// <summary>
+    /// Amount for 4 prize tier
+    /// </summary>
+    public decimal? WinPoolAmount4 { get; set; }    
 }

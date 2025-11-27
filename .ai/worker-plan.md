@@ -28,11 +28,16 @@ Automatyzacja procesu pobierania wyników losowań eliminuje potrzebę ręcznego
 ```
 src/server/LottoTM.Server.Api/
 ├── Services/
-│   ├── LottoWorker.cs              // Główna implementacja workera
-│   ├── LottoOpenApiService.cs      // Serwis do pobierania z Lotto OpenApi
-│   └── ILottoOpenApiService.cs     // Interface serwisu
+│   ├── LottoWorker.cs                             // Główna implementacja workera
+│   └── LottoOpenApi/                              // Folder serwisu Lotto OpenApi
+│       ├── ILottoOpenApiService.cs                // Interface serwisu
+│       ├── LottoOpenApiService.cs                 // Implementacja serwisu
+│       └── DTOs/                                  // Data Transfer Objects
+│           ├── GetDrawsLottoByDateResponse.cs
+│           ├── GetDrawsLottoByDateResponseItem.cs
+│           └── GetDrawsLottoByDateResponseResult.cs
 ├── Options/
-│   └── LottoWorkerOptions.cs       // Konfiguracja workera
+│   └── LottoWorkerOptions.cs                      // Konfiguracja workera
 ```
 
 ### 2.3 Zależności
@@ -67,7 +72,8 @@ Worker działa w **konfigurowalnym oknie czasowym**:
     "Enable": false,
     "StartTime": "22:15:00",
     "EndTime": "23:00:00",
-    "IntervalMinutes": 5
+    "IntervalMinutes": 5,
+    "InWeek": ["PN", "WT", "SR", "CZ", "PT", "SO", "ND"]
   },
   "LottoOpenApi": {
     "Url": "https://www.lotto.pl",
@@ -82,6 +88,7 @@ Worker działa w **konfigurowalnym oknie czasowym**:
 - `LottoWorker:StartTime` - czas rozpoczęcia okna czasowego (format: HH:mm:ss)
 - `LottoWorker:EndTime` - czas zakończenia okna czasowego (format: HH:mm:ss)
 - `LottoWorker:IntervalMinutes` - interwał sprawdzania w minutach
+- `LottoWorker:InWeek` - lista dni tygodnia (skróty: PN, WT, SR, CZ, PT, SO, ND) w których worker ma działać
 - `LottoOpenApi:Url` - URL bazowy Lotto OpenApi (https://www.lotto.pl)
 - `LottoOpenApi:ApiKey` - klucz API do autoryzacji (header "secret")
 - `ApiUrl` - URL własnego API dla keep-alive ping
@@ -96,13 +103,17 @@ Worker działa w **konfigurowalnym oknie czasowym**:
 1. Worker uruchamia się wraz z aplikacją
 2. Co 5 minut (domyślnie) sprawdza czy:
    - **Feature Flag `Enable` jest ustawiony na `true`**
+   - **Obecny dzień tygodnia jest w liście `InWeek`** (np. ["WT", "PT", "SO"] dla Wtorek, Piątek, Sobota)
    - Jest w aktywnym oknie czasowym (StartTime - EndTime)
-3. Jeśli OBA warunki są spełnione → wykonuje ping API + sprawdza i pobiera wyniki
+3. Jeśli WSZYSTKIE warunki są spełnione → wykonuje ping API + sprawdza i pobiera wyniki (bieżące + archiwalne)
 4. Jeśli NIE → czeka kolejne 5 minut i loguje odpowiedni komunikat
+
+**Mapowanie dni tygodnia:**
+- PN (Poniedziałek), WT (Wtorek), SR (Środa), CZ (Czwartek), PT (Piątek), SO (Sobota), ND (Niedziela)
 
 **Dlaczego 22:15-23:00?**
 - Losowania LOTTO odbywają się wieczorem (zwykle około 22:00)
-- Wyniki są publikowane na stronie XLotto.pl krótko po losowaniu
+- Wyniki są publikowane na Lotto.pl krótko po losowaniu
 - Okno czasowe daje systemowi czas na pobranie i zapisanie wyników
 
 ---
@@ -111,26 +122,32 @@ Worker działa w **konfigurowalnym oknie czasowym**:
 
 ### 4.1 Algorytm główny (`ExecuteAsync`)
 ```
-1. START pętli while (!stoppingToken.IsCancellationRequested)
-2. Ping API dla utrzymania aktywności (PingForApiVersion)
-3. Pobierz aktualny czas (DateTime.Now.TimeOfDay)
-4. Sprawdź czy Enable=true ORAZ czas jest w przedziale [StartTime, EndTime]
-5. JEŚLI TAK:
-   a. Oblicz targetDate = Today - 2 dni
-   b. Sprawdź czy wyniki na targetDate już istnieją w bazie (LOTTO i LOTTO PLUS)
-   c. JEŚLI NIE ISTNIEJĄ:
-      - Pobierz wyniki z Lotto OpenApi (GetLottoDrawsFromLottoOpenApi)
+1. START - Pobierz ostatnią datę losowania z bazy (GetLastArchRunTime)
+2. START pętli while (!stoppingToken.IsCancellationRequested)
+3. Ping API dla utrzymania aktywności (PingForApiVersion)
+4. Pobierz aktualny czas (DateTime.Now.TimeOfDay) i dzień tygodnia
+5. Sprawdź czy Enable=true ORAZ dzień jest w InWeek ORAZ czas jest w przedziale [StartTime, EndTime]
+6. JEŚLI TAK:
+   a. Sprawdź czy wyniki na Today już istnieją w bazie (LOTTO i LOTTO PLUS)
+   b. JEŚLI NIE ISTNIEJĄ:
+      - Pobierz bieżące wyniki z Lotto OpenApi (FetchAndSaveDrawsFromLottoOpenApi dla Today)
       - Zapisz do bazy danych
-   d. JEŚLI ISTNIEJĄ:
+   c. JEŚLI ISTNIEJĄ:
       - Log informacji i pomiń pobieranie
-6. Czekaj 5 minut (Task.Delay)
-7. GOTO 1
+7. Pobieranie archiwum (jeśli Enable=true):
+   a. Zmniejsz lastArchRunTime o 1 dzień
+   b. Sprawdź czy dzień jest w InWeek
+   c. JEŚLI TAK:
+      - Pobierz archiwalne wyniki dla lastArchRunTime (FetchAndSaveArchDrawsFromLottoOpenApi)
+      - Zapisz do bazy danych
+8. Czekaj IntervalMinutes minut (Task.Delay)
+9. GOTO 2
 ```
 
-### 4.2 Dlaczego targetDate = Today - 2 dni?
-- **Powód testowy**: Umożliwia testowanie workera z historycznymi danymi
-- **W produkcji**: Powinno być ustawione na `Today` lub `Today - 1` w zależności od potrzeb
-- **Można skonfigurować**: Parametr może być przeniesiony do konfiguracji
+### 4.2 Pobieranie bieżące vs archiwalne
+- **Pobieranie bieżące**: Wykonywane w oknie czasowym dla daty Today, sprawdza czy wyniki na dzisiejszą datę już istnieją
+- **Pobieranie archiwalne**: Stopniowe wypełnianie historycznych danych wstecz od najstarszej daty w bazie do roku 1957
+- **Filtrowanie dni tygodnia**: Oba tryby respektują konfigurację `InWeek` - pobierają tylko dni zgodne z harmonogramem losowań
 
 ### 4.3 Funkcja pingowania API (`PingForApiVersion`)
 ```csharp
@@ -149,14 +166,14 @@ private async Task PingForApiVersion(CancellationToken stoppingToken)
 
 ## 5. Pobieranie i Zapisywanie Wyników
 
-### 5.1 Funkcja główna (`GetLottoDrawsFromLottoOpenApi`)
+### 5.1 Funkcja pobierania bieżących wyników (`FetchAndSaveDrawsFromLottoOpenApi`)
 ```csharp
-private async Task GetLottoDrawsFromLottoOpenApi(CancellationToken stoppingToken)
+private async Task FetchAndSaveDrawsFromLottoOpenApi(CancellationToken stoppingToken)
 ```
 
 **Działanie**:
 1. Tworzy scope dla dostępu do scoped services (DbContext, ILottoOpenApiService)
-2. Wywołuje `ILottoOpenApiService.GetActualDraws(date)` do pobrania wyników
+2. Wywołuje `ILottoOpenApiService.GetDrawsLottoByDate(DateOnly.FromDateTime(DateTime.Today))` do pobrania wyników
 3. Serwis LottoOpenApiService:
    - Konfiguruje HTTP client z wymaganymi headers:
      - `User-Agent: LottoTM.Server.Api.LottoOpenApiService/1.0`
@@ -166,11 +183,28 @@ private async Task GetLottoDrawsFromLottoOpenApi(CancellationToken stoppingToken
      - Endpoint: `/api/open/v1/lotteries/draw-results/by-date-per-game`
      - Query params: `drawDate={yyyy-MM-dd}&gameType=Lotto&size=10&sort=drawDate&order=DESC&index=1`
    - Wysyła GET request do Lotto OpenApi
-   - Deserializuje JSON response do `LottoOpenApiResponse`
-   - Transformuje dane do wewnętrznego formatu `DrawsResponse`
-   - Zwraca JSON string z wynikami
+   - Deserializuje JSON response do `GetDrawsLottoByDateResponse` (DTO)
+   - Zwraca typowany obiekt `GetDrawsLottoByDateResponse`
 4. Worker przetwarza i zapisuje wyniki (LOTTO i LOTTO PLUS) wywołując `SaveInDatabase`
 5. Loguje sukces lub błędy
+
+### 5.1b Funkcja pobierania archiwalnych wyników (`FetchAndSaveArchDrawsFromLottoOpenApi`)
+```csharp
+private async Task FetchAndSaveArchDrawsFromLottoOpenApi(DateOnly date, CancellationToken stoppingToken)
+```
+
+**Działanie**:
+Identyczne jak `FetchAndSaveDrawsFromLottoOpenApi`, ale dla dowolnej daty historycznej przekazanej jako parametr.
+
+### 5.1c Funkcja określania ostatniej daty archiwum (`GetLastArchRunTime`)
+```csharp
+private async Task<DateOnly> GetLastArchRunTime(CancellationToken stoppingToken)
+```
+
+**Działanie**:
+1. Pobiera najstarszą datę losowania z bazy danych (`MinAsync(d => d.DrawDate)`)
+2. Zwraca tę datę jako punkt wyjścia dla pobierania archiwum wstecz
+3. W przypadku błędu zwraca `DateTime.Today`
 
 **Endpoint Lotto OpenApi (wywoływany przez LottoOpenApiService):**
 ```
@@ -186,12 +220,12 @@ secret: your-api-key
 
 ### 5.2 Przetwarzanie i zapis (`SaveInDatabase`)
 ```csharp
-private async Task SaveInDatabase(string jsonResults, AppDbContext dbContext, CancellationToken stoppingToken)
+private async Task SaveInDatabase(GetDrawsLottoByDateResponse response, AppDbContext dbContext, CancellationToken stoppingToken)
 ```
 
 **Działanie**:
-1. Deserializuje JSON response do `DrawsResponse` (zawiera `List<DrawData>`)
-2. Dla każdego `DrawData`:
+1. Przyjmuje typowany obiekt `GetDrawsLottoByDateResponse` z serwisu LottoOpenApiService
+2. Iteruje przez `response.Items` → `item.Results`:
    a. **Walidacja daty**: Parse DrawDate do DateOnly
    b. **Sprawdzenie duplikatów**: Czy losowanie na tę datę i typ już istnieje?
    c. **Walidacja liczb**:
@@ -199,7 +233,12 @@ private async Task SaveInDatabase(string jsonResults, AppDbContext dbContext, Ca
       - Czy wszystkie są w zakresie 1-49?
       - Czy wszystkie są unikalne (bez duplikatów)?
    d. **Transakcja zapisu**:
-      - INSERT do tabeli `Draws` (DrawDate, LottoType, CreatedAt, CreatedByUserId=NULL)
+      - INSERT do tabeli `Draws`:
+        - `DrawSystemId` (z result.DrawSystemId)
+        - `DrawDate`, `LottoType`
+        - `CreatedAt`, `CreatedByUserId=NULL`
+        - `TicketPrice` (domyślnie: 3.0m dla "Lotto", 1.0m dla pozostałych)
+        - Pola WinPool* pozostają NULL (nie są pobierane z API)
       - INSERT do tabeli `DrawNumbers` (6 rekordów: Number, Position 1-6)
       - COMMIT transakcji
    e. **Obsługa błędów**: Rollback transakcji w przypadku błędu
@@ -233,57 +272,47 @@ private async Task SaveInDatabase(string jsonResults, AppDbContext dbContext, Ca
 
 ### 6.1 DTOs dla Lotto OpenApi Response
 
-#### LottoOpenApiResponse
+Serwis LottoOpenApiService używa dedykowanych klas DTO w przestrzeni nazw `LottoTM.Server.Api.Services.LottoOpenApi.DTOs`:
+
+#### GetDrawsLottoByDateResponse
 ```csharp
-private class LottoOpenApiResponse
+public class GetDrawsLottoByDateResponse
 {
     [JsonPropertyName("totalRows")]
     public int TotalRows { get; set; }
 
     [JsonPropertyName("items")]
-    public List<LottoOpenApiItem>? Items { get; set; }
+    public List<GetDrawsLottoByDateResponseItem>? Items { get; set; }
 
     [JsonPropertyName("code")]
     public int Code { get; set; }
 }
 ```
 
-#### LottoOpenApiItem
+#### GetDrawsLottoByDateResponseItem
 ```csharp
-private class LottoOpenApiItem
+public class GetDrawsLottoByDateResponseItem
 {
-    [JsonPropertyName("drawSystemId")]
-    public int DrawSystemId { get; set; }
+    [JsonPropertyName("results")]
+    public List<GetDrawsLottoByDateResponseResult>? Results { get; set; }
+}
+```
 
+#### GetDrawsLottoByDateResponseResult
+```csharp
+public class GetDrawsLottoByDateResponseResult
+{
     [JsonPropertyName("drawDate")]
     public DateTime? DrawDate { get; set; }
+
+    [JsonPropertyName("drawSystemId")]
+    public int DrawSystemId { get; set; }
 
     [JsonPropertyName("gameType")]
     public string? GameType { get; set; } // "Lotto" lub "LottoPlus"
 
-    [JsonPropertyName("results")]
-    public List<LottoOpenApiResult>? Results { get; set; }
-}
-```
-
-#### LottoOpenApiResult
-```csharp
-private class LottoOpenApiResult
-{
-    [JsonPropertyName("drawDate")]
-    public DateTime? DrawDate { get; set; }
-
-    [JsonPropertyName("drawSystemId")]
-    public int DrawSystemId { get; set; }
-
-    [JsonPropertyName("gameType")]
-    public string? GameType { get; set; }
-
     [JsonPropertyName("resultsJson")]
     public int[]? ResultsJson { get; set; } // 6 liczb
-
-    [JsonPropertyName("specialResults")]
-    public object[]? SpecialResults { get; set; }
 }
 ```
 
@@ -293,30 +322,22 @@ private class LottoOpenApiResult
   "totalRows": 2,
   "items": [
     {
-      "drawSystemId": 1,
-      "drawDate": "2025-11-15T00:00:00",
-      "gameType": "Lotto",
       "results": [
         {
-          "drawDate": "2025-11-15T00:00:00",
-          "drawSystemId": 1,
+          "drawDate": "2025-11-15T21:00:00",
+          "drawSystemId": 7273,
           "gameType": "Lotto",
-          "resultsJson": [3, 12, 25, 31, 42, 48],
-          "specialResults": []
+          "resultsJson": [3, 12, 25, 31, 42, 48]
         }
       ]
     },
     {
-      "drawSystemId": 2,
-      "drawDate": "2025-11-15T00:00:00",
-      "gameType": "LottoPlus",
       "results": [
         {
-          "drawDate": "2025-11-15T00:00:00",
-          "drawSystemId": 2,
+          "drawDate": "2025-11-15T21:00:00",
+          "drawSystemId": 7274,
           "gameType": "LottoPlus",
-          "resultsJson": [5, 14, 23, 29, 37, 41],
-          "specialResults": []
+          "resultsJson": [5, 14, 23, 29, 37, 41]
         }
       ]
     }
@@ -325,50 +346,39 @@ private class LottoOpenApiResult
 }
 ```
 
-### 6.2 DTOs wewnętrzne (transformacja)
+### 6.2 Typy gier i mapowanie
 
-#### DrawsResponse
-```csharp
-private class DrawsResponse
-{
-    public List<DrawData>? Data { get; set; }
-}
-```
+**Typy gier z Lotto OpenApi:**
+- `"Lotto"` - zapisywane jako `LottoType = "Lotto"` w bazie danych
+- `"LottoPlus"` - zapisywane jako `LottoType = "LottoPlus"` w bazie danych
 
-#### DrawData
-```csharp
-private class DrawData
-{
-    public string DrawDate { get; set; } = string.Empty;
-    public string GameType { get; set; } = string.Empty; // "LOTTO" lub "LOTTO PLUS"
-    public int[] Numbers { get; set; } = Array.Empty<int>();
-}
-```
-
-**Mapowanie typów gier:**
-- `"Lotto"` (z Lotto OpenApi) → `"LOTTO"` (wewnętrzny format)
-- `"LottoPlus"` (z Lotto OpenApi) → `"LOTTO PLUS"` (wewnętrzny format)
+**Uwaga:** Nie ma już transformacji nazw typów - nazwy są zachowywane w oryginalnej formie z API.
 
 ### 6.3 LottoOpenApiService - Dedykowany Serwis
 
 **Lokalizacja:**
 ```
-src/server/LottoTM.Server.Api/Services/
-├── ILottoOpenApiService.cs      // Interface
-└── LottoOpenApiService.cs       // Implementacja
+src/server/LottoTM.Server.Api/Services/LottoOpenApi/
+├── ILottoOpenApiService.cs                    // Interface
+├── LottoOpenApiService.cs                     // Implementacja
+└── DTOs/                                      // Data Transfer Objects
+    ├── GetDrawsLottoByDateResponse.cs
+    ├── GetDrawsLottoByDateResponseItem.cs
+    └── GetDrawsLottoByDateResponseResult.cs
 ```
 
-**Główna metoda:**
+**Główne metody:**
 ```csharp
-Task<string> GetActualDraws(DateTime? date = null, string lottoType = "LOTTO");
+Task<GetDrawsLottoByDateResponse> GetDrawsLottoByDate(DateOnly? date = null);
+Task<string> GetActualInfo();
 ```
 
 **Odpowiedzialności:**
 1. Komunikacja z Lotto OpenApi (https://www.lotto.pl)
 2. Konfiguracja HTTP client z odpowiednimi headers
-3. Deserializacja odpowiedzi API do wewnętrznych DTOs
-4. Transformacja danych (Lotto → LOTTO, LottoPlus → LOTTO PLUS)
-5. Zwrot wyników jako JSON string w standardowym formacie
+3. Deserializacja odpowiedzi API do typowanych DTOs (`GetDrawsLottoByDateResponse`)
+4. Zwrot wyników jako typowany obiekt (nie JSON string)
+5. Obsługa błędów i walidacja konfiguracji
 
 **Zalety wydzielenia serwisu:**
 - Separacja odpowiedzialności (Single Responsibility Principle)
@@ -376,22 +386,97 @@ Task<string> GetActualDraws(DateTime? date = null, string lottoType = "LOTTO");
 - Łatwiejsze testowanie (mockowanie ILottoOpenApiService)
 - Centralizacja logiki pobierania z Lotto OpenApi
 - Jednolita konfiguracja (LottoOpenApi:Url, LottoOpenApi:ApiKey)
+- Typowane DTOs zapewniają type-safety
 
 **Różnica między LottoOpenApiService a XLottoService:**
-- **LottoOpenApiService**: Bezpośrednie wywołanie oficjalnego Lotto OpenApi, używane przez Worker
-- **XLottoService**: Pobieranie HTML z XLotto.pl + ekstrakcja przez Google Gemini AI, używane przez endpoint on-demand
+- **LottoOpenApiService**: Bezpośrednie wywołanie oficjalnego Lotto.pl OpenApi, używane przez Worker do automatycznego pobierania
+- **XLottoService**: Pobieranie HTML z XLotto.pl + ekstrakcja przez Google Gemini AI, używane przez endpoint on-demand (alternatywne źródło danych)
 
 ---
 
-## 7. Logowanie
+## 7. Encja Draw - Struktura i Nowe Właściwości
 
-### 7.1 Poziomy logowania
+### 7.1 Podstawowe właściwości Draw
+
+#### Klucze i identyfikatory
+- **`Id`** (int) - klucz główny, auto-increment
+- **`DrawSystemId`** (int) - identyfikator losowania z systemu Lotto.pl OpenApi (nowa właściwość)
+- **`DrawDate`** (DateOnly) - data losowania (bez czasu), unique z LottoType
+- **`LottoType`** (string) - typ gry ("Lotto", "LottoPlus"), unique z DrawDate
+- **`CreatedAt`** (DateTime) - timestamp UTC utworzenia rekordu
+- **`CreatedByUserId`** (int?, nullable) - ID użytkownika admin (NULL dla workera)
+
+#### Nawigacja i relacje
+- **`CreatedByUser`** (User?, nullable) - nawigacja do użytkownika
+- **`Numbers`** (ICollection<DrawNumber>) - kolekcja 6 liczb (1-49)
+
+### 7.2 Nowe właściwości - Informacje o pulach wygranych
+
+Wszystkie właściwości poniżej są **nullable** (nie są obecnie pobierane z Lotto OpenApi):
+
+#### Cena kuponu
+- **`TicketPrice`** (decimal?, precision 18,2) - cena pojedynczego zakładu
+  - Domyślnie ustawiana przez Worker: 3.0m dla "Lotto", 1.0m dla pozostałych
+
+#### Pula wygranych - Tier 1 (6 trafień)
+- **`WinPoolCount1`** (int?) - liczba wygranych w 1. kategorii
+- **`WinPoolAmount1`** (decimal?, precision 18,2) - kwota wygranej w 1. kategorii
+
+#### Pula wygranych - Tier 2 (5 trafień)
+- **`WinPoolCount2`** (int?) - liczba wygranych w 2. kategorii
+- **`WinPoolAmount2`** (decimal?, precision 18,2) - kwota wygranej w 2. kategorii
+
+#### Pula wygranych - Tier 3 (4 trafienia)
+- **`WinPoolCount3`** (int?) - liczba wygranych w 3. kategorii
+- **`WinPoolAmount3`** (decimal?, precision 18,2) - kwota wygranej w 3. kategorii
+
+#### Pula wygranych - Tier 4 (3 trafienia)
+- **`WinPoolCount4`** (int?) - liczba wygranych w 4. kategorii
+- **`WinPoolAmount4`** (decimal?, precision 18,2) - kwota wygranej w 4. kategorii
+
+### 7.3 Konfiguracja w AppDbContext
+
+```csharp
+entity.Property(e => e.DrawSystemId)
+    .IsRequired()
+    .HasColumnType("int");
+
+entity.Property(e => e.TicketPrice)
+    .IsRequired(false)
+    .HasPrecision(18, 2)
+    .HasColumnType("numeric(18, 2)");
+
+entity.Property(e => e.WinPoolCount1)
+    .IsRequired(false)
+    .HasColumnType("int");
+
+entity.Property(e => e.WinPoolAmount1)
+    .IsRequired(false)
+    .HasPrecision(18, 2)
+    .HasColumnType("numeric(18, 2)");
+
+// ... analogicznie dla WinPoolCount2-4 i WinPoolAmount2-4
+```
+
+### 7.4 Uwagi implementacyjne
+
+- **DrawSystemId**: Pobierany z Lotto OpenApi response i zapisywany podczas tworzenia Draw przez Worker
+- **TicketPrice**: Ustawiana przez Worker na stałe wartości (3.0m/1.0m), można rozszerzyć o pobieranie z API
+- **WinPool* properties**: Przygotowane na przyszłość, obecnie zawsze NULL
+- **Precision decimal**: Wszystkie kwoty mają precision (18, 2) dla poprawnego przechowywania wartości pieniężnych
+- **Nullable**: Wszystkie nowe pola są nullable, co zapewnia kompatybilność wsteczną z istniejącymi rekordami
+
+---
+
+## 8. Logowanie
+
+### 8.1 Poziomy logowania
 Worker używa różnych poziomów logowania:
 - `LogInformation` - normalne zdarzenia (start, sukces)
 - `LogWarning` - walidacja niepowodzenia (nieprawidłowe dane)
 - `LogError` - krytyczne błędy (Exception)
 
-### 7.2 Kluczowe logi
+### 8.2 Kluczowe logi
 ```csharp
 // Start workera
 "LottoWorker started. Enabled: {Enabled}, Time window: {StartTime} - {EndTime}, Interval: {Interval} minutes"
@@ -419,9 +504,9 @@ Worker używa różnych poziomów logowania:
 
 ---
 
-## 8. Obsługa Błędów
+## 9. Obsługa Błędów
 
-### 8.1 Poziomy obsługi błędów
+### 9.1 Poziomy obsługi błędów
 
 #### Poziom 1: Ping API
 ```csharp
@@ -453,7 +538,7 @@ catch (JsonException ex)
 - Loguje błąd parsowania JSON
 - Przerywa przetwarzanie tego response
 
-### 8.2 Zasada działania
+### 9.2 Zasada działania
 **Worker nigdy się nie zatrzymuje z powodu błędów biznesowych**
 - Wszystkie błędy są logowane
 - Worker zawsze próbuje ponownie w następnym cyklu
@@ -461,9 +546,9 @@ catch (JsonException ex)
 
 ---
 
-## 9. Testowanie Workera
+## 10. Testowanie Workera
 
-### 9.1 Testy manualne
+### 10.1 Testy manualne
 
 #### Test 1: Sprawdzenie działania w oknie czasowym
 1. Ustaw `LottoWorker:StartTime` na aktualny czas + 1 minuta
@@ -481,7 +566,7 @@ catch (JsonException ex)
 2. Sprawdź bazę danych - nie powinny pojawić się duplikaty
 3. Sprawdź logi - powinien być komunikat "already exist, skipping"
 
-### 9.2 Testy jednostkowe (TODO)
+### 10.2 Testy jednostkowe (TODO)
 ```csharp
 // Przykładowe scenariusze testowe
 - Test_Worker_RunsInTimeWindow
@@ -494,9 +579,9 @@ catch (JsonException ex)
 
 ---
 
-## 10. Konfiguracja w Program.cs
+## 11. Konfiguracja w Program.cs
 
-### 10.1 Rejestracja workera
+### 11.1 Rejestracja workera
 ```csharp
 // Konfiguracja opcji
 builder.Services.Configure<LottoWorkerOptions>(
@@ -506,7 +591,7 @@ builder.Services.Configure<LottoWorkerOptions>(
 builder.Services.AddHostedService<LottoWorker>();
 ```
 
-### 10.2 Wymagane serwisy
+### 11.2 Wymagane serwisy
 Worker wymaga uprzedniej rejestracji:
 - `AppDbContext` - musi być zarejestrowany jako scoped
 - `IHttpClientFactory` - automatycznie dostępny po `AddHttpClient()`
@@ -514,22 +599,22 @@ Worker wymaga uprzedniej rejestracji:
 
 ---
 
-## 11. Monitorowanie i Utrzymanie
+## 12. Monitorowanie i Utrzymanie
 
-### 11.1 Co monitorować?
+### 12.1 Co monitorować?
 - **Logi błędów** - czy są powtarzające się błędy?
 - **Czas wykonania** - czy pobieranie wyników zajmuje rozsądny czas?
 - **Brak danych** - czy wyniki są pobierane regularnie?
 - **Duplikaty** - czy walidacja duplikatów działa poprawnie?
 
-### 11.2 Metryki sukcesu
+### 12.2 Metryki sukcesu
 - ✅ Worker uruchamia się automatycznie przy starcie aplikacji
 - ✅ Wyniki są pobierane codziennie w oknie czasowym
 - ✅ Brak duplikatów w bazie danych
 - ✅ Błędy są logowane, ale nie zatrzymują workera
 - ✅ Wszystkie użytkownicy mają dostęp do aktualnych wyników
 
-### 11.3 Zalecenia operacyjne
+### 12.3 Zalecenia operacyjne
 1. **Przegląd logów** - codzienne sprawdzanie logów z workera
 2. **Alert na błędy** - konfiguracja alertów dla powtarzających się błędów
 3. **Backup bazy** - regularne backupy przed wprowadzeniem zmian
@@ -537,32 +622,32 @@ Worker wymaga uprzedniej rejestracji:
 
 ---
 
-## 12. Przyszłe Usprawnienia (TODO)
+## 13. Przyszłe Usprawnienia (TODO)
 
-### 12.1 Konfigurowalność
+### 13.1 Konfigurowalność
 - [ ] Parametr `TargetDateOffset` w konfiguracji (zamiast hardcodowanych -2 dni)
 - [ ] Konfiguracja retry policy dla HTTP requests
 - [ ] Konfiguracja timeout dla operacji HTTP
 
-### 12.2 Funkcjonalność
+### 13.2 Funkcjonalność
 - [ ] Wysyłanie powiadomień email do administratorów po pobraniu wyników
 - [ ] Dashboard z metrykami workera (last run, success rate, errors)
 - [ ] Możliwość ręcznego triggera workera przez API endpoint (dla adminów)
 
-### 12.3 Niezawodność
+### 13.3 Niezawodność
 - [ ] Circuit breaker pattern dla XLotto API
 - [ ] Exponential backoff przy błędach HTTP
 - [ ] Health check endpoint dla workera
 - [ ] Dead letter queue dla nieudanych prób
 
-### 12.4 Testowanie
+### 13.4 Testowanie
 - [ ] Testy jednostkowe dla logiki biznesowej
 - [ ] Testy integracyjne z mockiem XLotto API
 - [ ] Testy wydajnościowe (czas pobierania i zapisu)
 
 ---
 
-## 13. Rozwiązywanie Problemów
+## 14. Rozwiązywanie Problemów
 
 ### Problem 1: Worker się nie uruchamia
 **Objawy**: Brak logów "LottoWorker started"
@@ -616,7 +701,7 @@ Worker wymaga uprzedniej rejestracji:
 
 ---
 
-## 14. Podsumowanie
+## 15. Podsumowanie
 
 `LottoWorker` to kluczowy komponent systemu LottoTM, który:
 - ✅ **Automatyzuje** pobieranie wyników losowań

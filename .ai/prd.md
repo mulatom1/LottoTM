@@ -164,14 +164,28 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 **Opis:** Użytkownik uprzywilejowany (admin, flaga isAdmin) może ręcznie wprowadzić oficjalne wyniki losowania LOTTO lub LOTTO PLUS do globalnej tabeli Draws.
 
 **Kryteria akceptacji:**
-- Formularz zawiera 6 oddzielnych pól numerycznych (type="number")
-- Wybór typu gry: LOTTO lub LOTTO PLUS (radio buttons lub select)
-- Zakres wartości: 1-49 dla każdego pola
+- Formularz zawiera:
+  - Pole numeryczne: DrawSystemId (identyfikator systemowy losowania) - wymagane
+  - Date picker: data losowania - wymagane
+  - Wybór typu gry: LOTTO lub LOTTO PLUS (radio buttons lub select) - wymagane
+  - 6 oddzielnych pól numerycznych (1-49) dla wylosowanych liczb - wymagane
+  - Pole numeryczne: Cena kuponu (TicketPrice) - opcjonalne, format: 0.00
+  - Pola dla wygranych stopnia 1 (6 trafionych):
+    - WinPoolCount1: ilość wygranych - opcjonalne
+    - WinPoolAmount1: kwota wygranej - opcjonalne, format: 0.00
+  - Pola dla wygranych stopnia 2 (5 trafionych):
+    - WinPoolCount2: ilość wygranych - opcjonalne
+    - WinPoolAmount2: kwota wygranej - opcjonalne, format: 0.00
+  - Pola dla wygranych stopnia 3 (4 trafione):
+    - WinPoolCount3: ilość wygranych - opcjonalne
+    - WinPoolAmount3: kwota wygranej - opcjonalne, format: 0.00
+  - Pola dla wygranych stopnia 4 (3 trafione):
+    - WinPoolCount4: ilość wygranych - opcjonalne
+    - WinPoolAmount4: kwota wygranej - opcjonalne, format: 0.00
 - Walidacja w czasie rzeczywistym:
-  - Liczby muszą być unikalne (brak duplikatów)
-  - Wszystkie pola wymagane
+  - Liczby 1-49 muszą być unikalne (brak duplikatów)
+  - Wszystkie pola wymagane muszą być wypełnione
   - Wyświetlanie komunikatów błędów pod polami
-- Date picker do wyboru daty losowania
 - Walidacja: data losowania nie może być w przyszłości
 - Zapis wyniku do bazy danych
 - Po zapisie: komunikat sukcesu + przekierowanie/odświeżenie listy losowań
@@ -179,7 +193,7 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 
 **Endpointy API:**
 - `POST /api/draws`
-  - Body: `{ "drawDate": "2025-10-30", "lottoType": "LOTTO", "numbers": [3, 12, 25, 31, 42, 48] }`
+  - Body: `{ "drawSystemId": 12345, "drawDate": "2025-10-30", "lottoType": "LOTTO", "numbers": [3, 12, 25, 31, 42, 48], "ticketPrice": 3.00, "winPoolCount1": 0, "winPoolAmount1": 0, "winPoolCount2": 5, "winPoolAmount2": 125000.50, "winPoolCount3": 150, "winPoolAmount3": 5000.00, "winPoolCount4": 2500, "winPoolAmount4": 200.00 }`
   - Response: `{ "message": "Losowanie utworzone pomyślnie" }`  
 
 #### F-DRAW-002: Przeglądanie historii losowań
@@ -187,7 +201,7 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 **Opis:** Każdy użytkownik może zobaczyć (zwykły i uprzywilejowany) listę wszystkich wprowadzonych wyników losowań z możliwością filtrowania po zakresie dat i typie gry.
 
 **Kryteria akceptacji:**
-- Lista zawiera: datę losowania, typ gry (LOTTO/LOTTO PLUS), 6 liczb, datę dodania do systemu
+- Lista zawiera: DrawSystemId, datę losowania, typ gry (LOTTO/LOTTO PLUS), 6 liczb, cenę kuponu, statystyki wygranych (opcjonalnie), datę dodania do systemu
 - Filtr typu gry: All / LOTTO / LOTTO PLUS
 - Sortowanie: domyślnie według daty losowania (najnowsze na górze)
 - Paginacja dla dużej liczby wyników (opcjonalnie w MVP)
@@ -212,7 +226,7 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 
 **Endpointy API:**
 - `GET /api/draws/{id}`
-  - Response: `{ "id": "number", "drawDate": "2025-10-30", "lottoType": "LOTTO", "numbers": [3, 12, 25, 31, 42, 48], "createdAt": "datetime" }`
+  - Response: `{ "id": "number", "drawSystemId": 12345, "drawDate": "2025-10-30", "lottoType": "LOTTO", "numbers": [3, 12, 25, 31, 42, 48], "ticketPrice": 3.00, "winPoolCount1": 0, "winPoolAmount1": 0, "winPoolCount2": 5, "winPoolAmount2": 125000.50, "winPoolCount3": 150, "winPoolAmount3": 5000.00, "winPoolCount4": 2500, "winPoolAmount4": 200.00, "createdAt": "datetime" }`
 
 #### F-DRAW-004: Usuwanie wyniku losowania
 **Priorytet:** Must Have
@@ -236,8 +250,14 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 
 **Kryteria akceptacji:**
 - Przycisk "Edytuj" przy wyniku losowania na liście (widoczny tylko dla adminów)
-- Formularz z wypełnionymi aktualnymi wartościami (6 pól numerycznych 1-49)
-- Możliwość zmiany daty losowania i typu gry
+- Formularz z wypełnionymi aktualnymi wartościami:
+  - DrawSystemId (identyfikator systemowy)
+  - Data losowania
+  - Typ gry (LOTTO/LOTTO PLUS)
+  - 6 pól numerycznych 1-49 (wylosowane liczby)
+  - Cena kuponu (TicketPrice)
+  - Pola wygranych dla wszystkich 4 stopni (Count i Amount)
+- Możliwość edycji wszystkich pól
 - Walidacja unikalności liczb w czasie rzeczywistym
 - Walidacja: data nie może być w przyszłości
 - Zapisanie zmian
@@ -245,7 +265,7 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 
 **Endpointy API:**
 - `PUT /api/draws/{id}`
-  - Body: `{ "drawDate": "2025-10-30", "lottoType": "LOTTO PLUS", "numbers": [3, 12, 25, 31, 42, 48] }`
+  - Body: `{ "drawSystemId": 12345, "drawDate": "2025-10-30", "lottoType": "LOTTO PLUS", "numbers": [3, 12, 25, 31, 42, 48], "ticketPrice": 3.00, "winPoolCount1": 0, "winPoolAmount1": 0, "winPoolCount2": 5, "winPoolAmount2": 125000.50, "winPoolCount3": 150, "winPoolAmount3": 5000.00, "winPoolCount4": 2500, "winPoolAmount4": 200.00 }`
   - Response: `{ "message": "Wynik losowania zaktualizowany pomyślnie" }`
   - Authorization: Wymaga uprawnień administratora
 
@@ -1224,25 +1244,39 @@ CREATE INDEX IX_TicketNumbers_Number ON TicketNumbers(Number);
 ```sql
 CREATE TABLE Draws (
     Id INT PRIMARY KEY IDENTITY,
-    DrawDate DATE NOT NULL UNIQUE,
-    LottoType NVARCHAR(20) NOT NULL CHECK (LottoType IN ('LOTTO', 'LOTTO PLUS')),
+    DrawSystemId INT NOT NULL,
+    DrawDate DATE NOT NULL,
+    LottoType NVARCHAR(50) NOT NULL CHECK (LottoType IN ('LOTTO', 'LOTTO PLUS')),
     CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
     CreatedByUserId INT NULL,
+    TicketPrice NUMERIC(18,2) NULL,
+    WinPoolCount1 INT NULL,
+    WinPoolAmount1 NUMERIC(18,2) NULL,
+    WinPoolCount2 INT NULL,
+    WinPoolAmount2 NUMERIC(18,2) NULL,
+    WinPoolCount3 INT NULL,
+    WinPoolAmount3 NUMERIC(18,2) NULL,
+    WinPoolCount4 INT NULL,
+    WinPoolAmount4 NUMERIC(18,2) NULL,
+    CONSTRAINT UQ_Draws_DrawDateLottoType UNIQUE (DrawDate, LottoType),
     CONSTRAINT FK_Draws_Users FOREIGN KEY (CreatedByUserId) REFERENCES Users(Id) ON DELETE CASCADE
 );
 
-CREATE INDEX IX_Draws_Date_LottoType ON Draws(DrawDate, LottoType);
+CREATE INDEX IX_Draws_DrawDate ON Draws(DrawDate);
 CREATE INDEX IX_Draws_CreatedByUserId ON Draws(CreatedByUserId);
 CREATE INDEX IX_Draws_LottoType ON Draws(LottoType);
 ```
 
 **Uwagi:**
-- **LottoType** - wymagane pole określające typ gry ("LOTTO" lub "LOTTO PLUS")
+- **DrawSystemId** - identyfikator numeryczny losowania z zewnętrznego systemu losowania (wymagane)
+- **LottoType** - wymagane pole określające typ gry ("LOTTO" lub "LOTTO PLUS"), zwiększono rozmiar do NVARCHAR(50) dla elastyczności
 - **CreatedByUserId** - nullable (INT NULL), pole może być NULL dla wyników generowanych przez background workera
-- Constraint CHECK zapewnia, że tylko dozwolone wartości mogą być zapisane
+- **TicketPrice** - cena za kupon dla tego losowania (nullable, może się zmieniać w czasie)
+- **WinPoolCount1-4** - ilości wygranych dla poszczególnych stopni (6, 5, 4, 3 trafienia)
+- **WinPoolAmount1-4** - kwoty wygranych dla poszczególnych stopni (6, 5, 4, 3 trafienia)
+- Constraint CHECK zapewnia, że tylko dozwolone wartości LottoType mogą być zapisane
+- Constraint UNIQUE na kombinacji (DrawDate, LottoType) zapewnia jedno losowanie danego typu na datę
 - Indeks na LottoType umożliwia szybkie filtrowanie losowań według typu gry
-- Constraint UNIQUE na DrawDate został usunięty, ponieważ w tym samym dniu może odbyć się losowanie LOTTO i LOTTO PLUS
-- Należy rozważyć dodanie UNIQUE constraint na kombinację (DrawDate, LottoType)
 
 #### Tabela: DrawNumbers
 ```sql

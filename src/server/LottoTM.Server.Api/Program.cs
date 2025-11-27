@@ -4,6 +4,7 @@ using LottoTM.Server.Api.Middlewares;
 using LottoTM.Server.Api.Options;
 using LottoTM.Server.Api.Repositories;
 using LottoTM.Server.Api.Services;
+using LottoTM.Server.Api.Services.LottoOpenApi;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;

@@ -20,10 +20,20 @@ CREATE TABLE [Users] (
 
 CREATE TABLE [Draws] (
     [Id] int NOT NULL IDENTITY,
+    [DrawSystemId] int NOT NULL,
     [DrawDate] date NOT NULL,
     [LottoType] nvarchar(50) NOT NULL,
     [CreatedAt] datetime2 NOT NULL DEFAULT (GETUTCDATE()),
     [CreatedByUserId] int NULL,
+    [TicketPrice] numeric(18,2) NULL,
+    [WinPoolCount1] int NULL,
+    [WinPoolAmount1] numeric(18,2) NULL,
+    [WinPoolCount2] int NULL,
+    [WinPoolAmount2] numeric(18,2) NULL,
+    [WinPoolCount3] int NULL,
+    [WinPoolAmount3] numeric(18,2) NULL,
+    [WinPoolCount4] int NULL,
+    [WinPoolAmount4] numeric(18,2) NULL,
     CONSTRAINT [PK_Draws] PRIMARY KEY ([Id]),
     CONSTRAINT [FK_Draws_Users_CreatedByUserId] FOREIGN KEY ([CreatedByUserId]) REFERENCES [Users] ([Id]) ON DELETE CASCADE
 );
@@ -80,7 +90,8 @@ CREATE INDEX [IX_Tickets_UserId] ON [Tickets] ([UserId]);
 CREATE UNIQUE INDEX [IX_Users_Email] ON [Users] ([Email]);
 
 INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
-VALUES (N'20251115094256_Initail', N'9.0.10');
+VALUES (N'20251127184900_Initial', N'9.0.10');
 
 COMMIT;
 GO
+

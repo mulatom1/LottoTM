@@ -1,7 +1,8 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using LottoTM.Server.Api.Services;
+using LottoTM.Server.Api.Services.LottoOpenApi;
+using LottoTM.Server.Api.Services.LottoOpenApi.DTOs;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -26,25 +27,24 @@ public class LottoOpenApiServiceTests
         _mockLogger = new Mock<ILogger<LottoOpenApiService>>();
         _mockHttpMessageHandler = new Mock<HttpMessageHandler>();
 
-        // Setup default configuration sections
+        // Setup configuration using IConfigurationSection mock
         var urlSection = new Mock<IConfigurationSection>();
         urlSection.Setup(s => s.Value).Returns("https://www.lotto.pl");
         _mockConfiguration.Setup(c => c.GetSection("LottoOpenApi:Url")).Returns(urlSection.Object);
-        
+
         var apiKeySection = new Mock<IConfigurationSection>();
         apiKeySection.Setup(s => s.Value).Returns("test-api-key");
         _mockConfiguration.Setup(c => c.GetSection("LottoOpenApi:ApiKey")).Returns(apiKeySection.Object);
     }
 
     /// <summary>
-    /// Test successful retrieval of actual draws from Lotto Open API
+    /// Test successful retrieval of draw results from Lotto Open API
     /// </summary>
     [Fact]
-    public async Task GetActualDraws_WithValidParameters_ReturnsJsonData()
+    public async Task GetDrawsLottoByDate_WithValidParameters_ReturnsDrawResponse()
     {
         // Arrange
         var date = new DateTime(2025, 1, 15);
-        var lottoType = "LOTTO";
         var apiResponse = CreateLottoOpenApiResponse(
             new DateTime(2025, 1, 15),
             "Lotto",
@@ -55,24 +55,24 @@ public class LottoOpenApiServiceTests
         var service = new LottoOpenApiService(_mockHttpClientFactory.Object, _mockConfiguration.Object, _mockLogger.Object);
 
         // Act
-        var result = await service.GetActualDraws(date, lottoType);
+        var result = await service.GetDrawsLottoByDate(DateOnly.FromDateTime(date));
 
         // Assert
         Assert.NotNull(result);
-        Assert.Contains("DrawDate", result);
-        Assert.Contains("2025-01-15", result);
-        Assert.Contains("LOTTO", result);
-        
-        // Verify it's valid JSON
-        var parsed = JsonSerializer.Deserialize<JsonElement>(result);
-        Assert.True(parsed.ValueKind == JsonValueKind.Object);
+        Assert.Equal(1, result.TotalRows);
+        Assert.NotNull(result.Items);
+        Assert.Single(result.Items);
+        Assert.NotNull(result.Items[0].Results);
+        Assert.Single(result.Items[0].Results);
+        Assert.Equal("Lotto", result.Items[0].Results[0].GameType);
+        Assert.Equal(new[] { 3, 12, 25, 31, 42, 48 }, result.Items[0].Results[0].ResultsJson);
     }
 
     /// <summary>
     /// Test retrieval with default parameters (null date)
     /// </summary>
     [Fact]
-    public async Task GetActualDraws_WithNullDate_UsesToday()
+    public async Task GetDrawsLottoByDate_WithNullDate_UsesToday()
     {
         // Arrange
         var apiResponse = CreateLottoOpenApiResponse(
@@ -85,18 +85,18 @@ public class LottoOpenApiServiceTests
         var service = new LottoOpenApiService(_mockHttpClientFactory.Object, _mockConfiguration.Object, _mockLogger.Object);
 
         // Act
-        var result = await service.GetActualDraws(null, "LOTTO");
+        var result = await service.GetDrawsLottoByDate(null);
 
         // Assert
         Assert.NotNull(result);
-        Assert.Contains("Data", result);
+        Assert.Equal(1, result.TotalRows);
     }
 
     /// <summary>
     /// Test retrieval for both LOTTO and LOTTO PLUS game types
     /// </summary>
     [Fact]
-    public async Task GetActualDraws_WithMultipleGameTypes_ReturnsCorrectData()
+    public async Task GetDrawsLottoByDate_WithMultipleGameTypes_ReturnsAllResults()
     {
         // Arrange
         var date = new DateTime(2025, 1, 15);
@@ -107,19 +107,22 @@ public class LottoOpenApiServiceTests
         var service = new LottoOpenApiService(_mockHttpClientFactory.Object, _mockConfiguration.Object, _mockLogger.Object);
 
         // Act
-        var result = await service.GetActualDraws(date, "LOTTO");
+        var result = await service.GetDrawsLottoByDate(DateOnly.FromDateTime(date));
 
         // Assert
         Assert.NotNull(result);
-        Assert.Contains("LOTTO", result);
-        Assert.Contains("LOTTO PLUS", result);
+        Assert.Equal(2, result.TotalRows);
+        Assert.NotNull(result.Items);
+        Assert.Equal(2, result.Items.Count);
+        Assert.Equal("Lotto", result.Items[0].Results?[0].GameType);
+        Assert.Equal("LottoPlus", result.Items[1].Results?[0].GameType);
     }
 
     /// <summary>
     /// Test handling when API is unreachable
     /// </summary>
     [Fact]
-    public async Task GetActualDraws_WhenApiUnreachable_ThrowsInvalidOperationException()
+    public async Task GetDrawsLottoByDate_WhenApiUnreachable_ThrowsInvalidOperationException()
     {
         // Arrange
         _mockHttpMessageHandler
@@ -137,7 +140,7 @@ public class LottoOpenApiServiceTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => service.GetActualDraws(new DateTime(2025, 1, 15), "LOTTO")
+            () => service.GetDrawsLottoByDate(DateOnly.FromDateTime(new DateTime(2025, 1, 15)))
         );
 
         Assert.Contains("Failed to fetch draw results from Lotto Open API", exception.Message);
@@ -147,7 +150,7 @@ public class LottoOpenApiServiceTests
     /// Test handling when API returns error status code
     /// </summary>
     [Fact]
-    public async Task GetActualDraws_WhenApiReturnsError_ThrowsInvalidOperationException()
+    public async Task GetDrawsLottoByDate_WhenApiReturnsError_ThrowsInvalidOperationException()
     {
         // Arrange
         _mockHttpMessageHandler
@@ -169,7 +172,7 @@ public class LottoOpenApiServiceTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => service.GetActualDraws(new DateTime(2025, 1, 15), "LOTTO")
+            () => service.GetDrawsLottoByDate(DateOnly.FromDateTime(new DateTime(2025, 1, 15)))
         );
 
         Assert.Contains("Lotto Open API returned status", exception.Message);
@@ -179,7 +182,7 @@ public class LottoOpenApiServiceTests
     /// Test handling when API returns empty items
     /// </summary>
     [Fact]
-    public async Task GetActualDraws_WhenApiReturnsEmptyItems_ReturnsEmptyData()
+    public async Task GetDrawsLottoByDate_WhenApiReturnsEmptyItems_ReturnsEmptyResponse()
     {
         // Arrange
         var apiResponse = CreateEmptyLottoOpenApiResponse();
@@ -189,18 +192,20 @@ public class LottoOpenApiServiceTests
         var service = new LottoOpenApiService(_mockHttpClientFactory.Object, _mockConfiguration.Object, _mockLogger.Object);
 
         // Act
-        var result = await service.GetActualDraws(new DateTime(2025, 1, 15), "LOTTO");
+        var result = await service.GetDrawsLottoByDate(DateOnly.FromDateTime(new DateTime(2025, 1, 15)));
 
         // Assert
         Assert.NotNull(result);
-        Assert.Contains("\"Data\":[]", result.Replace(" ", ""));
+        Assert.Equal(0, result.TotalRows);
+        Assert.NotNull(result.Items);
+        Assert.Empty(result.Items);
     }
 
     /// <summary>
     /// Test handling when URL is not configured
     /// </summary>
     [Fact]
-    public async Task GetActualDraws_WhenUrlNotConfigured_ThrowsInvalidOperationException()
+    public async Task GetDrawsLottoByDate_WhenUrlNotConfigured_ThrowsInvalidOperationException()
     {
         // Arrange
         var emptyUrlSection = new Mock<IConfigurationSection>();
@@ -215,7 +220,7 @@ public class LottoOpenApiServiceTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => service.GetActualDraws(new DateTime(2025, 1, 15), "LOTTO")
+            () => service.GetDrawsLottoByDate(DateOnly.FromDateTime(new DateTime(2025, 1, 15)))
         );
 
         Assert.Contains("LottoOpenApi URL not configured", exception.Message);
@@ -225,7 +230,7 @@ public class LottoOpenApiServiceTests
     /// Test handling when API returns invalid JSON
     /// </summary>
     [Fact]
-    public async Task GetActualDraws_WhenApiReturnsInvalidJson_ThrowsInvalidOperationException()
+    public async Task GetDrawsLottoByDate_WhenApiReturnsInvalidJson_ThrowsInvalidOperationException()
     {
         // Arrange
         var invalidJson = "This is not valid JSON {{{";
@@ -249,17 +254,53 @@ public class LottoOpenApiServiceTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => service.GetActualDraws(new DateTime(2025, 1, 15), "LOTTO")
+            () => service.GetDrawsLottoByDate(DateOnly.FromDateTime(new DateTime(2025, 1, 15)))
         );
 
         Assert.Contains("Failed to parse API response", exception.Message);
     }
 
     /// <summary>
+    /// Test handling when API returns null response - should return default empty response
+    /// </summary>
+    [Fact]
+    public async Task GetDrawsLottoByDate_WhenApiReturnsNull_ReturnsDefaultEmptyResponse()
+    {
+        // Arrange
+        var nullJson = "null";
+
+        _mockHttpMessageHandler
+            .Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.OK,
+                Content = new StringContent(nullJson, Encoding.UTF8, "application/json")
+            });
+
+        var httpClient = new HttpClient(_mockHttpMessageHandler.Object);
+        _mockHttpClientFactory.Setup(f => f.CreateClient(It.IsAny<string>())).Returns(httpClient);
+
+        var service = new LottoOpenApiService(_mockHttpClientFactory.Object, _mockConfiguration.Object, _mockLogger.Object);
+
+        // Act
+        var result = await service.GetDrawsLottoByDate(DateOnly.FromDateTime(new DateTime(2025, 1, 15)));
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(0, result.TotalRows);
+        Assert.NotNull(result.Items);
+        Assert.Empty(result.Items);
+    }
+
+    /// <summary>
     /// Test logging during successful operation
     /// </summary>
     [Fact]
-    public async Task GetActualDraws_WithSuccessfulOperation_LogsInformation()
+    public async Task GetDrawsLottoByDate_WithSuccessfulOperation_LogsDebugInformation()
     {
         // Arrange
         var apiResponse = CreateLottoOpenApiResponse(
@@ -272,7 +313,7 @@ public class LottoOpenApiServiceTests
         var service = new LottoOpenApiService(_mockHttpClientFactory.Object, _mockConfiguration.Object, _mockLogger.Object);
 
         // Act
-        await service.GetActualDraws(new DateTime(2025, 1, 15), "LOTTO");
+        await service.GetDrawsLottoByDate(DateOnly.FromDateTime(new DateTime(2025, 1, 15)));
 
         // Assert
         _mockLogger.Verify(
@@ -288,7 +329,7 @@ public class LottoOpenApiServiceTests
             x => x.Log(
                 LogLevel.Debug,
                 It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("Successfully fetched and transformed draw results")),
+                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("Received response from Lotto Open API")),
                 It.IsAny<Exception>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);
@@ -298,7 +339,7 @@ public class LottoOpenApiServiceTests
     /// Test logging during error scenarios
     /// </summary>
     [Fact]
-    public async Task GetActualDraws_WithError_LogsError()
+    public async Task GetDrawsLottoByDate_WithHttpError_LogsError()
     {
         // Arrange
         _mockHttpMessageHandler
@@ -316,7 +357,7 @@ public class LottoOpenApiServiceTests
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => service.GetActualDraws(new DateTime(2025, 1, 15), "LOTTO")
+            () => service.GetDrawsLottoByDate(DateOnly.FromDateTime(new DateTime(2025, 1, 15)))
         );
 
         _mockLogger.Verify(
@@ -330,28 +371,82 @@ public class LottoOpenApiServiceTests
     }
 
     /// <summary>
-    /// Test correct mapping of game types
+    /// Test that HTTP headers are set correctly
     /// </summary>
     [Fact]
-    public async Task GetActualDraws_WithLottoPlusType_MapsCorrectly()
+    public async Task GetDrawsLottoByDate_SetsCorrectHttpHeaders()
     {
         // Arrange
-        var date = new DateTime(2025, 1, 15);
         var apiResponse = CreateLottoOpenApiResponse(
-            date,
-            "LottoPlus",
-            new[] { 2, 8, 18, 28, 38, 48 });
+            DateTime.Today,
+            "Lotto",
+            new[] { 1, 2, 3, 4, 5, 6 });
 
-        SetupHttpClientMock(apiResponse);
+        HttpRequestMessage? capturedRequest = null;
+        _mockHttpMessageHandler
+            .Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .Callback<HttpRequestMessage, CancellationToken>((req, _) => capturedRequest = req)
+            .ReturnsAsync(new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.OK,
+                Content = new StringContent(apiResponse, Encoding.UTF8, "application/json")
+            });
+
+        var httpClient = new HttpClient(_mockHttpMessageHandler.Object);
+        _mockHttpClientFactory.Setup(f => f.CreateClient(It.IsAny<string>())).Returns(httpClient);
 
         var service = new LottoOpenApiService(_mockHttpClientFactory.Object, _mockConfiguration.Object, _mockLogger.Object);
 
         // Act
-        var result = await service.GetActualDraws(date, "LOTTO PLUS");
+        await service.GetDrawsLottoByDate(DateOnly.FromDateTime(DateTime.Today));
 
         // Assert
-        Assert.NotNull(result);
-        Assert.Contains("LOTTO PLUS", result);
+        Assert.NotNull(capturedRequest);
+        Assert.Contains(capturedRequest.Headers, h => h.Key == "User-Agent" && h.Value.Contains("LottoTM.Server.Api.LottoOpenApiService/1.0"));
+        Assert.Contains(capturedRequest.Headers, h => h.Key == "Accept" && h.Value.Contains("application/json"));
+        Assert.Contains(capturedRequest.Headers, h => h.Key == "secret" && h.Value.Contains("test-api-key"));
+    }
+
+    /// <summary>
+    /// Test that correct API URL is constructed
+    /// </summary>
+    [Fact]
+    public async Task GetDrawsLottoByDate_ConstructsCorrectUrl()
+    {
+        // Arrange
+        var date = new DateTime(2025, 1, 15);
+        var apiResponse = CreateLottoOpenApiResponse(date, "Lotto", new[] { 1, 2, 3, 4, 5, 6 });
+
+        HttpRequestMessage? capturedRequest = null;
+        _mockHttpMessageHandler
+            .Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .Callback<HttpRequestMessage, CancellationToken>((req, _) => capturedRequest = req)
+            .ReturnsAsync(new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.OK,
+                Content = new StringContent(apiResponse, Encoding.UTF8, "application/json")
+            });
+
+        var httpClient = new HttpClient(_mockHttpMessageHandler.Object);
+        _mockHttpClientFactory.Setup(f => f.CreateClient(It.IsAny<string>())).Returns(httpClient);
+
+        var service = new LottoOpenApiService(_mockHttpClientFactory.Object, _mockConfiguration.Object, _mockLogger.Object);
+
+        // Act
+        await service.GetDrawsLottoByDate(DateOnly.FromDateTime(date));
+
+        // Assert
+        Assert.NotNull(capturedRequest);
+        var expectedUrl = "https://www.lotto.pl/api/open/v1/lotteries/draw-results/by-date-per-game?drawDate=2025-01-15&gameType=Lotto&size=10&sort=drawDate&order=DESC&index=1";
+        Assert.Equal(expectedUrl, capturedRequest.RequestUri?.ToString());
     }
 
     // Helper methods
@@ -384,14 +479,14 @@ public class LottoOpenApiServiceTests
                 new
                 {
                     drawSystemId = 7273,
-                    drawDate = drawDate.ToString("yyyy-MM-ddT21:00:00Z"),
+                    drawDate = drawDate.ToString("yyyy-MM-ddT21:00:00"),
                     gameType = gameType,
                     multiplierValue = 0,
                     results = new[]
                     {
                         new
                         {
-                            drawDate = drawDate.ToString("yyyy-MM-ddT21:00:00Z"),
+                            drawDate = drawDate.ToString("yyyy-MM-ddT21:00:00"),
                             drawSystemId = 7273,
                             gameType = gameType,
                             resultsJson = numbers,
@@ -419,14 +514,14 @@ public class LottoOpenApiServiceTests
                 new
                 {
                     drawSystemId = 7273,
-                    drawDate = drawDate.ToString("yyyy-MM-ddT21:00:00Z"),
+                    drawDate = drawDate.ToString("yyyy-MM-ddT21:00:00"),
                     gameType = "Lotto",
                     multiplierValue = 0,
                     results = new[]
                     {
                         new
                         {
-                            drawDate = drawDate.ToString("yyyy-MM-ddT21:00:00Z"),
+                            drawDate = drawDate.ToString("yyyy-MM-ddT21:00:00"),
                             drawSystemId = 7273,
                             gameType = "Lotto",
                             resultsJson = new[] { 1, 14, 47, 26, 5, 46 },
@@ -438,16 +533,16 @@ public class LottoOpenApiServiceTests
                 },
                 new
                 {
-                    drawSystemId = 7273,
-                    drawDate = drawDate.ToString("yyyy-MM-ddT21:00:00Z"),
+                    drawSystemId = 7274,
+                    drawDate = drawDate.ToString("yyyy-MM-ddT21:00:00"),
                     gameType = "LottoPlus",
                     multiplierValue = 0,
                     results = new[]
                     {
                         new
                         {
-                            drawDate = drawDate.ToString("yyyy-MM-ddT21:00:00Z"),
-                            drawSystemId = 7273,
+                            drawDate = drawDate.ToString("yyyy-MM-ddT21:00:00"),
+                            drawSystemId = 7274,
                             gameType = "LottoPlus",
                             resultsJson = new[] { 49, 23, 27, 25, 5, 6 },
                             specialResults = Array.Empty<object>()

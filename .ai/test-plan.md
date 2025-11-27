@@ -49,11 +49,27 @@ Główne cele procesu testowego to:
     *   [x] Obsługa różnych typów gier (LOTTO, LOTTO PLUS).
     *   [x] Integracja z zewnętrznym serwisem XLotto (włączanie/wyłączanie funkcji jako Feature Flag).
     *   [x] Przetwarzanie i walidacja JSON z Gemini API.
-*   **[ ] LottoOpenApiService (Background Worker Fetching):**
-    *   [ ] Pobieranie wyników bezpośrednio z oficjalnego Lotto.pl OpenApi.
-    *   [ ] Transformacja danych (Lotto → LOTTO, LottoPlus → LOTTO PLUS).
-    *   [ ] Walidacja JSON response z Lotto OpenApi.
-    *   [ ] Obsługa błędów i brakującej konfiguracji.
+*   **[x] LottoOpenApiService (Background Worker Fetching):**
+    *   [x] Pobieranie wyników bezpośrednio z oficjalnego Lotto.pl OpenApi.
+    *   [x] Deserializacja JSON do typowanych DTOs (GetDrawsLottoByDateResponse, GetDrawsLottoByDateResponseItem, GetDrawsLottoByDateResponseResult).
+    *   [x] Zachowanie oryginalnych nazw typów gier z API (Lotto, LottoPlus).
+    *   [x] Obsługa błędów i brakującej konfiguracji (URL, ApiKey).
+    *   [x] Poprawne ustawienie HTTP headers (User-Agent, Accept, secret).
+*   **[ ] LottoWorker - Background Service:**
+    *   [ ] Weryfikacja harmonogramu działania (Enable, StartTime, EndTime, InWeek).
+    *   [ ] Filtrowanie dni tygodnia (InWeek configuration).
+    *   [ ] Pobieranie bieżących wyników (FetchAndSaveDrawsFromLottoOpenApi).
+    *   [ ] Pobieranie archiwalnych wyników (FetchAndSaveArchDrawsFromLottoOpenApi).
+    *   [ ] Określanie ostatniej daty archiwum (GetLastArchRunTime).
+    *   [ ] Zapisywanie DrawSystemId do encji Draw.
+    *   [ ] Ustawianie domyślnej TicketPrice (3.0m dla Lotto, 1.0m dla LottoPlus).
+    *   [ ] Sprawdzanie duplikatów przed zapisem.
+    *   [ ] Ping API dla keep-alive (PingForApiVersion).
+*   **[ ] Draw Entity - Nowe właściwości:**
+    *   [ ] DrawSystemId (int) - poprawne zapisywanie i odczyt.
+    *   [ ] TicketPrice (decimal?) - nullable, precision 18,2.
+    *   [ ] WinPoolCount1-4 (int?) - nullable fields.
+    *   [ ] WinPoolAmount1-4 (decimal?) - nullable, precision 18,2.
 *   **[ ] Interfejs użytkownika (Frontend):**
     *   [ ] Nawigacja i routing.
     *   [ ] Responsywność widoków.
@@ -145,16 +161,19 @@ Proces testowy zostanie podzielony na następujące poziomy i typy:
 
 ### 4.5. LottoOpenApiService - Automatyczne Pobieranie Wyników (Background Worker)
 
-*   **[ ] TC27:** Pomyślne pobranie wyników z Lotto OpenApi dla daty.
-*   **[ ] TC28:** Weryfikacja poprawności transformacji danych (Lotto → LOTTO, LottoPlus → LOTTO PLUS).
-*   **[ ] TC29:** Obsługa pustych wyników gdy brak danych w Lotto OpenApi.
-*   **[ ] TC30:** Obsługa błędów HTTP przy niedostępności Lotto OpenApi.
-*   **[ ] TC31:** Walidacja braku URL w konfiguracji (LottoOpenApi:Url).
-*   **[ ] TC32:** Walidacja braku klucza API w konfiguracji (LottoOpenApi:ApiKey).
-*   **[ ] TC33:** Weryfikacja poprawności deserializacji JSON z Lotto OpenApi.
-*   **[ ] TC34:** Obsługa błędnych formatów danych w odpowiedzi API.
-*   **[ ] TC35:** Poprawne ustawienie headers (User-Agent, Accept, secret).
-*   **[ ] TC36:** Poprawne logowanie informacji podczas operacji LottoOpenApiService.
+*   **[x] TC27:** Pomyślne pobranie wyników z Lotto OpenApi dla daty.
+*   **[x] TC28:** Weryfikacja poprawności deserializacji danych do typowanych DTOs (GetDrawsLottoByDateResponse).
+*   **[x] TC29:** Obsługa pustych wyników gdy brak danych w Lotto OpenApi (totalRows=0).
+*   **[x] TC30:** Obsługa błędów HTTP przy niedostępności Lotto OpenApi (HttpRequestException).
+*   **[x] TC31:** Walidacja braku URL w konfiguracji (LottoOpenApi:Url) - InvalidOperationException.
+*   **[x] TC32:** Weryfikacja poprawności deserializacji JSON z Lotto OpenApi do GetDrawsLottoByDateResponse.
+*   **[x] TC33:** Obsługa błędnych formatów danych w odpowiedzi API (JsonException).
+*   **[x] TC34:** Poprawne ustawienie headers (User-Agent, Accept, secret).
+*   **[x] TC35:** Poprawne logowanie informacji podczas operacji LottoOpenApiService (Debug level).
+*   **[x] TC36:** Obsługa API zwracającego null - zwraca domyślną pustą odpowiedź.
+*   **[x] TC37:** Weryfikacja konstruowania poprawnego URL do Lotto OpenApi.
+*   **[x] TC38:** Obsługa wielu typów gier w jednym response (Lotto + LottoPlus).
+*   **[x] TC39:** Weryfikacja użycia domyślnej daty (Today) gdy parametr date=null.
 
 ### 4.6. Pobieranie Listy Kuponów (GET /api/tickets)
 
@@ -221,6 +240,42 @@ Proces testowy zostanie podzielony na następujące poziomy i typy:
 *   **[x] TC104:** Próba usunięcia bez autentykacji (oczekiwany błąd 401).
 *   **[x] TC105:** Próba usunięcia z niepoprawnym tokenem JWT (oczekiwany błąd 401).
 *   **[x] TC106:** Weryfikacja kaskadowego usuwania powiązanych TicketNumbers (integralność danych).
+
+### 4.9. LottoWorker - Background Service
+
+*   **[ ] TC107:** Weryfikacja uruchomienia workera przy starcie aplikacji.
+*   **[ ] TC108:** Weryfikacja działania workera w oknie czasowym (StartTime - EndTime).
+*   **[ ] TC109:** Weryfikacja braku działania poza oknem czasowym.
+*   **[ ] TC110:** Weryfikacja filtrowania dni tygodnia według InWeek configuration (np. tylko WT, PT, SO).
+*   **[ ] TC111:** Weryfikacja działania workera tylko gdy Enable=true.
+*   **[ ] TC112:** Weryfikacja braku działania gdy Enable=false.
+*   **[ ] TC113:** Pobieranie bieżących wyników dla Today (FetchAndSaveDrawsFromLottoOpenApi).
+*   **[ ] TC114:** Pobieranie archiwalnych wyników wstecz (FetchAndSaveArchDrawsFromLottoOpenApi).
+*   **[ ] TC115:** Określanie ostatniej daty archiwum (GetLastArchRunTime) - zwraca najstarszą datę z bazy.
+*   **[ ] TC116:** Zapisywanie DrawSystemId przy tworzeniu Draw.
+*   **[ ] TC117:** Ustawianie domyślnej TicketPrice (3.0m dla Lotto, 1.0m dla LottoPlus).
+*   **[ ] TC118:** Sprawdzanie duplikatów przed zapisem (pomijanie gdy Draw już istnieje).
+*   **[ ] TC119:** Ping API dla keep-alive (PingForApiVersion) - nie przerywa działania przy błędzie.
+*   **[ ] TC120:** Obsługa błędów pobierania - worker kontynuuje działanie w następnym cyklu.
+*   **[ ] TC121:** Weryfikacja interwału sprawdzania (IntervalMinutes).
+*   **[ ] TC122:** Walidacja liczb przed zapisem (6 liczb, zakres 1-49, unikalne).
+*   **[ ] TC123:** Transakcyjność zapisu (Draw + DrawNumbers) - rollback przy błędzie.
+*   **[ ] TC124:** Logowanie wszystkich kluczowych zdarzeń (start, sukces, błędy).
+*   **[ ] TC125:** Weryfikacja mapowania dni tygodnia (PN, WT, SR, CZ, PT, SO, ND).
+
+### 4.10. Draw Entity - Nowe Właściwości
+
+*   **[ ] TC126:** Zapisywanie i odczyt DrawSystemId (int).
+*   **[ ] TC127:** Zapisywanie i odczyt TicketPrice (decimal?, precision 18,2).
+*   **[ ] TC128:** Zapisywanie i odczyt WinPoolCount1 (int?, nullable).
+*   **[ ] TC129:** Zapisywanie i odczyt WinPoolAmount1 (decimal?, precision 18,2, nullable).
+*   **[ ] TC130:** Zapisywanie i odczyt WinPoolCount2-4 (int?, nullable).
+*   **[ ] TC131:** Zapisywanie i odczyt WinPoolAmount2-4 (decimal?, precision 18,2, nullable).
+*   **[ ] TC132:** Weryfikacja nullable fields - akceptuje NULL jako wartość.
+*   **[ ] TC133:** Weryfikacja precision dla decimal fields (18,2).
+*   **[ ] TC134:** Migracja bazy danych - nowe kolumny utworzone poprawnie.
+*   **[ ] TC135:** Kompatybilność wsteczna - istniejące rekordy nie zostały uszkodzone.
+*   **[ ] TC136:** Unique constraint na (DrawDate, LottoType) nadal działa poprawnie.
 
 ---
 

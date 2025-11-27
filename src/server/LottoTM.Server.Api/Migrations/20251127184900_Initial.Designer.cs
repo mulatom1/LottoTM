@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace LottoTM.Server.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251115094256_Initail")]
-    partial class Initail
+    [Migration("20251127184900_Initial")]
+    partial class Initial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -44,10 +44,45 @@ namespace LottoTM.Server.Api.Migrations
                     b.Property<DateOnly>("DrawDate")
                         .HasColumnType("date");
 
+                    b.Property<int>("DrawSystemId")
+                        .HasColumnType("int");
+
                     b.Property<string>("LottoType")
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
+
+                    b.Property<decimal?>("TicketPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18, 2)");
+
+                    b.Property<decimal?>("WinPoolAmount1")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18, 2)");
+
+                    b.Property<decimal?>("WinPoolAmount2")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18, 2)");
+
+                    b.Property<decimal?>("WinPoolAmount3")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18, 2)");
+
+                    b.Property<decimal?>("WinPoolAmount4")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18, 2)");
+
+                    b.Property<int?>("WinPoolCount1")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("WinPoolCount2")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("WinPoolCount3")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("WinPoolCount4")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 

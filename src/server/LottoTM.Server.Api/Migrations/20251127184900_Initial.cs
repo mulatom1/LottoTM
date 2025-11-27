@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace LottoTM.Server.Api.Migrations
 {
     /// <inheritdoc />
-    public partial class Initail : Migration
+    public partial class Initial : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -33,10 +33,20 @@ namespace LottoTM.Server.Api.Migrations
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
+                    DrawSystemId = table.Column<int>(type: "int", nullable: false),
                     DrawDate = table.Column<DateOnly>(type: "date", nullable: false),
                     LottoType = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
-                    CreatedByUserId = table.Column<int>(type: "int", nullable: true)
+                    CreatedByUserId = table.Column<int>(type: "int", nullable: true),
+                    TicketPrice = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: true),
+                    WinPoolCount1 = table.Column<int>(type: "int", nullable: true),
+                    WinPoolAmount1 = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: true),
+                    WinPoolCount2 = table.Column<int>(type: "int", nullable: true),
+                    WinPoolAmount2 = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: true),
+                    WinPoolCount3 = table.Column<int>(type: "int", nullable: true),
+                    WinPoolAmount3 = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: true),
+                    WinPoolCount4 = table.Column<int>(type: "int", nullable: true),
+                    WinPoolAmount4 = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: true)
                 },
                 constraints: table =>
                 {

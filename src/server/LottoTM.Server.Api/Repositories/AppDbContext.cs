@@ -204,6 +204,10 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Id)
                 .ValueGeneratedOnAdd();
 
+            entity.Property(e => e.DrawSystemId)
+                .IsRequired()
+                .HasColumnType("int");
+
             entity.Property(e => e.DrawDate)
                 .IsRequired()
                 .HasColumnType("date");
@@ -233,6 +237,47 @@ public class AppDbContext : DbContext
                 .WithOne(e => e.Draw)
                 .HasForeignKey(e => e.DrawId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(e => e.TicketPrice)
+               .IsRequired(false)
+               .HasPrecision(18, 2)
+               .HasColumnType("numeric(18, 2)");
+
+            entity.Property(e => e.WinPoolCount1)
+               .IsRequired(false)
+               .HasColumnType("int");
+
+            entity.Property(e => e.WinPoolAmount1)
+               .IsRequired(false)
+               .HasPrecision(18, 2)
+               .HasColumnType("numeric(18, 2)");
+
+            entity.Property(e => e.WinPoolCount2)
+               .IsRequired(false)
+               .HasColumnType("int");
+
+            entity.Property(e => e.WinPoolAmount2)
+               .IsRequired(false)
+               .HasPrecision(18, 2)
+               .HasColumnType("numeric(18, 2)");
+
+            entity.Property(e => e.WinPoolCount3)
+               .IsRequired(false)
+               .HasColumnType("int");
+
+            entity.Property(e => e.WinPoolAmount3)
+               .IsRequired(false)
+               .HasPrecision(18, 2)
+               .HasColumnType("numeric(18, 2)");
+
+            entity.Property(e => e.WinPoolCount4)
+               .IsRequired(false)
+               .HasColumnType("int");
+
+            entity.Property(e => e.WinPoolAmount4)
+               .IsRequired(false)
+               .HasPrecision(18, 2)
+               .HasColumnType("numeric(18, 2)");
         });
     }
 

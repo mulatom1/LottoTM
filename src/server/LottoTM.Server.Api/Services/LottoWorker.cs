@@ -1,11 +1,14 @@
-using Microsoft.Extensions.Options;
+using LottoTM.Server.Api.Entities;
 using LottoTM.Server.Api.Options;
 using LottoTM.Server.Api.Repositories;
-using LottoTM.Server.Api.Entities;
+using LottoTM.Server.Api.Services.LottoOpenApi;
+using LottoTM.Server.Api.Services.LottoOpenApi.DTOs;
 using Microsoft.EntityFrameworkCore;
-using System.Text.Json;
+using Microsoft.Extensions.Options;
+
 
 namespace LottoTM.Server.Api.Services;
+
 
 public class LottoWorker : BackgroundService
 {
@@ -31,6 +34,10 @@ public class LottoWorker : BackgroundService
         _logger.LogDebug("LottoWorker started. Enabled: {Enabled}, Time window: {StartTime} - {EndTime}, Interval: {Interval} minutes, InWeek: {InWeek}",
             _options.Enable, _options.StartTime, _options.EndTime, _options.IntervalMinutes, string.Join(",", _options.InWeek));
 
+
+        DateOnly lastArchRunTime = await GetLastArchRunTime(stoppingToken);
+
+
         while (!stoppingToken.IsCancellationRequested)
         {
             // Ping to keep the API alive
@@ -42,9 +49,12 @@ public class LottoWorker : BackgroundService
 
 
             // Sprawdź czy worker jest włączony, czy jesteśmy w przedziale czasowym i czy dzień jest w InWeek
-            if (_options.Enable && _options.InWeek.Contains(currentDayAbbrev) && currentTime >= _options.StartTime && currentTime <= _options.EndTime)
+            if (_options.Enable 
+                && _options.InWeek.Contains(currentDayAbbrev) 
+                && currentTime >= _options.StartTime 
+                && currentTime <= _options.EndTime)
             {
-                _logger.LogDebug("LottoWorker is in active time window at: {time} on day {day}", now, currentDayAbbrev);
+                _logger.LogDebug("LottoWorker is in active time window at: {Time} on day {Day}", now, currentDayAbbrev);
 
                 // Sprawd� czy losowania na dzie� ju� istniej�
                 using var scope = _serviceScopeFactory.CreateScope();
@@ -52,10 +62,8 @@ public class LottoWorker : BackgroundService
 
                 var targetDate = DateOnly.FromDateTime(DateTime.Today);
 
-                var lottoExists = await dbContext.Draws
-                    .AnyAsync(d => d.DrawDate == targetDate && d.LottoType == "LOTTO", stoppingToken);
-                var lottoPlusExists = await dbContext.Draws
-                    .AnyAsync(d => d.DrawDate == targetDate && d.LottoType == "LOTTO PLUS", stoppingToken);
+                var lottoExists = await dbContext.Draws.AnyAsync(d => d.DrawDate == targetDate && d.LottoType == "Lotto", stoppingToken);
+                var lottoPlusExists = await dbContext.Draws.AnyAsync(d => d.DrawDate == targetDate && d.LottoType == "LottoPlus", stoppingToken);
 
                 if (lottoExists && lottoPlusExists)
                 {
@@ -63,10 +71,20 @@ public class LottoWorker : BackgroundService
                 }
                 else
                 {
-                    _logger.LogDebug("Draws for date {Date} do not exist or are incomplete. LOTTO exists: {LottoExists}, LOTTO PLUS exists: {LottoPlusExists}",
+                    _logger.LogDebug(
+                        "Draws for date {Date} do not exist or are incomplete. LOTTO exists: {LottoExists}, LOTTO PLUS exists: {LottoPlusExists}",
                         targetDate, lottoExists, lottoPlusExists);
                     await FetchAndSaveDrawsFromLottoOpenApi(stoppingToken);
                 }
+            }
+
+            //Archiwum
+            if (_options.Enable && lastArchRunTime.Year >= 1957)
+            {
+                lastArchRunTime = lastArchRunTime.AddDays(-1);
+
+                if (_options.InWeek.Contains(GetDayAbbreviation(lastArchRunTime.DayOfWeek)))
+                    await FetchAndSaveArchDrawsFromLottoOpenApi(lastArchRunTime, stoppingToken);
             }
 
             if (!_options.Enable)
@@ -77,7 +95,8 @@ public class LottoWorker : BackgroundService
             {
                 _logger.LogDebug("LottoWorker outside active window.");
             }
-            await Task.Delay(_options.IntervalMinutes * 1000 * 60, stoppingToken);
+
+            await Task.Delay((int)(_options.IntervalMinutes * 1000) * 60, stoppingToken);
         }
     }
 
@@ -121,7 +140,7 @@ public class LottoWorker : BackgroundService
     
     private async Task FetchAndSaveDrawsFromLottoOpenApi(CancellationToken stoppingToken)
     {
-        _logger.LogDebug("Executing FetchAndSaveDrawsFromLottoOpenApi at: {time}", DateTime.Now);
+        _logger.LogDebug("Executing FetchAndSaveDrawsFromLottoOpenApi at: {Time}", DateTime.Now);
 
         try
         {
@@ -129,13 +148,17 @@ public class LottoWorker : BackgroundService
             var lottoOpenApiService = scope.ServiceProvider.GetRequiredService<ILottoOpenApiService>();
             var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-            // Pobierz wyniki losowa� z API
-            var today = DateTime.Today;
-            _logger.LogDebug("Fetching draws for date: {date}", today);
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            _logger.LogDebug("Fetching draws for date: {Date}", today);
 
-            // Pobierz wszystkie typy losowa� (LOTTO i LOTTO PLUS są zwracane razem)
-            var jsonResults = await lottoOpenApiService.GetActualDraws(today, "LOTTO");
-            await SaveInDatabase(jsonResults, dbContext, stoppingToken);
+            var response = await lottoOpenApiService.GetDrawsLottoByDate(today);
+            if (response == null || response.TotalRows == 0)
+            {
+                _logger.LogDebug("No response received from LottoOpenApiService for date: {Date}", today);
+                return;
+            }
+
+            await SaveInDatabase(response, dbContext, stoppingToken);
 
             _logger.LogDebug("FetchAndSaveDrawsFromLottoOpenApi completed successfully");
         }
@@ -145,109 +168,163 @@ public class LottoWorker : BackgroundService
         }
     }
 
-    private async Task SaveInDatabase(string jsonResults, AppDbContext dbContext, CancellationToken stoppingToken)
+    private async Task FetchAndSaveArchDrawsFromLottoOpenApi(DateOnly date, CancellationToken stoppingToken)
     {
+        _logger.LogDebug("Executing FetchAndSaveArchDrawsFromLottoOpenApi at: {Time}", DateTime.Now);
+
         try
         {
-            var drawsData = JsonSerializer.Deserialize<DrawsResponse>(jsonResults);
+            using var scope = _serviceScopeFactory.CreateScope();
+            var lottoOpenApiService = scope.ServiceProvider.GetRequiredService<ILottoOpenApiService>();
+            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-            if (drawsData?.Data == null || drawsData.Data.Count == 0)
+            _logger.LogDebug("Fetching arch draws for date: {Date}", date);
+
+            var response = await lottoOpenApiService.GetDrawsLottoByDate(date);
+            if (response == null || response.TotalRows == 0)
             {
-                _logger.LogDebug("No draw results found in the response");
+                _logger.LogDebug("No response received from LottoOpenApiService for date: {Date}", date);
                 return;
             }
 
-            foreach (var drawData in drawsData.Data)
+            await SaveInDatabase(response, dbContext, stoppingToken);
+
+            _logger.LogDebug("FetchAndSaveDrawsFromLottoOpenApi completed successfully");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error occurred while executing FetchAndSaveDrawsFromLottoOpenApi");
+        }
+    }
+
+    private async Task<DateOnly> GetLastArchRunTime(CancellationToken stoppingToken)
+    {
+        _logger.LogDebug("Executing GetLastArchRunTime at: {Time}", DateTime.Now);
+
+        try
+        {
+            using var scope = _serviceScopeFactory.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var lastDate = await dbContext.Draws.MinAsync(d => d.DrawDate, stoppingToken);
+            _logger.LogDebug("GetLastArchRunTime completed successfully {Time}", lastDate);
+
+            return lastDate;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error occurred while executing FetchAndSaveDrawsFromLottoOpenApi");
+            return DateOnly.FromDateTime(DateTime.Today);
+        }
+    }
+
+    private async Task SaveInDatabase(GetDrawsLottoByDateResponse response, AppDbContext dbContext, CancellationToken stoppingToken)
+    {
+        if (response.Items == null || response.Items.Count == 0)
+        {
+            _logger.LogDebug("No draw items to process in the response");
+            return;
+        }
+
+        try
+        {
+            foreach (var result in response.Items ?? [])
             {
-                try
+                foreach (var item in result.Results ?? [])
                 {
-                    _logger.LogDebug("Processing draw: Date={DrawDate}, Type={GameType}, Numbers={Numbers}",
-                        drawData.DrawDate, drawData.GameType, string.Join(",", drawData.Numbers));
-
-                    var drawDate = DateOnly.Parse(drawData.DrawDate);
-
-                    // Sprawd� czy losowanie na dan� dat� i typ ju� istnieje
-                    var existingDraw = await dbContext.Draws
-                        .AnyAsync(d => d.DrawDate == drawDate && d.LottoType == drawData.GameType, stoppingToken);
-
-                    if (existingDraw)
-                    {
-                        _logger.LogDebug("Draw for date {DrawDate} with type {LottoType} already exists, skipping",
-                            drawDate, drawData.GameType);
-                        continue;
-                    }
-
-                    // Walidacja liczb
-                    if (drawData.Numbers.Length != 6)
-                    {
-                        _logger.LogDebug("Invalid number count for draw {DrawDate}: expected 6, got {Count}",
-                            drawDate, drawData.Numbers.Length);
-                        continue;
-                    }
-
-                    if (drawData.Numbers.Any(n => n < 1 || n > 49))
-                    {
-                        _logger.LogDebug("Invalid numbers for draw {DrawDate}: numbers must be between 1-49", drawDate);
-                        continue;
-                    }
-
-                    if (drawData.Numbers.Distinct().Count() != 6)
-                    {
-                        _logger.LogDebug("Duplicate numbers found in draw {DrawDate}", drawDate);
-                        continue;
-                    }
-
-                    // Transakcja: INSERT Draw + DrawNumbers
-                    using var transaction = await dbContext.Database.BeginTransactionAsync(stoppingToken);
-
                     try
                     {
-                        // Dodaj Draw (CreatedByUserId = null dla worker-generated draws)
-                        var draw = new Draw
+
+                        _logger.LogDebug(
+                            "Processing draw: Date={DrawDate}, Type={GameType}, Numbers={Numbers}",
+                            item.DrawDate, item.GameType, string.Join(",", item?.ResultsJson ?? []));
+
+                        var drawDate = DateOnly.FromDateTime(item.DrawDate.Value);
+
+                        // Check if draw for the date and type already exists
+                        var existingDraw = await dbContext.Draws.AnyAsync(d => d.DrawDate == drawDate && d.LottoType == item.GameType, stoppingToken);
+                        if (existingDraw)
                         {
-                            DrawDate = drawDate,
-                            LottoType = drawData.GameType,
-                            CreatedAt = DateTime.UtcNow,
-                            CreatedByUserId = null // Worker nie ma userId
-                        };
-                        dbContext.Draws.Add(draw);
-                        await dbContext.SaveChangesAsync(stoppingToken);
+                            _logger.LogDebug(
+                                "Draw for date {DrawDate} with type {LottoType} already exists, skipping",
+                                drawDate, item.GameType);
+                            continue;
+                        }
 
-                        // Dodaj DrawNumbers
-                        var drawNumbers = drawData.Numbers
-                            .Select((number, index) => new DrawNumber
+                        // Validate numbers
+                        if (item.ResultsJson == null || item.ResultsJson.Length != 6)
+                        {
+                            _logger.LogDebug("Invalid number count for draw {DrawDate}: expected 6, got {Count}",
+                                drawDate, item.ResultsJson?.Length ?? 0);
+                            continue;
+                        }
+
+                        if (item.ResultsJson.Any(n => n < 1 || n > 49))
+                        {
+                            _logger.LogDebug("Invalid numbers for draw {DrawDate}: numbers must be between 1-49", drawDate);
+                            continue;
+                        }
+
+                        if (item.ResultsJson.Distinct().Count() != 6)
+                        {
+                            _logger.LogDebug("Duplicate numbers found in draw {DrawDate}", drawDate);
+                            continue;
+                        }
+
+                        // Transaction: INSERT Draw + DrawNumbers
+                        using var transaction = await dbContext.Database.BeginTransactionAsync(stoppingToken);
+
+                        try
+                        {
+                            // Add Draw (CreatedByUserId = null for worker-generated draws)
+                            var draw = new Draw
                             {
-                                DrawId = draw.Id,
-                                Number = number,
-                                Position = (byte)(index + 1)
-                            })
-                            .ToList();
+                                DrawSystemId = item.DrawSystemId,
+                                DrawDate = drawDate,
+                                LottoType = item.GameType ?? "UNKNOWN",
+                                CreatedAt = DateTime.UtcNow,
+                                CreatedByUserId = null, // Worker doesn't have userId
+                                TicketPrice = item.GameType == "Lotto" ? 3.0m : 1.0m,
+                            };
+                            dbContext.Draws.Add(draw);
+                            await dbContext.SaveChangesAsync(stoppingToken);
 
-                        dbContext.DrawNumbers.AddRange(drawNumbers);
-                        await dbContext.SaveChangesAsync(stoppingToken);
+                            // Add DrawNumbers
+                            var drawNumbers = item.ResultsJson
+                                .Select((number, index) => new DrawNumber
+                                {
+                                    DrawId = draw.Id,
+                                    Number = number,
+                                    Position = (byte)(index + 1)
+                                })
+                                .ToList();
 
-                        await transaction.CommitAsync(stoppingToken);
+                            dbContext.DrawNumbers.AddRange(drawNumbers);
+                            await dbContext.SaveChangesAsync(stoppingToken);
 
-                        _logger.LogDebug("Draw {DrawId} saved successfully: Date={DrawDate}, Type={GameType}",
-                            draw.Id, drawDate, drawData.GameType);
+                            await transaction.CommitAsync(stoppingToken);
+
+                            _logger.LogDebug("Draw {DrawId} saved successfully: Date={DrawDate}, Type={GameType}",
+                                draw.Id, drawDate, item.GameType);
+                        }
+                        catch (Exception ex)
+                        {
+                            await transaction.RollbackAsync(stoppingToken);
+                            _logger.LogError(ex, "Failed to save draw: Date={DrawDate}, Type={GameType}",
+                                drawDate, item.GameType);
+                        }
                     }
                     catch (Exception ex)
                     {
-                        await transaction.RollbackAsync(stoppingToken);
-                        _logger.LogError(ex, "Failed to save draw: Date={DrawDate}, Type={GameType}",
-                            drawDate, drawData.GameType);
+                        _logger.LogError(ex, "Failed to process draw: Date={DrawDate}, Type={GameType}",
+                            item?.DrawDate, item?.GameType);
                     }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogDebug(ex, "Failed to process draw: Date={DrawDate}, Type={GameType}",
-                        drawData.DrawDate, drawData.GameType);
                 }
             }
         }
-        catch (JsonException ex)
+        catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to deserialize draw results JSON: {Json}", jsonResults);
+            _logger.LogError(ex, "Failed to process draw results");
         }
     }
 
@@ -264,18 +341,5 @@ public class LottoWorker : BackgroundService
             DayOfWeek.Sunday => "ND",
             _ => throw new ArgumentOutOfRangeException(nameof(dayOfWeek), dayOfWeek, null)
         };
-    }
-
-    // DTOs for deserializing draw results
-    private class DrawsResponse
-    {
-        public List<DrawData>? Data { get; set; }
-    }
-
-    private class DrawData
-    {
-        public string DrawDate { get; set; } = string.Empty;
-        public string GameType { get; set; } = string.Empty;
-        public int[] Numbers { get; set; } = Array.Empty<int>();
     }
 }
