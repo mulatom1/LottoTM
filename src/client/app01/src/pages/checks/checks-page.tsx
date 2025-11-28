@@ -14,7 +14,7 @@ import type { TicketVerificationResult } from '../../services/contracts/verifica
 /**
  * Checks Page - Main page for verifying user's lottery tickets against draw results
  * Features:
- * - Date range selection (default: last 31 days)
+ * - Date range selection (default: last week, max: 3 years)
  * - Optional group name filter (partial match, case-insensitive)
  * - Automatic verification via API
  * - Results displayed in accordion format grouped by draws

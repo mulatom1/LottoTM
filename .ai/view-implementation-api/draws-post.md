@@ -38,7 +38,17 @@ Brak
 {
   "drawDate": "2025-10-30",
   "numbers": [3, 12, 25, 31, 42, 48],
-  "lottoType": "LOTTO"
+  "lottoType": "LOTTO",
+  "drawSystemId": 20250001,
+  "ticketPrice": 3.00,
+  "winPoolCount1": 2,
+  "winPoolAmount1": 5000000.00,
+  "winPoolCount2": 15,
+  "winPoolAmount2": 50000.00,
+  "winPoolCount3": 120,
+  "winPoolAmount3": 500.00,
+  "winPoolCount4": 850,
+  "winPoolAmount4": 20.00
 }
 ```
 
@@ -49,6 +59,16 @@ Brak
 | `drawDate` | DATE (YYYY-MM-DD) | Tak | - Format DATE<br>- Nie w przyszłości<br>- Unikalny globalnie (DrawDate + LottoType) | - "Data losowania jest wymagana"<br>- "Nieprawidłowy format daty"<br>- "Data losowania nie może być w przyszłości"<br>- "Losowanie z tą datą i typem gry już istnieje" |
 | `numbers` | Array<int> | Tak | - Dokładnie 6 elementów<br>- Każda liczba 1-49<br>- Wszystkie unikalne | - "Wymagane dokładnie 6 liczb"<br>- "Liczby muszą być w zakresie 1-49"<br>- "Liczby muszą być unikalne" |
 | `lottoType` | STRING | Tak | - Wymagane<br>- Tylko "LOTTO" lub "LOTTO PLUS" | - "Typ gry jest wymagany"<br>- "Dozwolone wartości: LOTTO, LOTTO PLUS" |
+| `drawSystemId` | INT | Tak | - Wymagane<br>- Wartość INT | - "DrawSystemId jest wymagany"<br>- "DrawSystemId musi być liczbą całkowitą" |
+| `ticketPrice` | DECIMAL | Nie | - Opcjonalne<br>- Wartość >= 0 jeśli podana | - "Cena biletu musi być wartością dodatnią" |
+| `winPoolCount1` | INT | Nie | - Opcjonalne<br>- Wartość >= 0 | - "Ilość wygranych musi być wartością nieujemną" |
+| `winPoolAmount1` | DECIMAL | Nie | - Opcjonalne<br>- Wartość >= 0 | - "Kwota wygranych musi być wartością dodatnią" |
+| `winPoolCount2` | INT | Nie | - Opcjonalne<br>- Wartość >= 0 | - "Ilość wygranych musi być wartością nieujemną" |
+| `winPoolAmount2` | DECIMAL | Nie | - Opcjonalne<br>- Wartość >= 0 | - "Kwota wygranych musi być wartością dodatnią" |
+| `winPoolCount3` | INT | Nie | - Opcjonalne<br>- Wartość >= 0 | - "Ilość wygranych musi być wartością nieujemną" |
+| `winPoolAmount3` | DECIMAL | Nie | - Opcjonalne<br>- Wartość >= 0 | - "Kwota wygranych musi być wartością dodatnią" |
+| `winPoolCount4` | INT | Nie | - Opcjonalne<br>- Wartość >= 0 | - "Ilość wygranych musi być wartością nieujemną" |
+| `winPoolAmount4` | DECIMAL | Nie | - Opcjonalne<br>- Wartość >= 0 | - "Kwota wygranych musi być wartością dodatnią" |
 
 ---
 
@@ -67,7 +87,17 @@ public class Contracts
     public record CreateDrawRequest(
         DateOnly DrawDate,
         int[] Numbers,
-        string LottoType
+        string LottoType,
+        int DrawSystemId,
+        decimal? TicketPrice = null,
+        int? WinPoolCount1 = null,
+        decimal? WinPoolAmount1 = null,
+        int? WinPoolCount2 = null,
+        decimal? WinPoolAmount2 = null,
+        int? WinPoolCount3 = null,
+        decimal? WinPoolAmount3 = null,
+        int? WinPoolCount4 = null,
+        decimal? WinPoolAmount4 = null
     ) : IRequest<CreateDrawResponse>;
 
     public record CreateDrawResponse(
@@ -85,6 +115,16 @@ public class Draw
     public int Id { get; set; }
     public DateTime DrawDate { get; set; }
     public string LottoType { get; set; } = string.Empty; // "LOTTO" lub "LOTTO PLUS"
+    public int DrawSystemId { get; set; }
+    public decimal? TicketPrice { get; set; }
+    public int? WinPoolCount1 { get; set; }
+    public decimal? WinPoolAmount1 { get; set; }
+    public int? WinPoolCount2 { get; set; }
+    public decimal? WinPoolAmount2 { get; set; }
+    public int? WinPoolCount3 { get; set; }
+    public decimal? WinPoolAmount3 { get; set; }
+    public int? WinPoolCount4 { get; set; }
+    public decimal? WinPoolAmount4 { get; set; }
     public DateTime CreatedAt { get; set; }
     public int CreatedByUserId { get; set; }
 
@@ -337,6 +377,56 @@ public class CreateDrawValidator : AbstractValidator<CreateDrawRequest>
             .NotEmpty().WithMessage("Typ gry jest wymagany")
             .Must(lt => lt == "LOTTO" || lt == "LOTTO PLUS")
                 .WithMessage("Dozwolone wartości: LOTTO, LOTTO PLUS");
+
+        RuleFor(x => x.DrawSystemId)
+            .MaximumLength(20)
+            .When(x => !string.IsNullOrEmpty(x.DrawSystemId))
+            .WithMessage("DrawSystemId nie może być dłuższy niż 20 znaków");
+
+        RuleFor(x => x.TicketPrice)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.TicketPrice.HasValue)
+            .WithMessage("Cena biletu musi być wartością dodatnią");
+
+        RuleFor(x => x.WinPoolCount1)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.WinPoolCount1.HasValue)
+            .WithMessage("Ilość wygranych musi być wartością nieujemną");
+
+        RuleFor(x => x.WinPoolAmount1)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.WinPoolAmount1.HasValue)
+            .WithMessage("Kwota wygranych musi być wartością dodatnią");
+
+        RuleFor(x => x.WinPoolCount2)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.WinPoolCount2.HasValue)
+            .WithMessage("Ilość wygranych musi być wartością nieujemną");
+
+        RuleFor(x => x.WinPoolAmount2)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.WinPoolAmount2.HasValue)
+            .WithMessage("Kwota wygranych musi być wartością dodatnią");
+
+        RuleFor(x => x.WinPoolCount3)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.WinPoolCount3.HasValue)
+            .WithMessage("Ilość wygranych musi być wartością nieujemną");
+
+        RuleFor(x => x.WinPoolAmount3)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.WinPoolAmount3.HasValue)
+            .WithMessage("Kwota wygranych musi być wartością dodatnią");
+
+        RuleFor(x => x.WinPoolCount4)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.WinPoolCount4.HasValue)
+            .WithMessage("Ilość wygranych musi być wartością nieujemną");
+
+        RuleFor(x => x.WinPoolAmount4)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.WinPoolAmount4.HasValue)
+            .WithMessage("Kwota wygranych musi być wartością dodatnią");
     }
 }
 ```
@@ -588,7 +678,17 @@ public class Contracts
     public record CreateDrawRequest(
         DateOnly DrawDate,
         int[] Numbers,
-        string LottoType
+        string LottoType,
+        int DrawSystemId,
+        decimal? TicketPrice = null,
+        int? WinPoolCount1 = null,
+        decimal? WinPoolAmount1 = null,
+        int? WinPoolCount2 = null,
+        decimal? WinPoolAmount2 = null,
+        int? WinPoolCount3 = null,
+        decimal? WinPoolAmount3 = null,
+        int? WinPoolCount4 = null,
+        decimal? WinPoolAmount4 = null
     ) : IRequest<CreateDrawResponse>;
 
     public record CreateDrawResponse(
@@ -621,6 +721,61 @@ public class CreateDrawValidator : AbstractValidator<Contracts.CreateDrawRequest
                 .WithMessage("Liczby muszą być w zakresie 1-49")
             .Must(n => n.Distinct().Count() == 6)
                 .WithMessage("Liczby muszą być unikalne");
+
+        RuleFor(x => x.LottoType)
+            .NotEmpty().WithMessage("Typ gry jest wymagany")
+            .Must(lt => lt == "LOTTO" || lt == "LOTTO PLUS")
+                .WithMessage("Dozwolone wartości: LOTTO, LOTTO PLUS");
+
+        RuleFor(x => x.DrawSystemId)
+            .MaximumLength(20)
+            .When(x => !string.IsNullOrEmpty(x.DrawSystemId))
+            .WithMessage("DrawSystemId nie może być dłuższy niż 20 znaków");
+
+        RuleFor(x => x.TicketPrice)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.TicketPrice.HasValue)
+            .WithMessage("Cena biletu musi być wartością dodatnią");
+
+        RuleFor(x => x.WinPoolCount1)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.WinPoolCount1.HasValue)
+            .WithMessage("Ilość wygranych musi być wartością nieujemną");
+
+        RuleFor(x => x.WinPoolAmount1)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.WinPoolAmount1.HasValue)
+            .WithMessage("Kwota wygranych musi być wartością dodatnią");
+
+        RuleFor(x => x.WinPoolCount2)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.WinPoolCount2.HasValue)
+            .WithMessage("Ilość wygranych musi być wartością nieujemną");
+
+        RuleFor(x => x.WinPoolAmount2)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.WinPoolAmount2.HasValue)
+            .WithMessage("Kwota wygranych musi być wartością dodatnią");
+
+        RuleFor(x => x.WinPoolCount3)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.WinPoolCount3.HasValue)
+            .WithMessage("Ilość wygranych musi być wartością nieujemną");
+
+        RuleFor(x => x.WinPoolAmount3)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.WinPoolAmount3.HasValue)
+            .WithMessage("Kwota wygranych musi być wartością dodatnią");
+
+        RuleFor(x => x.WinPoolCount4)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.WinPoolCount4.HasValue)
+            .WithMessage("Ilość wygranych musi być wartością nieujemną");
+
+        RuleFor(x => x.WinPoolAmount4)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.WinPoolAmount4.HasValue)
+            .WithMessage("Kwota wygranych musi być wartością dodatnią");
     }
 }
 ```
@@ -705,6 +860,17 @@ public class CreateDrawHandler : IRequestHandler<Contracts.CreateDrawRequest, Co
             var draw = new Draw
             {
                 DrawDate = drawDate,
+                LottoType = request.LottoType,
+                DrawSystemId = request.DrawSystemId,
+                TicketPrice = request.TicketPrice,
+                WinPoolCount1 = request.WinPoolCount1,
+                WinPoolAmount1 = request.WinPoolAmount1,
+                WinPoolCount2 = request.WinPoolCount2,
+                WinPoolAmount2 = request.WinPoolAmount2,
+                WinPoolCount3 = request.WinPoolCount3,
+                WinPoolAmount3 = request.WinPoolAmount3,
+                WinPoolCount4 = request.WinPoolCount4,
+                WinPoolAmount4 = request.WinPoolAmount4,
                 CreatedAt = DateTime.UtcNow,
                 CreatedByUserId = currentUserId
             };

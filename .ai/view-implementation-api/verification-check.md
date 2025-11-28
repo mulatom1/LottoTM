@@ -33,7 +33,7 @@ Wszystkie typy zostaną zdefiniowane w nowym folderze `Features/Verification/Che
   - `Request(DateOnly DateFrom, DateOnly DateTo, string? GroupName)`: Model żądania.
   - `Response(List<TicketVerificationResult> Results, int TotalTickets, int TotalDraws, long ExecutionTimeMs)`: Model odpowiedzi.
   - `TicketVerificationResult(int TicketId, string GroupName, List<int> TicketNumbers, List<DrawVerificationResult> Draws)`: Wynik dla pojedynczego kuponu.
-  - `DrawVerificationResult(int DrawId, DateOnly DrawDate, string LottoType, List<int> DrawNumbers, int Hits, List<int> WinningNumbers)`: Wynik trafienia w losowaniu.
+  - `DrawVerificationResult(int DrawId, DateOnly DrawDate, int DrawSystemId, string LottoType, List<int> DrawNumbers, int Hits, List<int> WinningNumbers, decimal? TicketPrice, int? WinPoolCount1, decimal? WinPoolAmount1, int? WinPoolCount2, decimal? WinPoolAmount2, int? WinPoolCount3, decimal? WinPoolAmount3, int? WinPoolCount4, decimal? WinPoolAmount4)`: Wynik trafienia w losowaniu z dodatkowymi danymi o losowaniu (ID systemowe, cena kuponu, informacje o pulach wygranych dla wszystkich 4 stopni wygranej).
 
 ## 4. Szczegóły odpowiedzi
 
@@ -50,10 +50,20 @@ Wszystkie typy zostaną zdefiniowane w nowym folderze `Features/Verification/Che
           {
             "drawId": 123,
             "drawDate": "2025-10-15",
+            "drawSystemId": 20250001,
             "lottoType": "LOTTO",
             "drawNumbers": [3, 14, 23, 31, 37, 48],
             "hits": 3,
-            "winningNumbers": [14, 23, 37]
+            "winningNumbers": [14, 23, 37],
+            "ticketPrice": 3.00,
+            "winPoolCount1": 2,
+            "winPoolAmount1": 5000000.00,
+            "winPoolCount2": 15,
+            "winPoolAmount2": 50000.00,
+            "winPoolCount3": 120,
+            "winPoolAmount3": 500.00,
+            "winPoolCount4": 850,
+            "winPoolAmount4": 20.00
           }
         ]
       }
@@ -70,7 +80,7 @@ Wszystkie typy zostaną zdefiniowane w nowym folderze `Features/Verification/Che
   {
     "errors": {
       "DateTo": ["'Date To' must be greater than or equal to 'Date From'."],
-      "DateRange": ["Zakres dat nie może przekraczać 31 dni."]
+      "DateRange": ["Zakres dat nie może przekraczać 3 lat."]
     }
   }
   ```
@@ -98,7 +108,7 @@ Wszystkie typy zostaną zdefiniowane w nowym folderze `Features/Verification/Che
 
 - **Uwierzytelnianie**: Endpoint będzie chroniony za pomocą `[Authorize]`, co gwarantuje, że tylko zalogowani użytkownicy mogą z niego korzystać.
 - **Autoryzacja**: Logika w handlerze musi ściśle filtrować dane (`Tickets`) na podstawie `UserId` pobranego z tokenu JWT. Zapobiega to możliwości odpytania o dane innego użytkownika.
-- **Walidacja danych wejściowych**: `FluentValidation` zabezpiecza przed niepoprawnymi danymi (np. nieprawidłowy format daty, odwrócony zakres). Ograniczenie zakresu do 31 dni chroni przed atakami typu DoS polegającymi na żądaniu weryfikacji dla ogromnego przedziału czasowego.
+- **Walidacja danych wejściowych**: `FluentValidation` zabezpiecza przed niepoprawnymi danymi (np. nieprawidłowy format daty, odwrócony zakres). Ograniczenie zakresu do 3 lat chroni przed atakami typu DoS polegającymi na żądaniu weryfikacji dla ogromnego przedziału czasowego.
 
 ## 7. Obsługa błędów
 
@@ -109,7 +119,7 @@ Wszystkie typy zostaną zdefiniowane w nowym folderze `Features/Verification/Che
 ## 8. Rozważania dotyczące wydajności
 
 - **Dostęp do bazy danych**: Dane (kupony i losowania) są pobierane w dwóch osobnych, zoptymalizowanych zapytaniach z użyciem `AsNoTracking()` i `Include()`, aby zminimalizować liczbę zapytań (2 zapytania na żądanie). Wykorzystane zostaną indeksy na `Tickets.UserId` i `Draws.DrawDate`.
-- **Przetwarzanie w pamięci**: Główna logika porównawcza (pętle i `Intersect`) odbywa się w pamięci. Dla maksymalnych wartości (100 kuponów, ~13 losowań w 31 dniach) operacja jest bardzo szybka. Złożoność obliczeniowa to O(liczba_kuponów * liczba_losowań).
+- **Przetwarzanie w pamięci**: Główna logika porównawcza (pętle i `Intersect`) odbywa się w pamięci. Dla maksymalnych wartości (100 kuponów, ~600 losowań w 3 latach dla obu typów gier LOTTO + LOTTO PLUS) operacja jest zoptymalizowana. Złożoność obliczeniowa to O(liczba_kuponów * liczba_losowań).
 - **Asynchroniczność**: Wszystkie operacje I/O (dostęp do bazy danych) są w pełni asynchroniczne (`async/await`), co zapewnia, że wątek nie jest blokowany podczas oczekiwania na dane.
 
 ## 9. Etapy wdrożenia

@@ -197,11 +197,27 @@ function DrawsPage() {
       // Convert DrawFormData to API request format
       const numbers = data.numbers.filter((n): n is number => typeof n === 'number');
 
+      // Helper function to convert '' to undefined for optional numeric fields
+      const getOptionalNumber = (value: number | '' | undefined): number | undefined => {
+        if (value === '' || value === undefined) return undefined;
+        return value;
+      };
+
       if (modalState.formMode === 'add') {
         const request: DrawsCreateRequest = {
           drawDate: data.drawDate,
           lottoType: data.lottoType,
           numbers,
+          drawSystemId: typeof data.drawSystemId === 'number' ? data.drawSystemId : 0, // Required field
+          ticketPrice: getOptionalNumber(data.ticketPrice),
+          winPoolCount1: getOptionalNumber(data.winPoolCount1),
+          winPoolAmount1: getOptionalNumber(data.winPoolAmount1),
+          winPoolCount2: getOptionalNumber(data.winPoolCount2),
+          winPoolAmount2: getOptionalNumber(data.winPoolAmount2),
+          winPoolCount3: getOptionalNumber(data.winPoolCount3),
+          winPoolAmount3: getOptionalNumber(data.winPoolAmount3),
+          winPoolCount4: getOptionalNumber(data.winPoolCount4),
+          winPoolAmount4: getOptionalNumber(data.winPoolAmount4),
         };
         await apiService.drawsCreate(request);
         setToastMessage('Wynik losowania zapisany pomyślnie');
@@ -210,6 +226,16 @@ function DrawsPage() {
           drawDate: data.drawDate,
           lottoType: data.lottoType,
           numbers,
+          drawSystemId: typeof data.drawSystemId === 'number' ? data.drawSystemId : 0, // Required field
+          ticketPrice: getOptionalNumber(data.ticketPrice),
+          winPoolCount1: getOptionalNumber(data.winPoolCount1),
+          winPoolAmount1: getOptionalNumber(data.winPoolAmount1),
+          winPoolCount2: getOptionalNumber(data.winPoolCount2),
+          winPoolAmount2: getOptionalNumber(data.winPoolAmount2),
+          winPoolCount3: getOptionalNumber(data.winPoolCount3),
+          winPoolAmount3: getOptionalNumber(data.winPoolAmount3),
+          winPoolCount4: getOptionalNumber(data.winPoolCount4),
+          winPoolAmount4: getOptionalNumber(data.winPoolAmount4),
         };
         await apiService.drawsUpdate(modalState.editingDraw.id, request);
         setToastMessage('Wynik zaktualizowany pomyślnie');
@@ -327,13 +353,30 @@ function DrawsPage() {
   const getFormInitialValues = (): DrawFormData | undefined => {
     if (!modalState.editingDraw) return undefined;
 
+    const draw = modalState.editingDraw;
+
     // Convert DateTime string (e.g., "2025-01-15T00:00:00Z") to YYYY-MM-DD format
-    const drawDate = modalState.editingDraw.drawDate.split('T')[0];
+    const drawDate = draw.drawDate.split('T')[0];
+
+    // Helper function to convert null to '' for form fields
+    const getFormValue = (value: number | null): number | '' => {
+      return value ?? '';
+    };
 
     return {
       drawDate,
-      lottoType: modalState.editingDraw.lottoType,
-      numbers: modalState.editingDraw.numbers as (number | '')[],
+      lottoType: draw.lottoType,
+      numbers: draw.numbers as (number | '')[],
+      drawSystemId: draw.drawSystemId,
+      ticketPrice: getFormValue(draw.ticketPrice),
+      winPoolCount1: getFormValue(draw.winPoolCount1),
+      winPoolAmount1: getFormValue(draw.winPoolAmount1),
+      winPoolCount2: getFormValue(draw.winPoolCount2),
+      winPoolAmount2: getFormValue(draw.winPoolAmount2),
+      winPoolCount3: getFormValue(draw.winPoolCount3),
+      winPoolAmount3: getFormValue(draw.winPoolAmount3),
+      winPoolCount4: getFormValue(draw.winPoolCount4),
+      winPoolAmount4: getFormValue(draw.winPoolAmount4),
     };
   };
 

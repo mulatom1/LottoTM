@@ -46,6 +46,16 @@ const DrawFormModal: React.FC<DrawFormModalProps> = ({
       drawDate: '',
       lottoType: 'LOTTO', // Default to LOTTO
       numbers: ['', '', '', '', '', ''],
+      drawSystemId: '',
+      ticketPrice: '',
+      winPoolCount1: '',
+      winPoolAmount1: '',
+      winPoolCount2: '',
+      winPoolAmount2: '',
+      winPoolCount3: '',
+      winPoolAmount3: '',
+      winPoolCount4: '',
+      winPoolAmount4: '',
     };
   };
 
@@ -357,6 +367,109 @@ const DrawFormModal: React.FC<DrawFormModalProps> = ({
                 required
               />
             ))}
+          </div>
+        </div>
+
+        {/* Draw System ID */}
+        <NumberInput
+          label="ID systemu losowania"
+          value={formData.drawSystemId}
+          onChange={(value) => setFormData((prev) => ({ ...prev, drawSystemId: value }))}
+          min={1}
+          required
+        />
+
+        {/* Ticket Price */}
+        <NumberInput
+          label="Cena biletu (zł)"
+          value={formData.ticketPrice ?? ''}
+          onChange={(value) => setFormData((prev) => ({ ...prev, ticketPrice: value }))}
+          min={0}
+          step={0.01}
+        />
+
+        {/* Win Pools Section */}
+        <div className="border-t border-gray-200 pt-4 mt-2">
+          <p className="text-sm font-medium text-gray-700 mb-4">Informacje o wygranych (opcjonalne)</p>
+
+          {/* Tier 1 - 6 matches */}
+          <div className="mb-4">
+            <p className="text-xs font-medium text-green-800 mb-2">Stopień 1 (6 trafionych)</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <NumberInput
+                label="Ilość wygranych"
+                value={formData.winPoolCount1 ?? ''}
+                onChange={(value) => setFormData((prev) => ({ ...prev, winPoolCount1: value }))}
+                min={0}
+              />
+              <NumberInput
+                label="Kwota wygranej (zł)"
+                value={formData.winPoolAmount1 ?? ''}
+                onChange={(value) => setFormData((prev) => ({ ...prev, winPoolAmount1: value }))}
+                min={0}
+                step={0.01}
+              />
+            </div>
+          </div>
+
+          {/* Tier 2 - 5 matches */}
+          <div className="mb-4">
+            <p className="text-xs font-medium text-blue-800 mb-2">Stopień 2 (5 trafionych)</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <NumberInput
+                label="Ilość wygranych"
+                value={formData.winPoolCount2 ?? ''}
+                onChange={(value) => setFormData((prev) => ({ ...prev, winPoolCount2: value }))}
+                min={0}
+              />
+              <NumberInput
+                label="Kwota wygranej (zł)"
+                value={formData.winPoolAmount2 ?? ''}
+                onChange={(value) => setFormData((prev) => ({ ...prev, winPoolAmount2: value }))}
+                min={0}
+                step={0.01}
+              />
+            </div>
+          </div>
+
+          {/* Tier 3 - 4 matches */}
+          <div className="mb-4">
+            <p className="text-xs font-medium text-yellow-800 mb-2">Stopień 3 (4 trafione)</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <NumberInput
+                label="Ilość wygranych"
+                value={formData.winPoolCount3 ?? ''}
+                onChange={(value) => setFormData((prev) => ({ ...prev, winPoolCount3: value }))}
+                min={0}
+              />
+              <NumberInput
+                label="Kwota wygranej (zł)"
+                value={formData.winPoolAmount3 ?? ''}
+                onChange={(value) => setFormData((prev) => ({ ...prev, winPoolAmount3: value }))}
+                min={0}
+                step={0.01}
+              />
+            </div>
+          </div>
+
+          {/* Tier 4 - 3 matches */}
+          <div className="mb-4">
+            <p className="text-xs font-medium text-orange-800 mb-2">Stopień 4 (3 trafione)</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <NumberInput
+                label="Ilość wygranych"
+                value={formData.winPoolCount4 ?? ''}
+                onChange={(value) => setFormData((prev) => ({ ...prev, winPoolCount4: value }))}
+                min={0}
+              />
+              <NumberInput
+                label="Kwota wygranej (zł)"
+                value={formData.winPoolAmount4 ?? ''}
+                onChange={(value) => setFormData((prev) => ({ ...prev, winPoolAmount4: value }))}
+                min={0}
+                step={0.01}
+              />
+            </div>
           </div>
         </div>
 

@@ -66,6 +66,16 @@ public class Contracts
         DateTime DrawDate,
         string LottoType,
         int[] Numbers,
+        int? DrawSystemId,
+        decimal? TicketPrice,
+        int? WinPoolCount1,
+        decimal? WinPoolAmount1,
+        int? WinPoolCount2,
+        decimal? WinPoolAmount2,
+        int? WinPoolCount3,
+        decimal? WinPoolAmount3,
+        int? WinPoolCount4,
+        decimal? WinPoolAmount4,
         DateTime CreatedAt
     );
 }
@@ -82,6 +92,16 @@ public class Draw
     public int Id { get; set; }
     public DateTime DrawDate { get; set; }
     public string LottoType { get; set; } = "";
+    public int? DrawSystemId { get; set; }
+    public decimal? TicketPrice { get; set; }
+    public int? WinPoolCount1 { get; set; }
+    public decimal? WinPoolAmount1 { get; set; }
+    public int? WinPoolCount2 { get; set; }
+    public decimal? WinPoolAmount2 { get; set; }
+    public int? WinPoolCount3 { get; set; }
+    public decimal? WinPoolAmount3 { get; set; }
+    public int? WinPoolCount4 { get; set; }
+    public decimal? WinPoolAmount4 { get; set; }
     public DateTime CreatedAt { get; set; }
     public int CreatedByUserId { get; set; }
 
@@ -120,6 +140,16 @@ public class DrawNumber
   "drawDate": "2025-10-30",
   "lottoType": "LOTTO",
   "numbers": [3, 12, 25, 31, 42, 48],
+  "drawSystemId": 20250001,
+  "ticketPrice": 3.00,
+  "winPoolCount1": 2,
+  "winPoolAmount1": 5000000.00,
+  "winPoolCount2": 15,
+  "winPoolAmount2": 50000.00,
+  "winPoolCount3": 120,
+  "winPoolAmount3": 500.00,
+  "winPoolCount4": 850,
+  "winPoolAmount4": 20.00,
   "createdAt": "2025-10-30T18:30:00Z"
 }
 ```
@@ -129,6 +159,16 @@ public class DrawNumber
 - `drawDate` (string): Data losowania w formacie ISO 8601 (YYYY-MM-DD)
 - `lottoType` (string): Typ gry ("LOTTO" lub "LOTTO PLUS")
 - `numbers` (int[]): Tablica 6 wylosowanych liczb w zakresie 1-49, posortowanych według pozycji
+- `drawSystemId` (int | null): Zewnętrzny identyfikator systemu losowań (opcjonalnie)
+- `ticketPrice` (decimal | null): Cena biletu dla tego losowania (opcjonalnie)
+- `winPoolCount1` (int | null): Liczba wygranych 1 stopnia - 6 trafień (opcjonalnie)
+- `winPoolAmount1` (decimal | null): Kwota wygranych 1 stopnia - 6 trafień (opcjonalnie)
+- `winPoolCount2` (int | null): Liczba wygranych 2 stopnia - 5 trafień (opcjonalnie)
+- `winPoolAmount2` (decimal | null): Kwota wygranych 2 stopnia - 5 trafień (opcjonalnie)
+- `winPoolCount3` (int | null): Liczba wygranych 3 stopnia - 4 trafienia (opcjonalnie)
+- `winPoolAmount3` (decimal | null): Kwota wygranych 3 stopnia - 4 trafienia (opcjonalnie)
+- `winPoolCount4` (int | null): Liczba wygranych 4 stopnia - 3 trafienia (opcjonalnie)
+- `winPoolAmount4` (decimal | null): Kwota wygranych 4 stopnia - 3 trafienia (opcjonalnie)
 - `createdAt` (string): Data i czas wprowadzenia wyniku do systemu w formacie ISO 8601 (UTC)
 
 ### 4.2 Odpowiedzi błędów
@@ -626,7 +666,18 @@ public class Contracts
     public record Response(
         int Id,
         DateTime DrawDate,
+        string LottoType,
         int[] Numbers,
+        int? DrawSystemId,
+        decimal? TicketPrice,
+        int? WinPoolCount1,
+        decimal? WinPoolAmount1,
+        int? WinPoolCount2,
+        decimal? WinPoolAmount2,
+        int? WinPoolCount3,
+        decimal? WinPoolAmount3,
+        int? WinPoolCount4,
+        decimal? WinPoolAmount4,
         DateTime CreatedAt
     );
 }
@@ -723,7 +774,18 @@ public class GetDrawByIdHandler : IRequestHandler<Contracts.Request, Contracts.R
         var response = new Contracts.Response(
             Id: draw.Id,
             DrawDate: draw.DrawDate,
+            LottoType: draw.LottoType,
             Numbers: numbers,
+            DrawSystemId: draw.DrawSystemId,
+            TicketPrice: draw.TicketPrice,
+            WinPoolCount1: draw.WinPoolCount1,
+            WinPoolAmount1: draw.WinPoolAmount1,
+            WinPoolCount2: draw.WinPoolCount2,
+            WinPoolAmount2: draw.WinPoolAmount2,
+            WinPoolCount3: draw.WinPoolCount3,
+            WinPoolAmount3: draw.WinPoolAmount3,
+            WinPoolCount4: draw.WinPoolCount4,
+            WinPoolAmount4: draw.WinPoolAmount4,
             CreatedAt: draw.CreatedAt
         );
 
@@ -937,7 +999,18 @@ Dodaj metodę do ApiService:
 export interface DrawResponse {
   id: number;
   drawDate: string;
+  lottoType: string;
   numbers: number[];
+  drawSystemId?: string;
+  ticketPrice?: number;
+  winPoolCount1?: number;
+  winPoolAmount1?: number;
+  winPoolCount2?: number;
+  winPoolAmount2?: number;
+  winPoolCount3?: number;
+  winPoolAmount3?: number;
+  winPoolCount4?: number;
+  winPoolAmount4?: number;
   createdAt: string;
 }
 

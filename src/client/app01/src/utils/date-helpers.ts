@@ -3,12 +3,12 @@
 // ===================================================================
 
 /**
- * Get default date "From" (-31 days from today)
+ * Get default date "From" (-1 week from today)
  * @returns Date string in YYYY-MM-DD format
  */
 export function getDefaultDateFrom(): string {
   const date = new Date();
-  date.setDate(date.getDate() - 31);
+  date.setDate(date.getDate() - 7);
   return date.toISOString().split('T')[0];
 }
 
@@ -31,13 +31,13 @@ export function validateDateRange(dateFrom: string, dateTo: string): string | nu
     return "Data 'Od' musi być wcześniejsza lub równa 'Do'";
   }
 
-  // Check if date range exceeds 31 days (optional frontend validation)
+  // Check if date range exceeds 3 years (optional frontend validation)
   const from = new Date(dateFrom);
   const to = new Date(dateTo);
   const diffDays = Math.ceil((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24));
 
-  if (diffDays > 31) {
-    return "Zakres dat nie może przekraczać 31 dni";
+  if (diffDays > 1095) { // 3 years ≈ 1095 days
+    return "Zakres dat nie może przekraczać 3 lat";
   }
 
   return null; // Valid

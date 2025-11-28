@@ -8,8 +8,18 @@ import { ResultTicketItem } from './result-ticket-item';
 interface AccordionItemProps {
   draw: {
     drawDate: string;
+    drawSystemId: number;
     lottoType: string;
     drawNumbers: number[];
+    ticketPrice: number | null;
+    winPoolCount1: number | null;
+    winPoolAmount1: number | null;
+    winPoolCount2: number | null;
+    winPoolAmount2: number | null;
+    winPoolCount3: number | null;
+    winPoolAmount3: number | null;
+    winPoolCount4: number | null;
+    winPoolAmount4: number | null;
   };
   tickets: Array<{
     ticketId: number;
@@ -63,10 +73,13 @@ export function AccordionItem({ draw, tickets, defaultExpanded = false }: Accord
 
           {/* Draw Info */}
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <div className="text-sm font-semibold text-gray-900">
                 Losowanie {draw.drawDate}
               </div>
+              <span className="text-xs text-gray-500">
+                ID: {draw.drawSystemId}
+              </span>
               <span className={`text-xs font-medium px-2 py-0.5 rounded ${
                 draw.lottoType === 'LOTTO PLUS'
                   ? 'bg-purple-100 text-purple-700'
@@ -106,7 +119,21 @@ export function AccordionItem({ draw, tickets, defaultExpanded = false }: Accord
           {tickets.length > 0 ? (
             <div className="divide-y divide-gray-200">
               {tickets.map((ticket) => (
-                <ResultTicketItem key={ticket.ticketId} ticket={ticket} />
+                <ResultTicketItem
+                  key={ticket.ticketId}
+                  ticket={ticket}
+                  drawData={{
+                    ticketPrice: draw.ticketPrice,
+                    winPoolCount1: draw.winPoolCount1,
+                    winPoolAmount1: draw.winPoolAmount1,
+                    winPoolCount2: draw.winPoolCount2,
+                    winPoolAmount2: draw.winPoolAmount2,
+                    winPoolCount3: draw.winPoolCount3,
+                    winPoolAmount3: draw.winPoolAmount3,
+                    winPoolCount4: draw.winPoolCount4,
+                    winPoolAmount4: draw.winPoolAmount4
+                  }}
+                />
               ))}
             </div>
           ) : (

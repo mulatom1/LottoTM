@@ -108,10 +108,20 @@ public class CheckVerificationHandler : IRequestHandler<Contracts.Request, Contr
                         drawResults.Add(new Contracts.DrawVerificationResult(
                             draw.Id,
                             draw.DrawDate,
+                            draw.DrawSystemId,
                             draw.LottoType,
                             drawNumbers,
                             hits,
-                            winningNumbers
+                            winningNumbers,
+                            draw.TicketPrice,
+                            draw.WinPoolCount1,
+                            draw.WinPoolAmount1,
+                            draw.WinPoolCount2,
+                            draw.WinPoolAmount2,
+                            draw.WinPoolCount3,
+                            draw.WinPoolAmount3,
+                            draw.WinPoolCount4,
+                            draw.WinPoolAmount4
                         ));
                     }
                 }

@@ -291,6 +291,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         {
             DrawDate = drawDate,
             LottoType = "LOTTO",
+            DrawSystemId = 20250001,
             CreatedAt = DateTime.UtcNow,
             CreatedByUserId = userId
         };

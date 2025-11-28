@@ -48,7 +48,8 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         {
             lottoType = "LOTTO",
             drawDate = "2025-01-20",
-            numbers = new[] { 3, 12, 25, 31, 42, 48 }
+            numbers = new[] { 3, 12, 25, 31, 42, 48 },
+            drawSystemId = 20250002
         };
 
         // Act
@@ -77,8 +78,10 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var request = new
         {
+            lottoType = "LOTTO",
             drawDate = "2025-01-20",
-            numbers = new[] { 3, 12, 25, 31, 42, 48 }
+            numbers = new[] { 3, 12, 25, 31, 42, 48 },
+            drawSystemId = 20250002
         };
 
         // Act
@@ -113,7 +116,8 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         {
             lottoType = "LOTTO",
             drawDate = "2025-01-20",
-            numbers = new[] { 3, 12, 25, 31, 42, 48 }
+            numbers = new[] { 3, 12, 25, 31, 42, 48 },
+            drawSystemId = 20250002
         };
 
         // Act
@@ -143,7 +147,8 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         {
             lottoType = "LOTTO",
             drawDate = "2025-01-20",
-            numbers = new[] { 3, 12, 25, 31, 42, 48 }
+            numbers = new[] { 3, 12, 25, 31, 42, 48 },
+            drawSystemId = 20250002
         };
 
         // Act
@@ -172,8 +177,10 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var request = new
         {
+            lottoType = "LOTTO",
             drawDate = DateTime.Today.AddDays(1).ToString("yyyy-MM-dd"),
-            numbers = new[] { 3, 12, 25, 31, 42, 48 }
+            numbers = new[] { 3, 12, 25, 31, 42, 48 },
+            drawSystemId = 20250002
         };
 
         // Act
@@ -202,8 +209,10 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var request = new
         {
+            lottoType = "LOTTO",
             drawDate = "2025-01-20",
-            numbers = new[] { 3, 12, 25, 31, 42 } // tylko 5 liczb
+            numbers = new[] { 3, 12, 25, 31, 42 }, // tylko 5 liczb
+            drawSystemId = 20250002
         };
 
         // Act
@@ -232,8 +241,10 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var request = new
         {
+            lottoType = "LOTTO",
             drawDate = "2025-01-20",
-            numbers = new[] { 0, 12, 25, 31, 42, 48 } // 0 poza zakresem
+            numbers = new[] { 0, 12, 25, 31, 42, 48 }, // 0 poza zakresem
+            drawSystemId = 20250002
         };
 
         // Act
@@ -262,8 +273,10 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var request = new
         {
+            lottoType = "LOTTO",
             drawDate = "2025-01-20",
-            numbers = new[] { 3, 3, 25, 31, 42, 48 } // duplikat 3
+            numbers = new[] { 3, 3, 25, 31, 42, 48 }, // duplikat 3
+            drawSystemId = 20250002
         };
 
         // Act
@@ -296,8 +309,10 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         // Try to update drawId1 to the same date as drawId2
         var request = new
         {
+            lottoType = "LOTTO",
             drawDate = "2025-01-20", // już istnieje w drawId2
-            numbers = new[] { 3, 12, 25, 31, 42, 48 }
+            numbers = new[] { 3, 12, 25, 31, 42, 48 },
+            drawSystemId = 20250003
         };
 
         // Act
@@ -328,7 +343,8 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         {
             lottoType = "LOTTO",
             drawDate = "2025-01-15", // ta sama data
-            numbers = new[] { 3, 12, 25, 31, 42, 48 } // tylko liczby się zmieniają
+            numbers = new[] { 3, 12, 25, 31, 42, 48 }, // tylko liczby się zmieniają
+            drawSystemId = 20250001
         };
 
         // Act
@@ -430,6 +446,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         {
             DrawDate = drawDate,
             LottoType = "LOTTO",
+            DrawSystemId = 20250001,
             CreatedAt = DateTime.UtcNow,
             CreatedByUserId = userId
         };

@@ -23,8 +23,8 @@ public class CheckValidator : AbstractValidator<Contracts.Request>
             .WithMessage("'Date To' must be greater than or equal to 'Date From'.");
 
         RuleFor(x => x)
-            .Must(x => (x.DateTo.ToDateTime(TimeOnly.MinValue) - x.DateFrom.ToDateTime(TimeOnly.MinValue)).TotalDays <= 31)
-            .WithMessage("Zakres dat nie może przekraczać 31 dni.")
+            .Must(x => (x.DateTo.ToDateTime(TimeOnly.MinValue) - x.DateFrom.ToDateTime(TimeOnly.MinValue)).TotalDays <= 1095)
+            .WithMessage("Zakres dat nie może przekraczać 3 lat.")
             .WithName("DateRange");
     }
 }

@@ -50,16 +50,51 @@ Content-Type: application/json
     {
       "DrawDate": "2025-11-04",
       "GameType": "LOTTO",
-      "Numbers": [4, 23, 34, 37, 45, 46]
+      "Numbers": [4, 23, 34, 37, 45, 46],
+      "DrawSystemId": 20251104,
+      "TicketPrice": 3.00,
+      "WinPoolCount1": 0,
+      "WinPoolAmount1": 0.00,
+      "WinPoolCount2": 1,
+      "WinPoolAmount2": 125000.00,
+      "WinPoolCount3": 150,
+      "WinPoolAmount3": 500.00,
+      "WinPoolCount4": 5000,
+      "WinPoolAmount4": 20.00
     },
     {
       "DrawDate": "2025-11-04",
       "GameType": "LOTTO PLUS",
-      "Numbers": [15, 17, 18, 23, 43, 46]
+      "Numbers": [15, 17, 18, 23, 43, 46],
+      "DrawSystemId": 20251104,
+      "TicketPrice": 1.00,
+      "WinPoolCount1": null,
+      "WinPoolAmount1": null,
+      "WinPoolCount2": null,
+      "WinPoolAmount2": null,
+      "WinPoolCount3": null,
+      "WinPoolAmount3": null,
+      "WinPoolCount4": null,
+      "WinPoolAmount4": null
     }
   ]
 }
 ```
+
+**Opis pól w DrawItem:**
+- `DrawDate` (string): Data losowania w formacie YYYY-MM-DD
+- `GameType` (string): Typ gry ("LOTTO" lub "LOTTO PLUS")
+- `Numbers` (array): Tablica 6 wylosowanych liczb (1-49)
+- `DrawSystemId` (number): Identyfikator systemu losowania (wymagane)
+- `TicketPrice` (number | null): Cena biletu (opcjonalne)
+- `WinPoolCount1` (number | null): Liczba wygranych w 1. stopniu - 6 trafionych (opcjonalne)
+- `WinPoolAmount1` (number | null): Kwota wygranej w 1. stopniu (opcjonalne)
+- `WinPoolCount2` (number | null): Liczba wygranych w 2. stopniu - 5 trafionych (opcjonalne)
+- `WinPoolAmount2` (number | null): Kwota wygranej w 2. stopniu (opcjonalne)
+- `WinPoolCount3` (number | null): Liczba wygranych w 3. stopniu - 4 trafione (opcjonalne)
+- `WinPoolAmount3` (number | null): Kwota wygranej w 3. stopniu (opcjonalne)
+- `WinPoolCount4` (number | null): Liczba wygranych w 4. stopniu - 3 trafione (opcjonalne)
+- `WinPoolAmount4` (number | null): Kwota wygranej w 4. stopniu (opcjonalne)
 
 ### Response (błąd)
 **Status Code:** 401 Unauthorized
@@ -154,8 +189,11 @@ return cleanedText;
 
 ### Walidacja odpowiedzi Gemini
 - Sprawdzenie czy odpowiedź zawiera poprawny JSON
-- Walidacja struktury danych (Data array z obiektami DrawDate, GameType, Numbers)
+- Walidacja struktury danych (Data array z obiektami: DrawDate, GameType, Numbers, DrawSystemId, opcjonalnie TicketPrice i WinPool*)
 - Numbers musi być tablicą 6 liczb w zakresie 1-49
+- DrawSystemId musi być liczbą całkowitą
+- TicketPrice i WinPoolAmount* muszą być liczbami zmiennoprzecinkowymi lub null
+- WinPoolCount* muszą być liczbami całkowitymi lub null
 
 ## 6. Obsługa błędów
 

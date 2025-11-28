@@ -157,7 +157,7 @@ export function CheckPanel({
 
       {/* Info text */}
       <p className="text-xs text-gray-500 mt-4">
-        Zakres dat może obejmować maksymalnie 31 dni
+        Zakres dat może obejmować maksymalnie 3 lata
       </p>
     </div>
   );

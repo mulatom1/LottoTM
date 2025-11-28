@@ -72,8 +72,10 @@ public class XLottoService : IXLottoService
             var prompt = 
                   $"Przeszukaj zawartość contentu i podaj tylko wyniki dla typu gry {lottoType} na dzień {date?.ToString("yyyy-MM-dd") ?? "najnowszy"}. "
                 + "interesuje mnie wynik tylko na podany dzien, a nie starsze wyniki z poprzednich dni. "
-                + @"Wynik oddaj w formacie w JSON: { ""Data"": [ { ""DrawDate"": ""2025-01-01"", ""GameType"": """ + lottoType + @""", ""Numbers"": [1, 2, 3, 4, 5, 6 ] } ] }."
-                + @"Jeśli nie możesz znaleźć wyników na daną datę, zwróć pustą tablicę w polu Data, taką jak poniżej: { ""Data"": [ ] } i nie zwracaj niczego innego.Tylko JSON bez białych znaków.";
+                + @"Wynik oddaj w formacie w JSON: { ""Data"": [ { ""DrawDate"": ""2025-01-01"", ""GameType"": """ + lottoType + @""", ""Numbers"": [1, 2, 3, 4, 5, 6], ""DrawSystemId"": 20250001, ""TicketPrice"": 3.00, ""WinPoolCount1"": 0, ""WinPoolAmount1"": 0.00, ""WinPoolCount2"": 1, ""WinPoolAmount2"": 125000.00, ""WinPoolCount3"": 150, ""WinPoolAmount3"": 500.00, ""WinPoolCount4"": 5000, ""WinPoolAmount4"": 20.00 } ] }. "
+                + "DrawSystemId to identyfikator losowania (liczba całkowita), TicketPrice to cena biletu (decimal), WinPoolCount1-4 to liczby wygranych dla każdego stopnia (integer lub null), WinPoolAmount1-4 to kwoty wygranych (decimal lub null). "
+                + "Jeśli jakieś dane nie są dostępne na stronie, użyj null dla opcjonalnych pól (WinPool*). DrawSystemId jest wymagane - jeśli nie znajdziesz, użyj wartości wygenerowanej z daty w formacie YYYYMMDD01 (np. 20250128 dla 2025-01-28). "
+                + @"Jeśli nie możesz znaleźć wyników na daną datę, zwróć pustą tablicę w polu Data, taką jak poniżej: { ""Data"": [ ] } i nie zwracaj niczego innego. Tylko JSON bez białych znaków.";
 
             var geminiRequest = new
             {

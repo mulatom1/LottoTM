@@ -90,6 +90,16 @@ public class CreateDrawHandler : IRequestHandler<Contracts.Request, Contracts.Re
             {
                 DrawDate = request.DrawDate,
                 LottoType = request.LottoType,
+                DrawSystemId = request.DrawSystemId,
+                TicketPrice = request.TicketPrice,
+                WinPoolCount1 = request.WinPoolCount1,
+                WinPoolAmount1 = request.WinPoolAmount1,
+                WinPoolCount2 = request.WinPoolCount2,
+                WinPoolAmount2 = request.WinPoolAmount2,
+                WinPoolCount3 = request.WinPoolCount3,
+                WinPoolAmount3 = request.WinPoolAmount3,
+                WinPoolCount4 = request.WinPoolCount4,
+                WinPoolAmount4 = request.WinPoolAmount4,
                 CreatedAt = DateTime.UtcNow,
                 CreatedByUserId = currentUserId
             };

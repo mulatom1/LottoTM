@@ -39,6 +39,26 @@ export interface DrawFormData {
   lottoType: string;
   /** Array of 6 numbers, empty string indicates empty field */
   numbers: (number | '')[];
+  /** System identifier for the draw (required in backend, '' means empty field in UI) */
+  drawSystemId: number | '';
+  /** Ticket price for this draw (optional, '' means empty field in UI) */
+  ticketPrice?: number | '';
+  /** Count of winners in tier 1 (6 matches) - optional */
+  winPoolCount1?: number | '';
+  /** Prize amount for tier 1 (6 matches) - optional */
+  winPoolAmount1?: number | '';
+  /** Count of winners in tier 2 (5 matches) - optional */
+  winPoolCount2?: number | '';
+  /** Prize amount for tier 2 (5 matches) - optional */
+  winPoolAmount2?: number | '';
+  /** Count of winners in tier 3 (4 matches) - optional */
+  winPoolCount3?: number | '';
+  /** Prize amount for tier 3 (4 matches) - optional */
+  winPoolAmount3?: number | '';
+  /** Count of winners in tier 4 (3 matches) - optional */
+  winPoolCount4?: number | '';
+  /** Prize amount for tier 4 (3 matches) - optional */
+  winPoolAmount4?: number | '';
 }
 
 /**
@@ -99,5 +119,15 @@ export interface DrawDto {
   drawDate: string;
   lottoType: string;
   numbers: number[];
+  drawSystemId: number;
+  ticketPrice: number | null;
+  winPoolCount1: number | null;
+  winPoolAmount1: number | null;
+  winPoolCount2: number | null;
+  winPoolAmount2: number | null;
+  winPoolCount3: number | null;
+  winPoolAmount3: number | null;
+  winPoolCount4: number | null;
+  winPoolAmount4: number | null;
   createdAt: string;
 }

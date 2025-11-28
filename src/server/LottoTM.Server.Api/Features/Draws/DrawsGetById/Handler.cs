@@ -62,6 +62,16 @@ public class Handler : IRequestHandler<Contracts.Request, Contracts.Response?>
             DrawDate: draw.DrawDate.ToDateTime(TimeOnly.MinValue),
             LottoType: draw.LottoType,
             Numbers: numbers,
+            DrawSystemId: draw.DrawSystemId,
+            TicketPrice: draw.TicketPrice,
+            WinPoolCount1: draw.WinPoolCount1,
+            WinPoolAmount1: draw.WinPoolAmount1,
+            WinPoolCount2: draw.WinPoolCount2,
+            WinPoolAmount2: draw.WinPoolAmount2,
+            WinPoolCount3: draw.WinPoolCount3,
+            WinPoolAmount3: draw.WinPoolAmount3,
+            WinPoolCount4: draw.WinPoolCount4,
+            WinPoolAmount4: draw.WinPoolAmount4,
             CreatedAt: draw.CreatedAt
         );
 

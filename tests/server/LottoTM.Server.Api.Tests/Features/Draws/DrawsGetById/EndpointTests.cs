@@ -182,7 +182,23 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
     /// <summary>
     /// Response DTO for GetDrawById endpoint
     /// </summary>
-    private record DrawResponse(int Id, DateTime DrawDate, int[] Numbers, DateTime CreatedAt);
+    private record DrawResponse(
+        int Id,
+        DateTime DrawDate,
+        string LottoType,
+        int[] Numbers,
+        int DrawSystemId,
+        decimal? TicketPrice,
+        int? WinPoolCount1,
+        decimal? WinPoolAmount1,
+        int? WinPoolCount2,
+        decimal? WinPoolAmount2,
+        int? WinPoolCount3,
+        decimal? WinPoolAmount3,
+        int? WinPoolCount4,
+        decimal? WinPoolAmount4,
+        DateTime CreatedAt
+    );
 
     /// <summary>
     /// Creates a test factory with in-memory database
@@ -276,6 +292,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         {
             DrawDate = drawDate,
             LottoType = "LOTTO",
+            DrawSystemId = 20250001,
             CreatedAt = DateTime.UtcNow,
             CreatedByUserId = userId
         };

@@ -430,8 +430,18 @@ W MVP **całkowicie zrezygnowano z widoku Dashboard** (`/dashboard`). Po zalogow
 **Lista losowań:**
 - Każde losowanie jako card/row:
   - **Data losowania:** "2025-10-30"
-  - **Wylosowane liczby:** [3, 12, 25, 31, 42, 48]
-  - **Data wprowadzenia:** "Wprowadzono: 2025-10-30 18:35"
+  - **Typ losowania:** "LOTTO" lub "LOTTO PLUS"
+  - **DrawSystemId:** 20250001 (wyświetlony obok daty jako "ID: 20250001")
+  - **Wylosowane liczby:** [3, 12, 25, 31, 42, 48] (wyświetlone jako kolorowe badges)
+  - **Cena biletu:** "Cena biletu: 3.00 zł" (jeśli dostępna)
+  - **Informacje o wygranych** (jeśli dostępne):
+    - Wyświetlone w ładnej ramce z gradientowym tłem (gray-50 do gray-100)
+    - Nagłówek sekcji z kolorowym paskiem gradientowym (zielony → pomarańczowy)
+    - 4 kolorowe karty (grid responsywny: 1 kolumna na mobile, 2 na tablet, 4 na desktop):
+      - **Stopień 1 (6 trafionych):** Zielona karta z ikoną "6", ilość wygranych i kwota
+      - **Stopień 2 (5 trafionych):** Niebieska karta z ikoną "5", ilość wygranych i kwota
+      - **Stopień 3 (4 trafione):** Żółta karta z ikoną "4", ilość wygranych i kwota
+      - **Stopień 4 (3 trafione):** Pomarańczowa karta z ikoną "3", ilość wygranych i kwota
   - **Przyciski akcji (admin only):** [Edytuj] [Usuń]
 - Sortowanie: według daty losowania (najnowsze na górze, malejąco, domyślnie)
 - **Empty state:** "Nie wprowadzono jeszcze żadnych wyników losowań."
@@ -465,23 +475,45 @@ W MVP **całkowicie zrezygnowano z widoku Dashboard** (`/dashboard`). Po zalogow
      - **Feature Flag:** Widoczny tylko gdy `GoogleGemini:Enable = true` w konfiguracji backend
      - Frontend sprawdza endpoint `GET /api/xlotto/is-enabled` przy otwarciu modalu
      - Funkcjonalność: Automatyczne pobieranie wyników z XLotto.pl przez Google Gemini API
-     - Walidacja przed wywołaniem: data losowania musi być wybrana
+     - Walidacja przed wywołaniem: data losowania i typ muszą być wybrane
      - API call: `GET /api/xlotto/actual-draws?Date={drawDate}&LottoType={lottoType}`
      - Loading state: disabled przyciski, spinner przy przycisku
-     - Automatyczne wypełnienie 6 pól numerycznych wynikami z API
+     - Automatyczne wypełnienie wszystkich pól (liczby + DrawSystemId + opcjonalnie ticketPrice i win pools) wynikami z API
      - Obsługa błędów: Alert z komunikatem błędu (401, 400, 500)
+   - **Input DrawSystemId:**
+     - Label: "DrawSystemId"
+     - Type: number
+     - Required: true
+     - Może być wypełnione automatycznie przez przycisk "Pobierz z XLotto"
    - **6 pól numerycznych:**
      - Labels: "Liczba 1" do "Liczba 6"
      - Type: number, min="1", max="49", required
      - Inline validation: zakres 1-49, unikalność
      - Mogą być wypełnione automatycznie przez przycisk "Pobierz z XLotto"
+   - **Pola opcjonalne (win pool information):**
+     - **Input "Cena biletu":**
+       - Label: "Cena biletu (opcjonalnie)"
+       - Type: number, step="0.01", min="0"
+       - Format: DECIMAL(10,2)
+     - **Sekcja "Wygrane 1. stopnia (6 trafionych)":**
+       - Input "Ilość wygranych": Type: number, min="0" (winPoolCount1)
+       - Input "Kwota wygranej": Type: number, step="0.01", min="0" (winPoolAmount1)
+     - **Sekcja "Wygrane 2. stopnia (5 trafionych)":**
+       - Input "Ilość wygranych": Type: number, min="0" (winPoolCount2)
+       - Input "Kwota wygranej": Type: number, step="0.01", min="0" (winPoolAmount2)
+     - **Sekcja "Wygrane 3. stopnia (4 trafione)":**
+       - Input "Ilość wygranych": Type: number, min="0" (winPoolCount3)
+       - Input "Kwota wygranej": Type: number, step="0.01", min="0" (winPoolAmount3)
+     - **Sekcja "Wygrane 4. stopnia (3 trafione)":**
+       - Input "Ilość wygranych": Type: number, min="0" (winPoolCount4)
+       - Input "Kwota wygranej": Type: number, step="0.01", min="0" (winPoolAmount4)
    - Przyciski: [Pobierz z XLotto] [Wyczyść] | [Anuluj] [Zapisz]
    - **Logika backend:** Jeśli losowanie na daną datę i typ już istnieje, backend zwraca błąd z komunikatem "Wynik losowania na tę datę i typ już istnieje."
    - Po sukcesie: Toast "Wynik losowania zapisany pomyślnie", modal zamyka, aktualna strona odświeża
 
 2. **Modal edycji wyniku:**
    - Identyczny jak dodawanie, tytuł: "Edytuj wynik losowania"
-   - Pola pre-wypełnione aktualnymi wartościami (data + 6 liczb)
+   - Pola pre-wypełnione aktualnymi wartościami (data + typ losowania + 6 liczb + drawSystemId + opcjonalnie ticketPrice i win pools)
    - Po sukcesie: Toast "Wynik zaktualizowany pomyślnie"
 
 3. **Modal potwierdzenia usunięcia:**
@@ -1166,11 +1198,23 @@ const variantClasses = {
 
 **DrawItem** - Pojedyncze losowanie w liście
 - Props: `draw: Draw`, `isAdmin: boolean`, `onEdit: () => void`, `onDelete: () => void`
-- Layout: Data | Liczby | Data wprowadzenia | [Edytuj] [Usuń] (admin)
+- Layout:
+  - **Header:** Data losowania | Typ losowania (badge) | DrawSystemId | Przyciski akcji [Edytuj] [Usuń] (admin)
+  - **Liczby:** 6 kolorowych badges z liczbami
+  - **Cena biletu:** "Cena biletu: X.XX zł" (jeśli dostępna)
+  - **Sekcja wygranych** (jeśli dostępna):
+    - Gradient tło (gray-50 do gray-100) z zaokrąglonymi rogami
+    - Nagłówek "Informacje o wygranych" z kolorowym paskiem
+    - Grid 4 kolorowych kart (responsywny):
+      - Każda karta zawiera: kolorową ikonkę z liczbą trafień, ilość wygranych (duża czcionka), kwotę
+      - Stopień 1: zielona karta (border green-300, bg-green-500 dla ikony)
+      - Stopień 2: niebieska karta (border blue-300, bg-blue-500 dla ikony)
+      - Stopień 3: żółta karta (border yellow-300, bg-yellow-500 dla ikony)
+      - Stopień 4: pomarańczowa karta (border orange-300, bg-orange-500 dla ikony)
 
 **DrawForm** - Formularz dodawania/edycji losowania (modal)
-- Props: `mode: 'add' | 'edit'`, `initialValues?: { drawDate, numbers }`, `onSubmit: (data) => void`, `onCancel: () => void`
-- Wykorzystuje DatePicker + 6x NumberInput
+- Props: `mode: 'add' | 'edit'`, `initialValues?: { drawDate, lottoType, numbers, drawSystemId, ticketPrice?, winPoolCount1-4?, winPoolAmount1-4? }`, `onSubmit: (data) => void`, `onCancel: () => void`
+- Wykorzystuje DatePicker + Dropdown (lottoType) + 6x NumberInput + NumberInput (drawSystemId) + opcjonalne pola win pool info
 
 #### 5.2.3 Checks Components
 
@@ -1427,7 +1471,9 @@ const apiService = getApiService()
     - Sprawdzenie statusu: API call `GET /api/xlotto/is-enabled` przy otwarciu modalu
     - Widoczny tylko gdy `response.data === true`
     - Funkcjonalność: automatyczne pobieranie wyników z XLotto.pl przez Google Gemini API
+  - NumberInput (drawSystemId, wymagane)
   - 6x NumberInput (1-49, unikalne, mogą być wypełnione automatycznie przez XLotto)
+  - Opcjonalne pola: ticketPrice, winPoolCount1-4, winPoolAmount1-4
   - Inline validation + ErrorModal
   - Przyciski [Pobierz z XLotto (conditional)] [Wyczyść] + [Anuluj] [Zapisz]
 
@@ -1447,7 +1493,7 @@ const apiService = getApiService()
 
 **F-DRAW-005: Edycja wyniku losowania**
 - UI: Draws Page → Modal edycji (admin)
-  - DrawForm z pre-wypełnionymi wartościami
+  - DrawForm z pre-wypełnionymi wartościami (drawDate, lottoType, numbers, drawSystemId, ticketPrice?, winPoolCount1-4?, winPoolAmount1-4?)
   - Inline validation + ErrorModal
 
 **F-TICKET-001: Przeglądanie zestawów użytkownika**

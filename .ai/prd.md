@@ -632,7 +632,7 @@ private class LottoOpenApiResult
 
 **Kryteria akceptacji:**
 - Date range picker do wyboru zakresu dat (od - do)
-- Domyślna wartość zakresu dat - ostanie 31 dni
+- Domyślna wartość zakresu dat - ostatni tydzień (maksymalnie 3 lata)
 - Textbox z filtrem groupName (opcjonalny) - pozwala przefiltrować kupony według nazwy grupy (wyszukiwanie częściowe)
 - Przycisk "Sprawdź wygrane"
 - System porównuje zestawy użytkownika z wynikami losowań w wybranym zakresie
@@ -990,7 +990,7 @@ private class LottoOpenApiResult
 **Aby** poznać swoje wygrane
 
 **Kryteria akceptacji:**
-- Date range picker do wyboru zakresu dat (od - do, max 31 dni)
+- Date range picker do wyboru zakresu dat (od - do, max 3 lata)
 - Przycisk "Sprawdź wygrane"
 - Wykonanie weryfikacji wszystkich moich zestawów względem losowań w zakresie
 - Lista zbiorcza wyników z pogrubionymi wygranymi liczbami

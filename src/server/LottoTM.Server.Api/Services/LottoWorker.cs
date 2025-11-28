@@ -87,6 +87,12 @@ public class LottoWorker : BackgroundService
                     await FetchAndSaveArchDrawsFromLottoOpenApi(lastArchRunTime, stoppingToken);
             }
 
+            //Wygrane
+            if (_options.Enable)
+            {
+                await FetchAndSaveStatsDrawsFromLottoOpenApi(stoppingToken);
+            }
+
             if (!_options.Enable)
             {
                 _logger.LogDebug("LottoWorker is disabled (LottoWorker:Enable = false)");
@@ -184,6 +190,42 @@ public class LottoWorker : BackgroundService
             if (response == null || response.TotalRows == 0)
             {
                 _logger.LogDebug("No response received from LottoOpenApiService for date: {Date}", date);
+                return;
+            }
+
+            await SaveInDatabase(response, dbContext, stoppingToken);
+
+            _logger.LogDebug("FetchAndSaveDrawsFromLottoOpenApi completed successfully");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error occurred while executing FetchAndSaveDrawsFromLottoOpenApi");
+        }
+    }
+
+    private async Task FetchAndSaveStatsDrawsFromLottoOpenApi(CancellationToken stoppingToken)
+    {
+        _logger.LogDebug("Executing FetchAndSaveStatsDrawsFromLottoOpenApi at: {Time}", DateTime.Now);
+
+        try
+        {
+            using var scope = _serviceScopeFactory.CreateScope();
+            var lottoOpenApiService = scope.ServiceProvider.GetRequiredService<ILottoOpenApiService>();
+            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var draw = await dbContext.Draws.FirstOrDefaultAsync(d => d.DrawSystemId > 0 && d.WinPoolCount1 == null, stoppingToken);
+            if (draw == null)
+            {
+                _logger.LogDebug("No draws found that require stats update.");
+                return;
+            }
+
+            _logger.LogDebug("Fetching stats of draw for: {Id}", draw.DrawSystemId);
+
+            var response = await lottoOpenApiService.GetDrawsStatsById(draw.DrawSystemId);
+            if (response == null)
+            {
+                _logger.LogDebug("No response received from LottoOpenApiService for: {Id}", draw.DrawSystemId);
                 return;
             }
 
@@ -325,6 +367,44 @@ public class LottoWorker : BackgroundService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to process draw results");
+        }
+    }
+
+    private async Task SaveInDatabase(List<GetDrawsStatsByIdResponse> response, AppDbContext dbContext, CancellationToken stoppingToken)
+    {
+        if (response == null)
+        {
+            _logger.LogDebug("No stats of draw items to process in the response");
+            return;
+        }
+
+        try
+        {
+            foreach (var pos in response ?? [])
+            {
+                if (pos == null) continue;
+
+                var draw = await dbContext.Draws.FirstOrDefaultAsync(d => d.DrawSystemId == pos.DrawSystemId && d.LottoType == pos.GameType, stoppingToken);
+                if (draw == null) continue;
+
+                draw.WinPoolCount1 = pos.Prizes?.GetValueOrDefault("1", new GetDrawsStatsByIdResponsePrizeInfo()).Prize ?? 0;
+                draw.WinPoolAmount1 = pos.Prizes?.GetValueOrDefault("1", new GetDrawsStatsByIdResponsePrizeInfo()).PrizeValue ?? 0.0m;
+                draw.WinPoolCount2 = pos.Prizes?.GetValueOrDefault("2", new GetDrawsStatsByIdResponsePrizeInfo()).Prize ?? 0;
+                draw.WinPoolAmount2 = pos.Prizes?.GetValueOrDefault("2", new GetDrawsStatsByIdResponsePrizeInfo()).PrizeValue ?? 0.0m;
+                draw.WinPoolCount3 = pos.Prizes?.GetValueOrDefault("3", new GetDrawsStatsByIdResponsePrizeInfo()).Prize ?? 0;
+                draw.WinPoolAmount3 = pos.Prizes?.GetValueOrDefault("3", new GetDrawsStatsByIdResponsePrizeInfo()).PrizeValue ?? 0.0m;
+                draw.WinPoolCount4 = pos.Prizes?.GetValueOrDefault("4", new GetDrawsStatsByIdResponsePrizeInfo()).Prize ?? 0;
+                draw.WinPoolAmount4 = pos.Prizes?.GetValueOrDefault("4", new GetDrawsStatsByIdResponsePrizeInfo()).PrizeValue ?? 0.0m;
+
+                dbContext.Draws.Update(draw);
+                await dbContext.SaveChangesAsync(stoppingToken);
+
+                _logger.LogDebug("Database update Draw: {Draw}", draw);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to process stats of draw results");
         }
     }
 

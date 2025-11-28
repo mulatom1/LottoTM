@@ -13,21 +13,50 @@ interface ResultTicketItemProps {
     hits: number;
     winningNumbers: number[];
   };
+  drawData: {
+    ticketPrice: number | null;
+    winPoolCount1: number | null;
+    winPoolAmount1: number | null;
+    winPoolCount2: number | null;
+    winPoolAmount2: number | null;
+    winPoolCount3: number | null;
+    winPoolAmount3: number | null;
+    winPoolCount4: number | null;
+    winPoolAmount4: number | null;
+  };
 }
 
 /**
  * Component displaying a single ticket with highlighted matched numbers
- * Shows win badge for 3+ matches, "Brak trafień" for <3 matches
+ * Shows win badge for 3+ matches with detailed prize information box
  */
-export function ResultTicketItem({ ticket }: ResultTicketItemProps) {
+export function ResultTicketItem({ ticket, drawData }: ResultTicketItemProps) {
   const { groupName, ticketNumbers, hits, winningNumbers } = ticket;
 
+  // Map hits to tier data (6 hits = tier 1, 5 hits = tier 2, 4 hits = tier 3, 3 hits = tier 4)
+  const getTierData = (hits: number): { tier: number; count: number | null; amount: number | null } | null => {
+    switch (hits) {
+      case 6:
+        return { tier: 1, count: drawData.winPoolCount1, amount: drawData.winPoolAmount1 };
+      case 5:
+        return { tier: 2, count: drawData.winPoolCount2, amount: drawData.winPoolAmount2 };
+      case 4:
+        return { tier: 3, count: drawData.winPoolCount3, amount: drawData.winPoolAmount3 };
+      case 3:
+        return { tier: 4, count: drawData.winPoolCount4, amount: drawData.winPoolAmount4 };
+      default:
+        return null;
+    }
+  };
+
+  const tierData = getTierData(hits);
+
   return (
-    <div className="flex items-center justify-between py-3 px-4 hover:bg-gray-50 transition-colors">
-      {/* Ticket numbers */}
-      <div className="flex items-center gap-3">
+    <div className="py-4 px-6 hover:bg-gray-50 transition-colors">
+      {/* Ticket info and numbers */}
+      <div className="flex items-start justify-between mb-3">
         <div className="flex flex-col">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 mb-2">
             <span className="text-sm text-gray-600">Zestaw:</span>
             {groupName && (
               <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
@@ -35,7 +64,7 @@ export function ResultTicketItem({ ticket }: ResultTicketItemProps) {
               </span>
             )}
           </div>
-          <div className="flex gap-2 mt-1">
+          <div className="flex gap-2">
             {ticketNumbers.map((num, index) => {
               const isMatched = winningNumbers.includes(num);
               return (
@@ -58,16 +87,49 @@ export function ResultTicketItem({ ticket }: ResultTicketItemProps) {
         </div>
       </div>
 
-      {/* Win badge or "Brak trafień" */}
-      <div>
-        {hits >= 3 ? (
-          <WinBadge count={hits as WinLevel} />
-        ) : (
+      {/* Win info box (only for hits >= 3) */}
+      {hits >= 3 && tierData ? (
+        <div className="mt-3 p-4 bg-green-50 border border-green-200 rounded-lg">
+          {/* Win badge */}
+          <div className="mb-3">
+            <WinBadge count={hits as WinLevel} />
+          </div>
+
+          {/* Prize details */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+            <div>
+              <div className="text-gray-600 mb-1">Koszt kuponu:</div>
+              <div className="font-semibold text-gray-900">
+                {drawData.ticketPrice !== null
+                  ? `${drawData.ticketPrice.toFixed(2)} zł`
+                  : 'Brak danych'}
+              </div>
+            </div>
+            <div>
+              <div className="text-gray-600 mb-1">Ilość wygranych:</div>
+              <div className="font-semibold text-gray-900">
+                {tierData.count !== null
+                  ? `${tierData.count} ${tierData.count === 1 ? 'osoba' : 'osób'}`
+                  : 'Brak danych'}
+              </div>
+            </div>
+            <div>
+              <div className="text-gray-600 mb-1">Wartość wygranej:</div>
+              <div className="font-semibold text-green-700">
+                {tierData.amount !== null
+                  ? `${tierData.amount.toFixed(2)} zł`
+                  : 'Brak danych'}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-2">
           <span className="text-gray-500 text-sm" aria-label="Brak wygranej">
             Brak trafień
           </span>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

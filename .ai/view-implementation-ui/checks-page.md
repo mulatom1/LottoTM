@@ -5,7 +5,7 @@
 Checks Page to widok umożliwiający użytkownikom weryfikację swoich zestawów liczb LOTTO względem wyników losowań w określonym zakresie czasowym. System automatycznie identyfikuje wygrane (3 lub więcej trafień) i prezentuje je w przejrzysty sposób z wyróżnieniem trafionych liczb.
 
 **Główne funkcjonalności:**
-- Wybór zakresu dat do weryfikacji (domyślnie ostatnie 31 dni)
+- Wybór zakresu dat do weryfikacji (domyślnie ostatni tydzień, maksymalnie 3 lata)
 - Opcjonalne filtrowanie kuponów według nazwy grupy (groupName) z wyszukiwaniem częściowym (Contains)
 - Automatyczne porównanie zestawów użytkownika z losowaniami w wybranym okresie
 - Prezentacja wyników w formie rozwijalnego accordion (grupowanie po losowaniach)
@@ -34,11 +34,14 @@ ChecksPage (główny komponent strony)
 ├── Spinner (wyświetlany podczas weryfikacji)
 └── CheckResults (sekcja z wynikami)
     └── AccordionItem[] (dla każdego losowania)
-        ├── AccordionHeader (data + wylosowane liczby)
+        ├── AccordionHeader (data + drawSystemId + typ gry + wylosowane liczby)
         └── AccordionContent (lista zestawów użytkownika)
             └── ResultTicketItem[] (dla każdego zestawu)
-                ├── Ticket numbers (z pogrubieniem trafionych)
-                └── WinBadge (badge wygranej dla ≥3 trafień)
+                ├── Ticket info (nazwa grupy)
+                ├── Ticket numbers (niebieskie kółka dla trafionych, szare dla nietrafionych)
+                └── Win info box (ramka - tylko dla ≥3 trafień)
+                    ├── WinBadge (badge stopnia wygranej)
+                    └── Win details grid (koszt kuponu, ilość wygranych, wartość wygranej)
 ```
 
 ## 4. Szczegóły komponentów
@@ -62,7 +65,7 @@ Główny kontener strony weryfikacji wygranych. Zarządza stanem formularza zakr
 
 **Warunki walidacji:**
 - `dateFrom` nie może być późniejsza niż `dateTo`
-- Zakres dat nie może przekraczać 31 dni (walidacja na backendzie)
+- Zakres dat nie może przekraczać 3 lat (walidacja na backendzie)
 - Daty muszą być w formacie YYYY-MM-DD
 
 **Typy (DTO i ViewModel):**
@@ -178,15 +181,19 @@ interface CheckResultsProps {
 ### 4.4 AccordionItem (pojedyncze losowanie)
 
 **Opis komponentu:**
-Rozwijany accordion item reprezentujący pojedyncze losowanie. Header zawiera datę i wylosowane liczby, content zawiera listę zestawów użytkownika z wyróżnionymi trafieniami.
+Rozwijany accordion item reprezentujący pojedyncze losowanie. Header zawiera datę, ID systemowe losowania, typ gry i wylosowane liczby. Content zawiera listę zestawów użytkownika z wyróżnionymi trafieniami oraz szczegółowymi informacjami o wygranej (stopień, cena kuponu, ilość wygranych, wartość wygranej).
 
 **Główne elementy HTML:**
 - `<div>` - kontener accordion item
 - `<button>` - header (klikany, aria-expanded)
   - `<span>` - ikona strzałki (▼/▶)
-  - `<span>` - tekst: "Losowanie {data}: [{liczby}]"
+  - `<div>` - informacje o losowaniu:
+    - `<span>` - data losowania
+    - `<span>` - ID systemowe (drawSystemId)
+    - `<span>` - typ gry (badge: LOTTO / LOTTO PLUS)
+    - `<div>` - wylosowane liczby (6 kółek)
 - `<div>` - content (collapsible, aria-hidden gdy collapsed)
-  - `<ResultTicketItem[]>` - lista zestawów użytkownika
+  - `<ResultTicketItem[]>` - lista zestawów użytkownika z dodatkowymi informacjami o wygranej
 
 **Obsługiwane interakcje:**
 - `onClick` na header - toggle expand/collapse
@@ -204,7 +211,18 @@ Jak w CheckResults (VerificationResult)
 interface AccordionItemProps {
   draw: {
     drawDate: string;
+    drawSystemId: number;
+    lottoType: string;
     drawNumbers: number[];
+    ticketPrice: number | null;
+    winPoolCount1: number | null;
+    winPoolAmount1: number | null;
+    winPoolCount2: number | null;
+    winPoolAmount2: number | null;
+    winPoolCount3: number | null;
+    winPoolAmount3: number | null;
+    winPoolCount4: number | null;
+    winPoolAmount4: number | null;
   };
   tickets: TicketMatch[];
   defaultExpanded?: boolean;  // Domyślnie true dla pierwszego losowania
@@ -221,14 +239,22 @@ const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 ### 4.5 ResultTicketItem (pojedynczy zestaw w wynikach)
 
 **Opis komponentu:**
-Prezentacja pojedynczego zestawu użytkownika z wyróżnionymi trafionymi liczbami (bold) i badge'm wygranej dla ≥3 trafień.
+Prezentacja pojedynczego zestawu użytkownika z wyróżnionymi trafionymi liczbami (niebieskie kółka dla trafionych, szare dla nietrafionych) i ramką z szczegółowymi informacjami o wygranej (stopień, cena kuponu, ilość wygranych uczestników, wartość wygranej).
 
 **Główne elementy HTML:**
-- `<div>` - kontener zestawu (flex layout)
-- `<div>` - lista liczb
-  - `<span>` × 6 - liczby zestawu (trafione: `font-bold`)
-- `<WinBadge />` - badge wygranej (warunkowe renderowanie dla matchCount ≥ 3)
-- `<span>` - tekst "Brak trafień" (dla matchCount < 3)
+- `<div>` - kontener główny zestawu
+- `<div>` - sekcja z numerami kuponu
+  - `<div>` - informacje o kuponie (nazwa grupy jako badge)
+  - `<div>` - lista liczb
+    - `<span>` × 6 - liczby zestawu (trafione: niebieskie kółka z `font-bold`, nietrafione: szare kółka)
+- `<div>` - ramka z informacjami o wygranej (warunkowe renderowanie dla hits ≥ 3)
+  - `<div>` - badge wygranej (WinBadge) z ikoną i tekstem "Wygrana X stopnia"
+  - `<div>` - szczegóły wygranej (grid layout):
+    - `<div>` - Koszt kuponu: {ticketPrice} zł (lub "Brak danych" jeśli null)
+    - `<div>` - Ilość wygranych: {winPoolCountX} osób (lub "Brak danych" jeśli null)
+    - `<div>` - Wartość wygranej: {winPoolAmountX} zł (lub "Brak danych" jeśli null)
+  - Gdzie X to stopień wygranej zależny od hits: 6 hits = tier 1, 5 hits = tier 2, 4 hits = tier 3, 3 hits = tier 4
+- `<span>` - tekst "Brak trafień" (dla hits < 3, zamiast ramki)
 
 **Obsługiwane interakcje:**
 - Brak (komponent prezentacyjny)
@@ -239,10 +265,11 @@ Prezentacja pojedynczego zestawu użytkownika z wyróżnionymi trafionymi liczba
 **Typy:**
 ```typescript
 interface TicketMatch {
-  ticketId: string;
-  numbers: number[];
-  matchCount: number;
-  matchedNumbers: number[];
+  ticketId: number;
+  groupName: string;
+  ticketNumbers: number[];
+  hits: number;
+  winningNumbers: number[];
 }
 ```
 
@@ -250,24 +277,83 @@ interface TicketMatch {
 ```typescript
 interface ResultTicketItemProps {
   ticket: TicketMatch;
+  drawData: {
+    ticketPrice: number | null;
+    winPoolCount1: number | null;
+    winPoolAmount1: number | null;
+    winPoolCount2: number | null;
+    winPoolAmount2: number | null;
+    winPoolCount3: number | null;
+    winPoolAmount3: number | null;
+    winPoolCount4: number | null;
+    winPoolAmount4: number | null;
+  };
 }
 ```
 
 **Logika renderowania:**
 ```typescript
 // Dla każdej liczby w zestawie
-numbers.map(num => {
-  const isMatched = matchedNumbers.includes(num);
+ticketNumbers.map(num => {
+  const isMatched = winningNumbers.includes(num);
   return (
-    <span className={isMatched ? 'font-bold' : ''}>
+    <span className={`
+      inline-flex items-center justify-center w-8 h-8 rounded-full text-sm
+      ${isMatched
+        ? 'font-bold bg-blue-600 text-white'  // Trafione: niebieskie
+        : 'bg-gray-100 text-gray-700'         // Nietrafione: szare
+      }
+    `}>
       {num}
     </span>
   );
 })
 
-// Badge wygranej
-{matchCount >= 3 && <WinBadge count={matchCount} />}
-{matchCount < 3 && <span className="text-gray-500 text-sm">Brak trafień</span>}
+// Mapowanie hits → tier (stopień wygranej)
+const getTierData = (hits: number) => {
+  switch (hits) {
+    case 6: return { tier: 1, count: drawData.winPoolCount1, amount: drawData.winPoolAmount1 };
+    case 5: return { tier: 2, count: drawData.winPoolCount2, amount: drawData.winPoolAmount2 };
+    case 4: return { tier: 3, count: drawData.winPoolCount3, amount: drawData.winPoolAmount3 };
+    case 3: return { tier: 4, count: drawData.winPoolCount4, amount: drawData.winPoolAmount4 };
+    default: return null;
+  }
+};
+
+// Ramka z informacjami o wygranej (tylko dla hits >= 3)
+{hits >= 3 && (
+  <div className="mt-3 p-4 bg-green-50 border border-green-200 rounded-lg">
+    {/* Badge wygranej */}
+    <div className="mb-2">
+      <WinBadge count={hits as WinLevel} />
+    </div>
+
+    {/* Szczegóły wygranej */}
+    <div className="grid grid-cols-3 gap-4 text-sm">
+      <div>
+        <span className="text-gray-600">Koszt kuponu:</span>
+        <div className="font-semibold">
+          {drawData.ticketPrice !== null ? `${drawData.ticketPrice.toFixed(2)} zł` : 'Brak danych'}
+        </div>
+      </div>
+      <div>
+        <span className="text-gray-600">Ilość wygranych:</span>
+        <div className="font-semibold">
+          {getTierData(hits)?.count !== null ? `${getTierData(hits)!.count} osób` : 'Brak danych'}
+        </div>
+      </div>
+      <div>
+        <span className="text-gray-600">Wartość wygranej:</span>
+        <div className="font-semibold">
+          {getTierData(hits)?.amount !== null ? `${getTierData(hits)!.amount.toFixed(2)} zł` : 'Brak danych'}
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
+{/* Brak trafień */}
+{hits < 3 && <span className="text-gray-500 text-sm">Brak trafień</span>}
 ```
 
 ---
@@ -368,17 +454,56 @@ interface CheckResponse {
 }
 
 interface VerificationResult {
+  ticketId: number;
+  groupName: string;
+  ticketNumbers: number[];
+  draws: DrawVerificationResult[];
+}
+
+interface DrawVerificationResult {
   drawId: number;
   drawDate: string;
+  drawSystemId: number; // ID systemowe losowania
+  lottoType: string; // "LOTTO" lub "LOTTO PLUS"
   drawNumbers: number[];
+  hits: number;
+  winningNumbers: number[];
+  ticketPrice: number | null; // Cena kuponu (może być null)
+  winPoolCount1: number | null; // Ilość wygranych dla 6 trafień
+  winPoolAmount1: number | null; // Wartość wygranej dla 6 trafień
+  winPoolCount2: number | null; // Ilość wygranych dla 5 trafień
+  winPoolAmount2: number | null; // Wartość wygranej dla 5 trafień
+  winPoolCount3: number | null; // Ilość wygranych dla 4 trafień
+  winPoolAmount3: number | null; // Wartość wygranej dla 4 trafień
+  winPoolCount4: number | null; // Ilość wygranych dla 3 trafień
+  winPoolAmount4: number | null; // Wartość wygranej dla 3 trafień
+}
+
+// Typ pomocniczy po transformacji w CheckResults (grupowanie po draws)
+interface DrawWithTickets {
+  drawId: number;
+  drawDate: string;
+  drawSystemId: number;
+  lottoType: string;
+  drawNumbers: number[];
+  ticketPrice: number | null;
+  winPoolCount1: number | null;
+  winPoolAmount1: number | null;
+  winPoolCount2: number | null;
+  winPoolAmount2: number | null;
+  winPoolCount3: number | null;
+  winPoolAmount3: number | null;
+  winPoolCount4: number | null;
+  winPoolAmount4: number | null;
   tickets: TicketMatch[];
 }
 
 interface TicketMatch {
-  ticketId: string;
-  numbers: number[];
-  matchCount: number;
-  matchedNumbers: number[];
+  ticketId: number;
+  groupName: string;
+  ticketNumbers: number[];
+  hits: number;
+  winningNumbers: number[];
 }
 ```
 
@@ -427,7 +552,7 @@ const WIN_LABELS: Record<WinLevel, string> = {
 
 **Stan zarządzany w ChecksPage:**
 ```typescript
-const [dateFrom, setDateFrom] = useState<string>(getDefaultDateFrom());  // -31 dni
+const [dateFrom, setDateFrom] = useState<string>(getDefaultDateFrom());  // -1 tydzień
 const [dateTo, setDateTo] = useState<string>(getDefaultDateTo());        // dzisiaj
 const [groupName, setGroupName] = useState<string>('');                   // puste domyślnie
 const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -437,10 +562,10 @@ const [error, setError] = useState<string | null>(null);
 
 **Helper functions:**
 ```typescript
-// Obliczanie domyślnej daty Od (-31 dni)
+// Obliczanie domyślnej daty Od (-1 tydzień)
 function getDefaultDateFrom(): string {
   const date = new Date();
-  date.setDate(date.getDate() - 31);
+  date.setDate(date.getDate() - 7);
   return date.toISOString().split('T')[0];  // YYYY-MM-DD
 }
 
@@ -464,13 +589,13 @@ function validateDateRange(dateFrom: string, dateTo: string): string | null {
     return "Data 'Od' musi być wcześniejsza lub równa 'Do'";
   }
 
-  // Sprawdzenie zakresu 31 dni (opcjonalnie na frontendzie)
+  // Sprawdzenie zakresu 3 lat (opcjonalnie na frontendzie)
   const from = new Date(dateFrom);
   const to = new Date(dateTo);
   const diffDays = Math.ceil((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24));
 
-  if (diffDays > 31) {
-    return "Zakres dat nie może przekraczać 31 dni";
+  if (diffDays > 1095) {  // 3 lata ≈ 1095 dni
+    return "Zakres dat nie może przekraczać 3 lat";
   }
 
   return null;  // Valid
@@ -522,15 +647,27 @@ function useVerification() {
 {
   "results": [
     {
-      "drawId": 123,
-      "drawDate": "2025-11-08",
-      "drawNumbers": [5, 12, 18, 25, 37, 44],
-      "tickets": [
+      "ticketId": 1001,
+      "groupName": "Ulubione",
+      "ticketNumbers": [5, 12, 19, 25, 31, 44],
+      "draws": [
         {
-          "ticketId": "a3bb189e-8bf9-3888-9912-ace4e6543002",
-          "numbers": [5, 12, 19, 25, 31, 44],
-          "matchCount": 4,
-          "matchedNumbers": [5, 12, 25, 44]
+          "drawId": 123,
+          "drawDate": "2025-11-08",
+          "drawSystemId": 20250001,
+          "lottoType": "LOTTO",
+          "drawNumbers": [5, 12, 18, 25, 37, 44],
+          "hits": 4,
+          "winningNumbers": [5, 12, 25, 44],
+          "ticketPrice": 3.00,
+          "winPoolCount1": 2,
+          "winPoolAmount1": 5000000.00,
+          "winPoolCount2": 15,
+          "winPoolAmount2": 50000.00,
+          "winPoolCount3": 120,
+          "winPoolAmount3": 500.00,
+          "winPoolCount4": 850,
+          "winPoolAmount4": 20.00
         }
       ]
     }
@@ -603,7 +740,7 @@ async function handleSubmit() {
 
 **Warunki weryfikowane przez API:**
 - `dateFrom ≤ dateTo` - walidacja na backendzie
-- Zakres dat max 31 dni - walidacja na backendzie
+- Zakres dat max 3 lata - walidacja na backendzie
 - Użytkownik musi być zalogowany (JWT w header)
 - Backend filtruje zestawy po `UserId` z tokenu (izolacja danych)
 
@@ -612,8 +749,8 @@ async function handleSubmit() {
 ### 8.1 Scenariusz podstawowy - weryfikacja wygranych
 
 1. **Użytkownik wchodzi na stronę /checks**
-   - Widzi formularz z pre-wypełnionym zakresem dat (ostatnie 31 dni)
-   - Date pickers: Od = dzisiaj - 31 dni, Do = dzisiaj
+   - Widzi formularz z pre-wypełnionym zakresem dat (ostatni tydzień)
+   - Date pickers: Od = dzisiaj - 7 dni, Do = dzisiaj
    - Pole groupName: puste (opcjonalne)
 
 2. **Użytkownik opcjonalnie zmienia daty i/lub filtr grupy**
@@ -635,11 +772,21 @@ async function handleSubmit() {
    - Spinner znika
    - Accordion pojawia się z wynikami
    - Pierwsze losowanie rozwinięte (defaultExpanded=true)
-   - Użytkownik widzi:
+   - Użytkownik widzi w headerze losowania:
      - Data losowania: 2025-11-08
-     - Wylosowane liczby: [5, 12, 18, 25, 37, 44]
-     - Lista zestawów z pogrubionymi trafieniami:
-       - Zestaw #1: [**5**, **12**, 19, **25**, 31, **44**] 🏆 Wygrana 4 (czwórka)
+     - ID systemowe: 20250001
+     - Typ gry: LOTTO (badge zielony)
+     - Wylosowane liczby: [5, 12, 18, 25, 37, 44] (niebieskie kółka)
+   - Po rozwinięciu, użytkownik widzi listę swoich kuponów z trafieniami:
+     - Nazwa grupy: "Ulubione" (badge szary)
+     - Liczby kuponu: [5, 12, 19, 25, 31, 44]
+       - Trafione liczby (niebieskie kółka z font-bold): 5, 12, 25, 44
+       - Nietrafione liczby (szare kółka): 19, 31
+     - Ramka z informacjami o wygranej (zielone tło):
+       - Badge: 🏆 Wygrana 4 (czwórka)
+       - Koszt kuponu: 3.00 zł
+       - Ilość wygranych: 120 osób (tier 3 dla 4 trafień)
+       - Wartość wygranej: 500.00 zł
 
 6. **Użytkownik rozwinął kolejne losowania**
    - Klika na header accordion item → toggle expand/collapse
@@ -659,13 +806,13 @@ async function handleSubmit() {
 3. Button "Sprawdź wygrane" disabled
 4. Użytkownik poprawia datę → błąd znika, button enabled
 
-### 8.4 Scenariusz błędu - przekroczenie zakresu 31 dni
+### 8.4 Scenariusz błędu - przekroczenie zakresu 3 lat
 
-1. Użytkownik wybiera zakres > 31 dni
+1. Użytkownik wybiera zakres > 3 lat
 2. Opcjonalnie: frontend walidacja inline (komunikat błędu)
 3. Lub: backend walidacja → ErrorModal:
    - Tytuł: "Błąd"
-   - Treść: "Zakres dat nie może przekraczać 31 dni"
+   - Treść: "Zakres dat nie może przekraczać 3 lat"
    - Button: [Zamknij]
 
 ### 8.5 Interakcje keyboard navigation
@@ -685,10 +832,10 @@ async function handleSubmit() {
    - Moment weryfikacji: onChange dla date pickerów (inline validation)
    - Wpływ na UI: Komunikat błędu pod polem "Do", button disabled
 
-2. Zakres dat ≤ 31 dni
+2. Zakres dat ≤ 3 lata
    - Weryfikacja: Backend (opcjonalnie frontend dla lepszego UX)
    - Moment weryfikacji: onSubmit
-   - Wpływ na UI: ErrorModal z komunikatem "Zakres dat nie może przekraczać 31 dni"
+   - Wpływ na UI: ErrorModal z komunikatem "Zakres dat nie może przekraczać 3 lat"
 
 3. Format daty YYYY-MM-DD
    - Weryfikacja: Natywna HTML5 (input type="date")
@@ -697,7 +844,7 @@ async function handleSubmit() {
 
 **Komunikaty błędów (polski):**
 - "Data 'Od' musi być wcześniejsza lub równa 'Do'"
-- "Zakres dat nie może przekraczać 31 dni"
+- "Zakres dat nie może przekraczać 3 lat"
 - "Nieprawidłowy format daty"
 
 ### 9.2 Warunki prezentacji wyników (CheckResults)
@@ -765,14 +912,14 @@ numbers.map(num => {
 ```json
 {
   "errors": {
-    "dateTo": ["Zakres dat nie może przekraczać 31 dni"]
+    "dateTo": ["Zakres dat nie może przekraczać 3 lat"]
   }
 }
 ```
 
 **ErrorModal:**
 - Tytuł: "Błąd"
-- Treść: "• Zakres dat nie może przekraczać 31 dni"
+- Treść: "• Zakres dat nie może przekraczać 3 lat"
 - Button: [Zamknij]
 
 ---
@@ -872,18 +1019,34 @@ numbers.map(num => {
 - Mapowanie WinLevel → kolor + emoji + tekst
 
 ### Krok 6: Implementacja ResultTicketItem
-- Renderowanie liczb z pogrubieniem trafionych
-- Warunkowe renderowanie WinBadge (matchCount ≥ 3)
-- Tekst "Brak trafień" dla matchCount < 3
+- Renderowanie liczb jako kółek (niebieskie dla trafionych, szare dla nietrafionych)
+- Wyróżnienie trafionych liczb przez `font-bold` w niebieskich kółkach
+- Warunkowe renderowanie ramki z informacjami o wygranej (hits ≥ 3):
+  - Badge stopnia wygranej (WinBadge)
+  - Grid z 3 kolumnami: koszt kuponu, ilość wygranych, wartość wygranej
+  - Mapowanie hits → tier (6=tier1, 5=tier2, 4=tier3, 3=tier4) do wybrania odpowiednich pól winPoolCountX i winPoolAmountX
+  - Wyświetlanie "Brak danych" dla wartości null
+- Tekst "Brak trafień" dla hits < 3 (zamiast ramki)
 
 ### Krok 7: Implementacja AccordionItem
 - Stan lokalny `isExpanded` (useState)
 - Toggle expand/collapse na click
+- Header zawiera:
+  - Data losowania
+  - ID systemowe (drawSystemId)
+  - Badge typu gry (LOTTO / LOTTO PLUS) z różnymi kolorami
+  - Wylosowane liczby jako niebieskie kółka
+  - Licznik kuponów (badge po prawej stronie)
+- Content przekazuje dane draw (z polami winPool*) do ResultTicketItem
 - ARIA attributes (aria-expanded, aria-controls)
 - Keyboard navigation (Enter/Space)
 
 ### Krok 8: Implementacja CheckResults
-- Mapowanie `results` → AccordionItem[]
+- Transformacja struktury danych z "tickets → draws" na "draws → tickets" (używając Map)
+- Grupowanie kuponów według losowań (drawId + drawDate jako klucz)
+- Przeniesienie wszystkich pól z draw (drawSystemId, lottoType, ticketPrice, winPoolCount1-4, winPoolAmount1-4) do struktury drawsMap
+- Sortowanie losowań według daty (najnowsze na górze)
+- Mapowanie `drawsArray` → AccordionItem[] z pełnymi danymi draw
 - Empty state dla `results.length === 0`
 - Conditional rendering (loading spinner vs results)
 

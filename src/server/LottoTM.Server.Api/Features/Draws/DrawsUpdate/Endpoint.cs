@@ -20,7 +20,17 @@ public static class Endpoint
                 Id = id,
                 LottoType = dto.LottoType,
                 DrawDate = dto.DrawDate,
-                Numbers = dto.Numbers
+                Numbers = dto.Numbers,
+                DrawSystemId = dto.DrawSystemId,
+                TicketPrice = dto.TicketPrice,
+                WinPoolCount1 = dto.WinPoolCount1,
+                WinPoolAmount1 = dto.WinPoolAmount1,
+                WinPoolCount2 = dto.WinPoolCount2,
+                WinPoolAmount2 = dto.WinPoolAmount2,
+                WinPoolCount3 = dto.WinPoolCount3,
+                WinPoolAmount3 = dto.WinPoolAmount3,
+                WinPoolCount4 = dto.WinPoolCount4,
+                WinPoolAmount4 = dto.WinPoolAmount4
             };
 
             return await mediator.Send(request);
@@ -40,5 +50,19 @@ public static class Endpoint
     /// <summary>
     /// DTO for binding request body (without Id, which comes from route)
     /// </summary>
-    public record UpdateDrawDto(DateOnly DrawDate, string LottoType, int[] Numbers);
+    public record UpdateDrawDto(
+        DateOnly DrawDate,
+        string LottoType,
+        int[] Numbers,
+        int DrawSystemId,
+        decimal? TicketPrice,
+        int? WinPoolCount1,
+        decimal? WinPoolAmount1,
+        int? WinPoolCount2,
+        decimal? WinPoolAmount2,
+        int? WinPoolCount3,
+        decimal? WinPoolAmount3,
+        int? WinPoolCount4,
+        decimal? WinPoolAmount4
+    );
 }

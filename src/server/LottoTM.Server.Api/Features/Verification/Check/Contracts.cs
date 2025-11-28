@@ -48,16 +48,36 @@ public class Contracts
     /// </summary>
     /// <param name="DrawId">Draw identifier</param>
     /// <param name="DrawDate">Date of the draw</param>
+    /// <param name="DrawSystemId">System identifier for the draw</param>
     /// <param name="LottoType">Type of lottery game (LOTTO, LOTTO PLUS, etc.)</param>
     /// <param name="DrawNumbers">Array of 6 numbers from the draw</param>
     /// <param name="Hits">Number of matching numbers between ticket and draw</param>
     /// <param name="WinningNumbers">List of the actual matching numbers</param>
+    /// <param name="TicketPrice">Price of the ticket (nullable)</param>
+    /// <param name="WinPoolCount1">Number of winners for tier 1 (6 matches) - nullable</param>
+    /// <param name="WinPoolAmount1">Prize amount for tier 1 (6 matches) - nullable</param>
+    /// <param name="WinPoolCount2">Number of winners for tier 2 (5 matches) - nullable</param>
+    /// <param name="WinPoolAmount2">Prize amount for tier 2 (5 matches) - nullable</param>
+    /// <param name="WinPoolCount3">Number of winners for tier 3 (4 matches) - nullable</param>
+    /// <param name="WinPoolAmount3">Prize amount for tier 3 (4 matches) - nullable</param>
+    /// <param name="WinPoolCount4">Number of winners for tier 4 (3 matches) - nullable</param>
+    /// <param name="WinPoolAmount4">Prize amount for tier 4 (3 matches) - nullable</param>
     public record DrawVerificationResult(
         int DrawId,
         DateOnly DrawDate,
+        int DrawSystemId,
         string LottoType,
         List<int> DrawNumbers,
         int Hits,
-        List<int> WinningNumbers
+        List<int> WinningNumbers,
+        decimal? TicketPrice,
+        int? WinPoolCount1,
+        decimal? WinPoolAmount1,
+        int? WinPoolCount2,
+        decimal? WinPoolAmount2,
+        int? WinPoolCount3,
+        decimal? WinPoolAmount3,
+        int? WinPoolCount4,
+        decimal? WinPoolAmount4
     );
 }

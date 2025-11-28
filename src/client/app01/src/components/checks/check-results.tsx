@@ -23,8 +23,18 @@ export function CheckResults({ results, totalTickets, totalDraws }: CheckResults
   const drawsMap = new Map<string, {
     drawId: number;
     drawDate: string;
+    drawSystemId: number;
     lottoType: string;
     drawNumbers: number[];
+    ticketPrice: number | null;
+    winPoolCount1: number | null;
+    winPoolAmount1: number | null;
+    winPoolCount2: number | null;
+    winPoolAmount2: number | null;
+    winPoolCount3: number | null;
+    winPoolAmount3: number | null;
+    winPoolCount4: number | null;
+    winPoolAmount4: number | null;
     tickets: Array<{
       ticketId: number;
       groupName: string;
@@ -43,8 +53,18 @@ export function CheckResults({ results, totalTickets, totalDraws }: CheckResults
         drawsMap.set(drawKey, {
           drawId: draw.drawId,
           drawDate: draw.drawDate,
+          drawSystemId: draw.drawSystemId,
           lottoType: draw.lottoType,
           drawNumbers: draw.drawNumbers,
+          ticketPrice: draw.ticketPrice,
+          winPoolCount1: draw.winPoolCount1,
+          winPoolAmount1: draw.winPoolAmount1,
+          winPoolCount2: draw.winPoolCount2,
+          winPoolAmount2: draw.winPoolAmount2,
+          winPoolCount3: draw.winPoolCount3,
+          winPoolAmount3: draw.winPoolAmount3,
+          winPoolCount4: draw.winPoolCount4,
+          winPoolAmount4: draw.winPoolAmount4,
           tickets: []
         });
       }
@@ -123,8 +143,18 @@ export function CheckResults({ results, totalTickets, totalDraws }: CheckResults
             key={draw.drawId}
             draw={{
               drawDate: draw.drawDate,
+              drawSystemId: draw.drawSystemId,
               lottoType: draw.lottoType,
-              drawNumbers: draw.drawNumbers
+              drawNumbers: draw.drawNumbers,
+              ticketPrice: draw.ticketPrice,
+              winPoolCount1: draw.winPoolCount1,
+              winPoolAmount1: draw.winPoolAmount1,
+              winPoolCount2: draw.winPoolCount2,
+              winPoolAmount2: draw.winPoolAmount2,
+              winPoolCount3: draw.winPoolCount3,
+              winPoolAmount3: draw.winPoolAmount3,
+              winPoolCount4: draw.winPoolCount4,
+              winPoolAmount4: draw.winPoolAmount4
             }}
             tickets={draw.tickets}
             defaultExpanded={index === 0} // First draw expanded by default

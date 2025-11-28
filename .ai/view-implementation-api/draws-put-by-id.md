@@ -41,7 +41,17 @@ PUT /api/draws/{id}
 {
   "drawDate": "2025-10-30",
   "numbers": [3, 12, 25, 31, 42, 48],
-  "lottoType": "LOTTO"
+  "lottoType": "LOTTO",
+  "drawSystemId": 20250001,
+  "ticketPrice": 3.00,
+  "winPoolCount1": 2,
+  "winPoolAmount1": 5000000.00,
+  "winPoolCount2": 15,
+  "winPoolAmount2": 50000.00,
+  "winPoolCount3": 120,
+  "winPoolAmount3": 500.00,
+  "winPoolCount4": 850,
+  "winPoolAmount4": 20.00
 }
 ```
 
@@ -87,6 +97,56 @@ public class Contracts
         /// Lotto type ("LOTTO" or "LOTTO PLUS")
         /// </summary>
         public string LottoType { get; init; } = string.Empty;
+
+        /// <summary>
+        /// External system identifier (required)
+        /// </summary>
+        public int DrawSystemId { get; init; }
+
+        /// <summary>
+        /// Ticket price for this draw (optional)
+        /// </summary>
+        public decimal? TicketPrice { get; init; }
+
+        /// <summary>
+        /// Count of tier 1 winners - 6 matches (optional)
+        /// </summary>
+        public int? WinPoolCount1 { get; init; }
+
+        /// <summary>
+        /// Prize amount for tier 1 - 6 matches (optional)
+        /// </summary>
+        public decimal? WinPoolAmount1 { get; init; }
+
+        /// <summary>
+        /// Count of tier 2 winners - 5 matches (optional)
+        /// </summary>
+        public int? WinPoolCount2 { get; init; }
+
+        /// <summary>
+        /// Prize amount for tier 2 - 5 matches (optional)
+        /// </summary>
+        public decimal? WinPoolAmount2 { get; init; }
+
+        /// <summary>
+        /// Count of tier 3 winners - 4 matches (optional)
+        /// </summary>
+        public int? WinPoolCount3 { get; init; }
+
+        /// <summary>
+        /// Prize amount for tier 3 - 4 matches (optional)
+        /// </summary>
+        public decimal? WinPoolAmount3 { get; init; }
+
+        /// <summary>
+        /// Count of tier 4 winners - 3 matches (optional)
+        /// </summary>
+        public int? WinPoolCount4 { get; init; }
+
+        /// <summary>
+        /// Prize amount for tier 4 - 3 matches (optional)
+        /// </summary>
+        public decimal? WinPoolAmount4 { get; init; }
     }
 
     /// <summary>
@@ -341,6 +401,56 @@ public class Validator : AbstractValidator<Contracts.Request>
             .WithMessage("Typ gry jest wymagany")
             .Must(lt => lt == "LOTTO" || lt == "LOTTO PLUS")
             .WithMessage("Dozwolone wartości: LOTTO, LOTTO PLUS");
+
+        RuleFor(x => x.DrawSystemId)
+            .MaximumLength(20)
+            .When(x => !string.IsNullOrEmpty(x.DrawSystemId))
+            .WithMessage("DrawSystemId nie może być dłuższy niż 20 znaków");
+
+        RuleFor(x => x.TicketPrice)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.TicketPrice.HasValue)
+            .WithMessage("Cena biletu musi być wartością dodatnią");
+
+        RuleFor(x => x.WinPoolCount1)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.WinPoolCount1.HasValue)
+            .WithMessage("Ilość wygranych musi być wartością nieujemną");
+
+        RuleFor(x => x.WinPoolAmount1)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.WinPoolAmount1.HasValue)
+            .WithMessage("Kwota wygranych musi być wartością dodatnią");
+
+        RuleFor(x => x.WinPoolCount2)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.WinPoolCount2.HasValue)
+            .WithMessage("Ilość wygranych musi być wartością nieujemną");
+
+        RuleFor(x => x.WinPoolAmount2)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.WinPoolAmount2.HasValue)
+            .WithMessage("Kwota wygranych musi być wartością dodatnią");
+
+        RuleFor(x => x.WinPoolCount3)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.WinPoolCount3.HasValue)
+            .WithMessage("Ilość wygranych musi być wartością nieujemną");
+
+        RuleFor(x => x.WinPoolAmount3)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.WinPoolAmount3.HasValue)
+            .WithMessage("Kwota wygranych musi być wartością dodatnią");
+
+        RuleFor(x => x.WinPoolCount4)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.WinPoolCount4.HasValue)
+            .WithMessage("Ilość wygranych musi być wartością nieujemną");
+
+        RuleFor(x => x.WinPoolAmount4)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.WinPoolAmount4.HasValue)
+            .WithMessage("Kwota wygranych musi być wartością dodatnią");
     }
 }
 ```
@@ -515,6 +625,17 @@ public class Contracts
         public int Id { get; init; }
         public DateOnly DrawDate { get; init; }
         public int[] Numbers { get; init; } = Array.Empty<int>();
+        public string LottoType { get; init; } = string.Empty;
+        public int DrawSystemId { get; init; }
+        public decimal? TicketPrice { get; init; }
+        public int? WinPoolCount1 { get; init; }
+        public decimal? WinPoolAmount1 { get; init; }
+        public int? WinPoolCount2 { get; init; }
+        public decimal? WinPoolAmount2 { get; init; }
+        public int? WinPoolCount3 { get; init; }
+        public decimal? WinPoolAmount3 { get; init; }
+        public int? WinPoolCount4 { get; init; }
+        public decimal? WinPoolAmount4 { get; init; }
     }
 
     public record Response(string Message);
@@ -675,6 +796,17 @@ public class UpdateDrawHandler : IRequestHandler<Contracts.Request, IResult>
 
             // Update Draw metadata
             draw.DrawDate = request.DrawDate;
+            draw.LottoType = request.LottoType;
+            draw.DrawSystemId = request.DrawSystemId;
+            draw.TicketPrice = request.TicketPrice;
+            draw.WinPoolCount1 = request.WinPoolCount1;
+            draw.WinPoolAmount1 = request.WinPoolAmount1;
+            draw.WinPoolCount2 = request.WinPoolCount2;
+            draw.WinPoolAmount2 = request.WinPoolAmount2;
+            draw.WinPoolCount3 = request.WinPoolCount3;
+            draw.WinPoolAmount3 = request.WinPoolAmount3;
+            draw.WinPoolCount4 = request.WinPoolCount4;
+            draw.WinPoolAmount4 = request.WinPoolAmount4;
 
             // Delete old numbers (EF Core tracking handles CASCADE)
             _dbContext.DrawNumbers.RemoveRange(draw.Numbers);
@@ -727,7 +859,18 @@ public static class Endpoint
             {
                 Id = id,
                 DrawDate = dto.DrawDate,
-                Numbers = dto.Numbers
+                Numbers = dto.Numbers,
+                LottoType = dto.LottoType,
+                DrawSystemId = dto.DrawSystemId,
+                TicketPrice = dto.TicketPrice,
+                WinPoolCount1 = dto.WinPoolCount1,
+                WinPoolAmount1 = dto.WinPoolAmount1,
+                WinPoolCount2 = dto.WinPoolCount2,
+                WinPoolAmount2 = dto.WinPoolAmount2,
+                WinPoolCount3 = dto.WinPoolCount3,
+                WinPoolAmount3 = dto.WinPoolAmount3,
+                WinPoolCount4 = dto.WinPoolCount4,
+                WinPoolAmount4 = dto.WinPoolAmount4
             };
 
             return await mediator.Send(request);
@@ -746,7 +889,21 @@ public static class Endpoint
     /// <summary>
     /// DTO for binding request body (without Id, which comes from route)
     /// </summary>
-    public record UpdateDrawDto(DateOnly DrawDate, int[] Numbers);
+    public record UpdateDrawDto(
+        DateOnly DrawDate,
+        int[] Numbers,
+        string LottoType,
+        int DrawSystemId,
+        decimal? TicketPrice = null,
+        int? WinPoolCount1 = null,
+        decimal? WinPoolAmount1 = null,
+        int? WinPoolCount2 = null,
+        decimal? WinPoolAmount2 = null,
+        int? WinPoolCount3 = null,
+        decimal? WinPoolAmount3 = null,
+        int? WinPoolCount4 = null,
+        decimal? WinPoolAmount4 = null
+    );
 }
 ```
 

@@ -29,5 +29,56 @@ public class CreateDrawValidator : AbstractValidator<Contracts.Request>
            .WithMessage("Typ loterii jest wymagany")
            .Must(lt => lt == "LOTTO" || lt == "LOTTO PLUS")
            .WithMessage("Dozwolone wartości: LOTTO, LOTTO PLUS");
+
+        RuleFor(x => x.DrawSystemId)
+            .NotEmpty()
+            .WithMessage("DrawSystemId jest wymagany")
+            .GreaterThan(0)
+            .WithMessage("DrawSystemId musi być liczbą całkowitą większą od 0");
+
+        RuleFor(x => x.TicketPrice)
+            .GreaterThan(0)
+            .When(x => x.TicketPrice.HasValue)
+            .WithMessage("Cena biletu musi być wartością dodatnią");
+
+        RuleFor(x => x.WinPoolCount1)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.WinPoolCount1.HasValue)
+            .WithMessage("Ilość wygranych musi być wartością nieujemną");
+
+        RuleFor(x => x.WinPoolAmount1)
+            .GreaterThan(0)
+            .When(x => x.WinPoolAmount1.HasValue)
+            .WithMessage("Kwota wygranych musi być wartością dodatnią");
+
+        RuleFor(x => x.WinPoolCount2)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.WinPoolCount2.HasValue)
+            .WithMessage("Ilość wygranych musi być wartością nieujemną");
+
+        RuleFor(x => x.WinPoolAmount2)
+            .GreaterThan(0)
+            .When(x => x.WinPoolAmount2.HasValue)
+            .WithMessage("Kwota wygranych musi być wartością dodatnią");
+
+        RuleFor(x => x.WinPoolCount3)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.WinPoolCount3.HasValue)
+            .WithMessage("Ilość wygranych musi być wartością nieujemną");
+
+        RuleFor(x => x.WinPoolAmount3)
+            .GreaterThan(0)
+            .When(x => x.WinPoolAmount3.HasValue)
+            .WithMessage("Kwota wygranych musi być wartością dodatnią");
+
+        RuleFor(x => x.WinPoolCount4)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.WinPoolCount4.HasValue)
+            .WithMessage("Ilość wygranych musi być wartością nieujemną");
+
+        RuleFor(x => x.WinPoolAmount4)
+            .GreaterThan(0)
+            .When(x => x.WinPoolAmount4.HasValue)
+            .WithMessage("Kwota wygranych musi być wartością dodatnią");
     }
 }

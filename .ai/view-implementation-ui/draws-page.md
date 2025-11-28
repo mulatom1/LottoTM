@@ -166,12 +166,38 @@ interface DrawListProps {
 **Opis:** Pojedyncze losowanie w liście (card/row).
 
 **Główne elementy:**
-- Data losowania (format: YYYY-MM-DD lub DD.MM.YYYY)
-- 6 liczb wylosowanych (badges: bg-blue-100 text-blue-800, rounded-full)
-- Data wprowadzenia (format: "Wprowadzono: DD.MM.YYYY HH:MM")
-- Przyciski akcji (conditional - tylko admin):
-  - Button "Edytuj" (secondary, small)
-  - Button "Usuń" (danger, small)
+- **Header section:**
+  - Data losowania (format: YYYY-MM-DD)
+  - Typ losowania ("LOTTO" lub "LOTTO PLUS") - wyświetlony jako kolorowy badge
+  - ID systemu (drawSystemId) - wyświetlony jako "ID: 20250001" obok daty
+  - Przyciski akcji (conditional - tylko admin): [Edytuj] [Usuń]
+- **Sekcja liczb:**
+  - 6 liczb wylosowanych (badges: bg-blue-100 text-blue-800, rounded-full, w-10 h-10)
+- **Cena biletu** (jeśli dostępna):
+  - Format: "Cena biletu: X.XX zł"
+  - Wyświetlana pod liczbami
+- **Sekcja wygranych** (jeśli dostępne dane):
+  - **Ramka gradientowa** (bg-gradient-to-br from-gray-50 to-gray-100, rounded-xl, border-2 border-gray-300, padding 4)
+  - **Nagłówek sekcji:** "Informacje o wygranych" z kolorowym paskiem gradientowym (w-1 h-6, bg-gradient-to-b from-green-500 to-orange-500)
+  - **Grid 4 kart** (grid-cols-1 sm:grid-cols-2 lg:grid-cols-4, gap-3):
+    - **Karta Stopień 1 (6 trafionych):**
+      - Tło białe, border-2 border-green-300, shadow-sm
+      - Kolorowa ikona z liczbą "6" (w-8 h-8, bg-green-500, rounded-full, text-white)
+      - Label "trafionych" (text-xs font-semibold text-green-800)
+      - Ilość wygranych (text-lg font-bold text-green-900)
+      - Kwota (text-sm font-semibold text-green-800, format: X.XX zł)
+    - **Karta Stopień 2 (5 trafionych):**
+      - Tło białe, border-2 border-blue-300, shadow-sm
+      - Kolorowa ikona "5" (bg-blue-500)
+      - Style jak wyżej z kolorystyką niebieską
+    - **Karta Stopień 3 (4 trafione):**
+      - Tło białe, border-2 border-yellow-300, shadow-sm
+      - Kolorowa ikona "4" (bg-yellow-500)
+      - Style jak wyżej z kolorystyką żółtą
+    - **Karta Stopień 4 (3 trafione):**
+      - Tło białe, border-2 border-orange-300, shadow-sm
+      - Kolorowa ikona "3" (bg-orange-500)
+      - Style jak wyżej z kolorystyką pomarańczową
 
 **Obsługiwane interakcje:**
 - Kliknięcie [Edytuj] → wywołanie onEdit(draw.id)
@@ -203,6 +229,20 @@ interface DrawItemProps {
 - DatePicker: "Data losowania" (required, max: dzisiaj)
 - Dropdown/RadioButtons: "Typ losowania" (LOTTO lub LOTTO PLUS)
 - 6x NumberInput: "Liczba 1" do "Liczba 6" (required, min: 1, max: 49)
+- NumberInput: "DrawSystemId" (required)
+- NumberInput: "Cena biletu" (optional, min: 0, step: 0.01)
+- **Sekcja "Wygrane 1. stopnia (6 trafionych)":**
+  - NumberInput: "Ilość wygranych" (optional, min: 0) - winPoolCount1
+  - NumberInput: "Kwota wygranej" (optional, min: 0, step: 0.01) - winPoolAmount1
+- **Sekcja "Wygrane 2. stopnia (5 trafionych)":**
+  - NumberInput: "Ilość wygranych" (optional, min: 0) - winPoolCount2
+  - NumberInput: "Kwota wygranej" (optional, min: 0, step: 0.01) - winPoolAmount2
+- **Sekcja "Wygrane 3. stopnia (4 trafione)":**
+  - NumberInput: "Ilość wygranych" (optional, min: 0) - winPoolCount3
+  - NumberInput: "Kwota wygranej" (optional, min: 0, step: 0.01) - winPoolAmount3
+- **Sekcja "Wygrane 4. stopnia (3 trafione)":**
+  - NumberInput: "Ilość wygranych" (optional, min: 0) - winPoolCount4
+  - NumberInput: "Kwota wygranej" (optional, min: 0, step: 0.01) - winPoolAmount4
 - Inline validation pod polami (czerwone komunikaty)
 - Przyciski:
   - "Pobierz z XLotto" (secondary, left, **warunkowo wyświetlany przez Feature Flag**) - automatyczne pobieranie wyników z XLotto.pl
@@ -358,21 +398,54 @@ export interface DrawsResponse {
 // Pojedyncze losowanie
 export interface Draw {
   id: number;
-  drawDate: string; // format: YYYY-MM-DD
+  drawDate: string; // format: YYYY-MM-DD (DateTime from backend)
+  lottoType: string; // "LOTTO" lub "LOTTO PLUS"
   numbers: number[]; // 6 liczb 1-49
+  drawSystemId: number; // identyfikator systemu losowania (required)
+  ticketPrice: number | null; // opcjonalna cena biletu
+  winPoolCount1: number | null; // liczba wygranych w 1. stopniu (6 trafionych)
+  winPoolAmount1: number | null; // kwota wygranej w 1. stopniu
+  winPoolCount2: number | null; // liczba wygranych w 2. stopniu (5 trafionych)
+  winPoolAmount2: number | null; // kwota wygranej w 2. stopniu
+  winPoolCount3: number | null; // liczba wygranych w 3. stopniu (4 trafione)
+  winPoolAmount3: number | null; // kwota wygranej w 3. stopniu
+  winPoolCount4: number | null; // liczba wygranych w 4. stopniu (3 trafione)
+  winPoolAmount4: number | null; // kwota wygranej w 4. stopniu
   createdAt: string; // ISO datetime
 }
 
 // Request dla POST /api/draws
 export interface CreateDrawRequest {
   drawDate: string; // YYYY-MM-DD
+  lottoType: string; // "LOTTO" lub "LOTTO PLUS"
   numbers: number[]; // 6 liczb
+  drawSystemId: number; // identyfikator systemu (required)
+  ticketPrice?: number; // opcjonalne
+  winPoolCount1?: number; // opcjonalne
+  winPoolAmount1?: number; // opcjonalne
+  winPoolCount2?: number; // opcjonalne
+  winPoolAmount2?: number; // opcjonalne
+  winPoolCount3?: number; // opcjonalne
+  winPoolAmount3?: number; // opcjonalne
+  winPoolCount4?: number; // opcjonalne
+  winPoolAmount4?: number; // opcjonalne
 }
 
 // Request dla PUT /api/draws/{id}
 export interface UpdateDrawRequest {
   drawDate: string;
+  lottoType: string; // "LOTTO" lub "LOTTO PLUS"
   numbers: number[];
+  drawSystemId: number; // identyfikator systemu (required)
+  ticketPrice?: number; // opcjonalne
+  winPoolCount1?: number; // opcjonalne
+  winPoolAmount1?: number; // opcjonalne
+  winPoolCount2?: number; // opcjonalne
+  winPoolAmount2?: number; // opcjonalne
+  winPoolCount3?: number; // opcjonalne
+  winPoolAmount3?: number; // opcjonalne
+  winPoolCount4?: number; // opcjonalne
+  winPoolAmount4?: number; // opcjonalne
 }
 
 // Response dla POST/PUT/DELETE (sukces)
@@ -412,7 +485,18 @@ export interface PaginationState {
 // Dane formularza dodawania/edycji
 export interface DrawFormData {
   drawDate: string; // YYYY-MM-DD
+  lottoType: string; // "LOTTO" lub "LOTTO PLUS"
   numbers: (number | '')[]; // 6 elementów, '' oznacza puste pole
+  drawSystemId: number | ''; // wymagane w backend, '' oznacza puste pole w UI
+  ticketPrice?: number | ''; // opcjonalne, '' oznacza puste pole
+  winPoolCount1?: number | ''; // opcjonalne
+  winPoolAmount1?: number | ''; // opcjonalne
+  winPoolCount2?: number | ''; // opcjonalne
+  winPoolAmount2?: number | ''; // opcjonalne
+  winPoolCount3?: number | ''; // opcjonalne
+  winPoolAmount3?: number | ''; // opcjonalne
+  winPoolCount4?: number | ''; // opcjonalne
+  winPoolAmount4?: number | ''; // opcjonalne
 }
 
 // Błędy walidacji formularza
@@ -892,12 +976,16 @@ export class ApiService {
 4. DrawFormModal otwiera się (mode: 'add')
 5. Admin wypełnia formularz:
    - DatePicker: 2025-11-09
+   - Dropdown: "LOTTO"
    - 6x NumberInput: 1, 7, 14, 21, 35, 42
+   - DrawSystemId: 20250001
+   - (opcjonalnie) TicketPrice: 3.00
+   - (opcjonalnie) WinPoolCount1: 0, WinPoolAmount1: 0
 6. Inline validation w czasie rzeczywistym (zielone checki przy poprawnych polach)
 7. Kliknięcie "Zapisz"
 8. Zbieranie błędów walidacji:
    - Jeśli błędy inline: ErrorModal z listą błędów
-   - Jeśli valid: API call `POST /api/draws` → body: `{ drawDate: "2025-11-09", numbers: [1, 7, 14, 21, 35, 42] }`
+   - Jeśli valid: API call `POST /api/draws` → body: `{ drawDate: "2025-11-09", lottoType: "LOTTO", numbers: [1, 7, 14, 21, 35, 42], drawSystemId: 20250001, ticketPrice: 3.00, winPoolCount1: 0, winPoolAmount1: 0 }`
 9. Backend waliduje i zapisuje (lub nadpisuje jeśli data już istnieje)
 10. Response 201 Created: `{ message: "Losowanie utworzone pomyślnie" }`
 11. Modal zamyka się
@@ -911,11 +999,11 @@ export class ApiService {
 
 1. Admin klika [Edytuj] przy losowaniu z 2025-11-08
 2. Wywołanie `handleOpenEditModal(drawId)`
-3. DrawFormModal otwiera się (mode: 'edit', pola pre-wypełnione)
+3. DrawFormModal otwiera się (mode: 'edit', pola pre-wypełnione z wszystkimi danymi)
 4. Admin zmienia jedną liczbę: 44 → 49
 5. Inline validation (wszystkie pola valid)
 6. Kliknięcie "Zapisz"
-7. API call `PUT /api/draws/{id}` → body: `{ drawDate: "2025-11-08", numbers: [5, 12, 18, 25, 37, 49] }`
+7. API call `PUT /api/draws/{id}` → body: `{ drawDate: "2025-11-08", lottoType: "LOTTO", numbers: [5, 12, 18, 25, 37, 49], drawSystemId: 20250001, ticketPrice: 3.00, ... }`
 8. Backend waliduje i aktualizuje (transakcja: UPDATE Draws + DELETE/INSERT DrawNumbers)
 9. Response 200 OK: `{ message: "Losowanie zaktualizowane pomyślnie" }`
 10. Modal zamyka się

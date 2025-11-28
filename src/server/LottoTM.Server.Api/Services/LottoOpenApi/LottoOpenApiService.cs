@@ -24,7 +24,6 @@ public partial class LottoOpenApiService : ILottoOpenApiService
         _logger = logger;
     }
 
-    /// <inheritdoc/>
     public async Task<GetDrawsLottoByDateResponse> GetDrawsLottoByDate(DateOnly? date = null)
     {
         try
@@ -72,6 +71,62 @@ public partial class LottoOpenApiService : ILottoOpenApiService
         {
             _logger.LogError(ex, "HTTP request failed while fetching draw results");
             throw new InvalidOperationException("Failed to fetch draw results from Lotto Open API", ex);
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogError(ex, "Failed to parse JSON response");
+            throw new InvalidOperationException("Failed to parse API response", ex);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error while fetching draw results");
+            throw;
+        }
+    }
+
+    public async Task<List<GetDrawsStatsByIdResponse>> GetDrawsStatsById(int drawSystemId)
+    {
+        try
+        {
+            if (drawSystemId <= 0) return [];
+
+            var httpClient = _httpClientFactory.CreateClient();
+            httpClient.DefaultRequestHeaders.Add("User-Agent", "LottoTM.Server.Api.LottoOpenApiService/1.0");
+            httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
+
+            var apiKey = _configuration.GetValue("LottoOpenApi:ApiKey", "");
+            if (!string.IsNullOrEmpty(apiKey)) httpClient.DefaultRequestHeaders.Add("secret", apiKey);
+
+            var url = _configuration.GetValue("LottoOpenApi:Url", "");
+            if (string.IsNullOrEmpty(url))
+            {
+                _logger.LogError(errorUrlMessage);
+                throw new InvalidOperationException(errorUrlMessage);
+            }
+
+            var apiUrl = $"{url}/api/open/v1/lotteries/draw-prizes/Lotto/{drawSystemId}";
+            _logger.LogDebug("Fetching stats of draw from Lotto Open API: {Url}", apiUrl);
+
+            var response = await httpClient.GetAsync(apiUrl);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogError("Lotto Open API returned non-success status: {StatusCode}", response.StatusCode);
+                throw new InvalidOperationException($"Lotto Open API returned status: {response.StatusCode}");
+            }
+
+            var jsonContent = await response.Content.ReadAsStringAsync();
+            _logger.LogDebug("Received response from Lotto Open API");
+            _logger.LogDebug("{JsonContent}", jsonContent);
+
+            if (jsonContent == "null") return [];
+
+            return JsonSerializer.Deserialize<List<GetDrawsStatsByIdResponse>>(jsonContent) ?? [];
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "HTTP request failed while fetching draw results");
+            throw new InvalidOperationException("Failed to fetch stats of draw results from Lotto Open API", ex);
         }
         catch (JsonException ex)
         {

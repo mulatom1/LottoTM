@@ -246,6 +246,16 @@
       "drawDate": "2025-10-30",
       "lottoType": "LOTTO",
       "numbers": [3, 12, 25, 31, 42, 48],
+      "drawSystemId": 20250001,
+      "ticketPrice": 3.00,
+      "winPoolCount1": 2,
+      "winPoolAmount1": 5000000.00,
+      "winPoolCount2": 15,
+      "winPoolAmount2": 50000.00,
+      "winPoolCount3": 120,
+      "winPoolAmount3": 500.00,
+      "winPoolCount4": 850,
+      "winPoolAmount4": 20.00,
       "createdAt": "2025-10-30T18:30:00Z"
     },
     {
@@ -253,6 +263,16 @@
       "drawDate": "2025-10-28",
       "lottoType": "LOTTO PLUS",
       "numbers": [5, 14, 23, 29, 37, 41],
+      "drawSystemId": 20250002,
+      "ticketPrice": null,
+      "winPoolCount1": null,
+      "winPoolAmount1": null,
+      "winPoolCount2": null,
+      "winPoolAmount2": null,
+      "winPoolCount3": null,
+      "winPoolAmount3": null,
+      "winPoolCount4": null,
+      "winPoolAmount4": null,
       "createdAt": "2025-10-28T19:00:00Z"
     }
   ],
@@ -303,6 +323,16 @@
   "drawDate": "2025-10-30",
   "lottoType": "LOTTO",
   "numbers": [3, 12, 25, 31, 42, 48],
+  "drawSystemId": 20250001,
+  "ticketPrice": 3.00,
+  "winPoolCount1": 2,
+  "winPoolAmount1": 5000000.00,
+  "winPoolCount2": 15,
+  "winPoolAmount2": 50000.00,
+  "winPoolCount3": 120,
+  "winPoolAmount3": 500.00,
+  "winPoolCount4": 850,
+  "winPoolAmount4": 20.00,
   "createdAt": "2025-10-30T18:30:00Z"
 }
 ```
@@ -338,7 +368,17 @@
 {
   "drawDate": "2025-10-30",
   "lottoType": "LOTTO",
-  "numbers": [3, 12, 25, 31, 42, 48]
+  "numbers": [3, 12, 25, 31, 42, 48],
+  "drawSystemId": 20250001,
+  "ticketPrice": 3.00,
+  "winPoolCount1": 2,
+  "winPoolAmount1": 5000000.00,
+  "winPoolCount2": 15,
+  "winPoolAmount2": 50000.00,
+  "winPoolCount3": 120,
+  "winPoolAmount3": 500.00,
+  "winPoolCount4": 850,
+  "winPoolAmount4": 20.00
 }
 ```
 
@@ -355,6 +395,16 @@
 - `numbers`: wymagane, tablica 6 liczb INT
   - Każda liczba w zakresie 1-49 (CHECK constraint)
   - Liczby muszą być unikalne (walidacja backend)
+- `drawSystemId`: wymagane, INT
+- `ticketPrice`: opcjonalne, DECIMAL(10,2), wartość >= 0 jeśli podana
+- `winPoolCount1`: opcjonalne, INT, ilość wygranych 1 stopnia (6 trafionych)
+- `winPoolAmount1`: opcjonalne, NUMERIC(18,2), kwota wygranych 1 stopnia
+- `winPoolCount2`: opcjonalne, INT, ilość wygranych 2 stopnia (5 trafionych)
+- `winPoolAmount2`: opcjonalne, NUMERIC(18,2), kwota wygranych 2 stopnia
+- `winPoolCount3`: opcjonalne, INT, ilość wygranych 3 stopnia (4 trafione)
+- `winPoolAmount3`: opcjonalne, NUMERIC(18,2), kwota wygranych 3 stopnia
+- `winPoolCount4`: opcjonalne, INT, ilość wygranych 4 stopnia (3 trafione)
+- `winPoolAmount4`: opcjonalne, NUMERIC(18,2), kwota wygranych 4 stopnia
 - Unikalne połączenie (drawDate, lottoType) - nie można dodać dwóch losowań tego samego typu w tym samym dniu
 - Tylko użytkownicy z uprawnieniami administratora mogą dodawać losowania (IsAdmin)
 - Jeśli losowanie o danym (drawDate, lottoType) już istnieje, powiadomienie że losowanie o danym (drawDate, lottoType) już istnieje.
@@ -371,6 +421,16 @@
       "drawDate": ["Data losowania nie może być w przyszłości"],
       "lottoType": ["Wymagana wartość: LOTTO lub LOTTO PLUS"],
       "numbers": ["Wymagane dokładnie 6 liczb", "Liczby muszą być unikalne", "Liczby muszą być w zakresie 1-49"],
+      "drawSystemId": ["DrawSystemId jest wymagany", "DrawSystemId musi być liczbą całkowitą"],
+      "ticketPrice": ["Cena biletu musi być wartością dodatnią"],
+      "winPoolCount1": ["Ilość wygranych musi być wartością nieujemną"],
+      "winPoolAmount1": ["Kwota wygranych musi być wartością dodatnią"],
+      "winPoolCount2": ["Ilość wygranych musi być wartością nieujemną"],
+      "winPoolAmount2": ["Kwota wygranych musi być wartością dodatnią"],
+      "winPoolCount3": ["Ilość wygranych musi być wartością nieujemną"],
+      "winPoolAmount3": ["Kwota wygranych musi być wartością dodatnią"],
+      "winPoolCount4": ["Ilość wygranych musi być wartością nieujemną"],
+      "winPoolAmount4": ["Kwota wygranych musi być wartością dodatnią"],
       "duplicate": ["Losowanie typu {lottoType} na datę {drawDate} już istnieje"]
     }
   }
@@ -441,7 +501,17 @@
 {
   "drawDate": "2025-10-30",
   "lottoType": "LOTTO",
-  "numbers": [3, 12, 25, 31, 42, 48]
+  "numbers": [3, 12, 25, 31, 42, 48],
+  "drawSystemId": 20250001,
+  "ticketPrice": 3.00,
+  "winPoolCount1": 2,
+  "winPoolAmount1": 5000000.00,
+  "winPoolCount2": 15,
+  "winPoolAmount2": 50000.00,
+  "winPoolCount3": 120,
+  "winPoolAmount3": 500.00,
+  "winPoolCount4": 850,
+  "winPoolAmount4": 20.00
 }
 ```
 
@@ -458,6 +528,16 @@
 - `numbers`: wymagane, tablica 6 liczb INT
   - Każda liczba w zakresie 1-49 (CHECK constraint)
   - Liczby muszą być unikalne (walidacja backend)
+- `drawSystemId`: wymagane, INT
+- `ticketPrice`: opcjonalne, DECIMAL(10,2), wartość >= 0 jeśli podana
+- `winPoolCount1`: opcjonalne, INT, ilość wygranych 1 stopnia (6 trafionych)
+- `winPoolAmount1`: opcjonalne, NUMERIC(18,2), kwota wygranych 1 stopnia
+- `winPoolCount2`: opcjonalne, INT, ilość wygranych 2 stopnia (5 trafionych)
+- `winPoolAmount2`: opcjonalne, NUMERIC(18,2), kwota wygranych 2 stopnia
+- `winPoolCount3`: opcjonalne, INT, ilość wygranych 3 stopnia (4 trafione)
+- `winPoolAmount3`: opcjonalne, NUMERIC(18,2), kwota wygranych 3 stopnia
+- `winPoolCount4`: opcjonalne, INT, ilość wygranych 4 stopnia (3 trafione)
+- `winPoolAmount4`: opcjonalne, NUMERIC(18,2), kwota wygranych 4 stopnia
 
 **Kody sukcesu:**
 - `200 OK` - Losowanie zaktualizowane
@@ -472,7 +552,17 @@
     "errors": {
       "drawDate": ["Data losowania nie może być w przyszłości"],
       "lottoType": ["Wymagana wartość: LOTTO lub LOTTO PLUS"],
-      "numbers": ["Wymagane dokładnie 6 liczb", "Liczby muszą być unikalne", "Liczby muszą być w zakresie 1-49"]
+      "numbers": ["Wymagane dokładnie 6 liczb", "Liczby muszą być unikalne", "Liczby muszą być w zakresie 1-49"],
+      "drawSystemId": ["DrawSystemId jest wymagany", "DrawSystemId musi być liczbą całkowitą"],
+      "ticketPrice": ["Cena biletu musi być wartością dodatnią"],
+      "winPoolCount1": ["Ilość wygranych musi być wartością nieujemną"],
+      "winPoolAmount1": ["Kwota wygranych musi być wartością dodatnią"],
+      "winPoolCount2": ["Ilość wygranych musi być wartością nieujemną"],
+      "winPoolAmount2": ["Kwota wygranych musi być wartością dodatnią"],
+      "winPoolCount3": ["Ilość wygranych musi być wartością nieujemną"],
+      "winPoolAmount3": ["Kwota wygranych musi być wartością dodatnią"],
+      "winPoolCount4": ["Ilość wygranych musi być wartością nieujemną"],
+      "winPoolAmount4": ["Kwota wygranych musi być wartością dodatnią"]
     }
   }
   ```
@@ -1079,7 +1169,7 @@ Number1,Number2,Number3,Number4,Number5,Number6,GroupName
 **Walidacja:**
 - `dateFrom`: wymagane, format DATE (YYYY-MM-DD)
 - `dateTo`: wymagane, format DATE, musi być ≥ `dateFrom`
-- Zakres dat nie może przekraczać 31 dni (NFR-005)
+- Zakres dat nie może przekraczać 3 lat (~1095 dni)
 - `groupName`: opcjonalne, string - filtr na nazwę grupy kuponów (wyszukiwanie częściowe)
   - Jeśli podane, weryfikowane są tylko kupony, których nazwa grupy zawiera podany tekst (LIKE/Contains, case-insensitive)
   - Jeśli puste lub nie podane, weryfikowane są wszystkie kupony użytkownika
@@ -1096,10 +1186,20 @@ Number1,Number2,Number3,Number4,Number5,Number6,GroupName
         {
           "drawId": 123,
           "drawDate": "2025-10-28",
+          "drawSystemId": 20250001,
           "lottoType": "LOTTO",
           "drawNumbers": [12, 18, 25, 31, 40, 49],
           "matchCount": 3,
-          "matchedNumbers": [12, 25, 31]
+          "matchedNumbers": [12, 25, 31],
+          "ticketPrice": 3.00,
+          "winPoolCount1": 2,
+          "winPoolAmount1": 5000000.00,
+          "winPoolCount2": 15,
+          "winPoolAmount2": 50000.00,
+          "winPoolCount3": 120,
+          "winPoolAmount3": 500.00,
+          "winPoolCount4": 850,
+          "winPoolAmount4": 20.00
         }
       ]
     },
@@ -1126,7 +1226,7 @@ Number1,Number2,Number3,Number4,Number5,Number6,GroupName
   {
     "errors": {
       "dateFrom": ["Wymagany format YYYY-MM-DD"],
-      "dateTo": ["Data 'dateTo' musi być późniejsza lub równa 'dateFrom'", "Zakres dat nie może przekraczać 31 dni"]
+      "dateTo": ["Data 'dateTo' musi być późniejsza lub równa 'dateFrom'", "Zakres dat nie może przekraczać 3 lat"]
     }
   }
   ```
@@ -1186,9 +1286,20 @@ Number1,Number2,Number3,Number4,Number5,Number6,GroupName
                ticketDraws.Add(new DrawMatch {
                    DrawId = draw.Id,
                    DrawDate = draw.DrawDate,
+                   DrawSystemId = draw.DrawSystemId,
+                   LottoType = draw.LottoType,
                    DrawNumbers = drawNumbers,
                    MatchCount = matchCount,
-                   MatchedNumbers = matches
+                   MatchedNumbers = matches,
+                   TicketPrice = draw.TicketPrice,
+                   WinPoolCount1 = draw.WinPoolCount1,
+                   WinPoolAmount1 = draw.WinPoolAmount1,
+                   WinPoolCount2 = draw.WinPoolCount2,
+                   WinPoolAmount2 = draw.WinPoolAmount2,
+                   WinPoolCount3 = draw.WinPoolCount3,
+                   WinPoolAmount3 = draw.WinPoolAmount3,
+                   WinPoolCount4 = draw.WinPoolCount4,
+                   WinPoolAmount4 = draw.WinPoolAmount4
                });
            }
        }
@@ -1571,6 +1682,16 @@ public class RegisterRequestValidator : AbstractValidator<RegisterRequest>
 | `drawDate` | - Wymagane<br>- Format DATE (YYYY-MM-DD)<br>- Nie może być w przyszłości | - "Data losowania jest wymagana"<br>- "Nieprawidłowy format daty"<br>- "Data losowania nie może być w przyszłości" |
 | `lottoType` | - Wymagane<br>- Wartość "LOTTO" lub "LOTTO PLUS" (CHECK constraint) | - "LottoType jest wymagany"<br>- "Wymagana wartość: LOTTO lub LOTTO PLUS" |
 | `numbers` | - Wymagane<br>- Tablica 6 liczb INT<br>- Każda liczba w zakresie 1-49 (CHECK constraint)<br>- Liczby unikalne | - "Wymagane dokładnie 6 liczb"<br>- "Liczby muszą być w zakresie 1-49"<br>- "Liczby muszą być unikalne" |
+| `drawSystemId` | - Wymagane<br>- INT | - "DrawSystemId jest wymagany"<br>- "DrawSystemId musi być liczbą całkowitą" |
+| `ticketPrice` | - Opcjonalne<br>- DECIMAL(10,2)<br>- Wartość >= 0 jeśli podana | - "Cena biletu musi być wartością dodatnią" |
+| `winPoolCount1` | - Opcjonalne<br>- INT<br>- Wartość >= 0 jeśli podana | - "Ilość wygranych musi być wartością nieujemną" |
+| `winPoolAmount1` | - Opcjonalne<br>- NUMERIC(18,2)<br>- Wartość >= 0 jeśli podana | - "Kwota wygranych musi być wartością dodatnią" |
+| `winPoolCount2` | - Opcjonalne<br>- INT<br>- Wartość >= 0 jeśli podana | - "Ilość wygranych musi być wartością nieujemną" |
+| `winPoolAmount2` | - Opcjonalne<br>- NUMERIC(18,2)<br>- Wartość >= 0 jeśli podana | - "Kwota wygranych musi być wartością dodatnią" |
+| `winPoolCount3` | - Opcjonalne<br>- INT<br>- Wartość >= 0 jeśli podana | - "Ilość wygranych musi być wartością nieujemną" |
+| `winPoolAmount3` | - Opcjonalne<br>- NUMERIC(18,2)<br>- Wartość >= 0 jeśli podana | - "Kwota wygranych musi być wartością dodatnią" |
+| `winPoolCount4` | - Opcjonalne<br>- INT<br>- Wartość >= 0 jeśli podana | - "Ilość wygranych musi być wartością nieujemną" |
+| `winPoolAmount4` | - Opcjonalne<br>- NUMERIC(18,2)<br>- Wartość >= 0 jeśli podana | - "Kwota wygranych musi być wartością dodatnią" |
 | **Kombinacja** | - Unikalność (drawDate, lottoType) globalnie | - "Losowanie typu {lottoType} na datę {drawDate} już istnieje" |
 
 **Implementacja (FluentValidation):**

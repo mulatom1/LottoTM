@@ -78,6 +78,18 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         Assert.Contains(14, drawResult.WinningNumbers);
         Assert.Contains(23, drawResult.WinningNumbers);
         Assert.Contains(37, drawResult.WinningNumbers);
+
+        // Verify new fields
+        Assert.True(drawResult.DrawSystemId > 0);
+        Assert.Equal(3.00m, drawResult.TicketPrice);
+        Assert.Equal(2, drawResult.WinPoolCount1);
+        Assert.Equal(5000000.00m, drawResult.WinPoolAmount1);
+        Assert.Equal(15, drawResult.WinPoolCount2);
+        Assert.Equal(50000.00m, drawResult.WinPoolAmount2);
+        Assert.Equal(120, drawResult.WinPoolCount3);
+        Assert.Equal(500.00m, drawResult.WinPoolAmount3);
+        Assert.Equal(850, drawResult.WinPoolCount4);
+        Assert.Equal(20.00m, drawResult.WinPoolAmount4);
     }
 
     /// <summary>
@@ -272,10 +284,10 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     /// <summary>
-    /// Test with date range exceeding 31 days
+    /// Test with date range exceeding 3 years
     /// </summary>
     [Fact]
-    public async Task CheckVerification_WithRangeExceeding31Days_Returns400()
+    public async Task CheckVerification_WithRangeExceeding3Years_Returns400()
     {
         // Arrange
         var testDbName = "TestDb_Check_RangeTooLarge_" + Guid.NewGuid();
@@ -288,8 +300,8 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         var request = new Contracts.Request(
-            DateOnly.Parse("2025-10-01"),
-            DateOnly.Parse("2025-11-05"), // 35 days - exceeds 31 day limit
+            DateOnly.Parse("2022-01-01"),
+            DateOnly.Parse("2025-12-31"), // ~4 years - exceeds 3 year limit
             null // No group filter
         );
 
@@ -494,11 +506,15 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         var lottoDraw = ticketResult.Draws.FirstOrDefault(d => d.LottoType == "LOTTO");
         Assert.NotNull(lottoDraw);
         Assert.Equal(3, lottoDraw.Hits);
+        Assert.True(lottoDraw.DrawSystemId > 0);
+        Assert.NotNull(lottoDraw.TicketPrice);
 
         // Verify LOTTO PLUS draw
         var lottoPlusDraw = ticketResult.Draws.FirstOrDefault(d => d.LottoType == "LOTTO PLUS");
         Assert.NotNull(lottoPlusDraw);
         Assert.Equal(3, lottoPlusDraw.Hits);
+        Assert.True(lottoPlusDraw.DrawSystemId > 0);
+        Assert.NotNull(lottoPlusDraw.TicketPrice);
     }
 
     /// <summary>
@@ -888,9 +904,20 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         var draw = new Draw
         {
             DrawDate = drawDate,
+            DrawSystemId = 20250000 + drawDate.DayNumber, // Generate unique DrawSystemId based on date
             LottoType = lottoType,
             CreatedAt = DateTime.UtcNow,
-            CreatedByUserId = userId
+            CreatedByUserId = userId,
+            // Add test data for prize pools
+            TicketPrice = 3.00m,
+            WinPoolCount1 = 2,
+            WinPoolAmount1 = 5000000.00m,
+            WinPoolCount2 = 15,
+            WinPoolAmount2 = 50000.00m,
+            WinPoolCount3 = 120,
+            WinPoolAmount3 = 500.00m,
+            WinPoolCount4 = 850,
+            WinPoolAmount4 = 20.00m
         };
 
         dbContext.Draws.Add(draw);

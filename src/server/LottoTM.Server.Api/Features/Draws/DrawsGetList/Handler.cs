@@ -79,6 +79,16 @@ public class GetDrawsHandler : IRequestHandler<Contracts.Request, Contracts.Resp
                 d.DrawDate.ToDateTime(TimeOnly.MinValue), // Convert DateOnly to DateTime
                 d.LottoType,
                 d.Numbers.OrderBy(dn => dn.Position).Select(dn => dn.Number).ToArray(),
+                d.DrawSystemId,
+                d.TicketPrice,
+                d.WinPoolCount1,
+                d.WinPoolAmount1,
+                d.WinPoolCount2,
+                d.WinPoolAmount2,
+                d.WinPoolCount3,
+                d.WinPoolAmount3,
+                d.WinPoolCount4,
+                d.WinPoolAmount4,
                 d.CreatedAt
             )).ToList();
 

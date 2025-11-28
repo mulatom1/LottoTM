@@ -111,6 +111,20 @@ public class UpdateDrawHandler : IRequestHandler<Contracts.Request, IResult>
             // Update LottoType
             draw.LottoType = request.LottoType;
 
+            // Update DrawSystemId
+            draw.DrawSystemId = request.DrawSystemId;
+
+            // Update prize pool information
+            draw.TicketPrice = request.TicketPrice;
+            draw.WinPoolCount1 = request.WinPoolCount1;
+            draw.WinPoolAmount1 = request.WinPoolAmount1;
+            draw.WinPoolCount2 = request.WinPoolCount2;
+            draw.WinPoolAmount2 = request.WinPoolAmount2;
+            draw.WinPoolCount3 = request.WinPoolCount3;
+            draw.WinPoolAmount3 = request.WinPoolAmount3;
+            draw.WinPoolCount4 = request.WinPoolCount4;
+            draw.WinPoolAmount4 = request.WinPoolAmount4;
+
             // Update userID
             draw.CreatedByUserId = userId;
 

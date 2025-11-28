@@ -395,6 +395,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
             {
                 DrawDate = baseDate.AddDays(i),
                 LottoType = "LOTTO",
+                DrawSystemId = 20250001 + i,
                 CreatedAt = DateTime.UtcNow.AddMinutes(i), // Stagger creation times for sorting tests
                 CreatedByUserId = userId
             };

@@ -26,10 +26,10 @@
 
 | Parametr | Typ | Wymagany | Domyślna wartość | Opis | Walidacja |
 |----------|-----|----------|------------------|------|-----------|
-| `dateFrom` | date | Nie | null | Zakres daty losowania od |
-| `dateTo` | date | Nie | null | Zakres daty losowania do |
+| `dateFrom` | date | Nie | null | Zakres daty losowania od (YYYY-MM-DD) | Format DATE |
+| `dateTo` | date | Nie | null | Zakres daty losowania do (YYYY-MM-DD) | Format DATE |
 | `page` | int | Nie | 1 | Numer strony (od 1) | >= 1 |
-| `pageSize` | int | Nie | 20 | Liczba elementów na stronie | 1-100 |
+| `pageSize` | int | Nie | 100 | Liczba elementów na stronie | 1-100 |
 | `sortBy` | string | Nie | "drawDate" | Pole sortowania | "drawDate" lub "createdAt" |
 | `sortOrder` | string | Nie | "desc" | Kierunek sortowania | "asc" lub "desc" |
 
@@ -78,6 +78,16 @@ public record DrawDto(
     DateTime DrawDate,
     string LottoType,
     int[] Numbers,
+    int? DrawSystemId,
+    decimal? TicketPrice,
+    int? WinPoolCount1,
+    decimal? WinPoolAmount1,
+    int? WinPoolCount2,
+    decimal? WinPoolAmount2,
+    int? WinPoolCount3,
+    decimal? WinPoolAmount3,
+    int? WinPoolCount4,
+    decimal? WinPoolAmount4,
     DateTime CreatedAt
 );
 ```
@@ -90,6 +100,16 @@ public class Draw
     public int Id { get; set; }
     public DateTime DrawDate { get; set; }
     public string LottoType { get; set; } = "";
+    public int? DrawSystemId { get; set; }
+    public decimal? TicketPrice { get; set; }
+    public int? WinPoolCount1 { get; set; }
+    public decimal? WinPoolAmount1 { get; set; }
+    public int? WinPoolCount2 { get; set; }
+    public decimal? WinPoolAmount2 { get; set; }
+    public int? WinPoolCount3 { get; set; }
+    public decimal? WinPoolAmount3 { get; set; }
+    public int? WinPoolCount4 { get; set; }
+    public decimal? WinPoolAmount4 { get; set; }
     public DateTime CreatedAt { get; set; }
     public int CreatedByUserId { get; set; }
 
@@ -124,6 +144,16 @@ public class DrawNumber
       "drawDate": "2025-10-30",
       "lottoType": "LOTTO",
       "numbers": [3, 12, 25, 31, 42, 48],
+      "drawSystemId": 20250001,
+      "ticketPrice": 3.00,
+      "winPoolCount1": 2,
+      "winPoolAmount1": 5000000.00,
+      "winPoolCount2": 15,
+      "winPoolAmount2": 50000.00,
+      "winPoolCount3": 120,
+      "winPoolAmount3": 500.00,
+      "winPoolCount4": 850,
+      "winPoolAmount4": 20.00,
       "createdAt": "2025-10-30T18:30:00Z"
     },
     {
@@ -131,6 +161,16 @@ public class DrawNumber
       "drawDate": "2025-10-28",
       "lottoType": "LOTTO PLUS",
       "numbers": [5, 14, 23, 29, 37, 41],
+      "drawSystemId": null,
+      "ticketPrice": null,
+      "winPoolCount1": null,
+      "winPoolAmount1": null,
+      "winPoolCount2": null,
+      "winPoolAmount2": null,
+      "winPoolCount3": null,
+      "winPoolAmount3": null,
+      "winPoolCount4": null,
+      "winPoolAmount4": null,
       "createdAt": "2025-10-28T19:00:00Z"
     }
   ],
@@ -273,6 +313,16 @@ var drawDtos = draws.Select(d => new Contracts.DrawDto(
     d.DrawDate.ToDateTime(TimeOnly.MinValue), // Convert DateOnly to DateTime
     d.LottoType,
     d.Numbers.OrderBy(dn => dn.Position).Select(dn => dn.Number).ToArray(),
+    d.DrawSystemId,
+    d.TicketPrice,
+    d.WinPoolCount1,
+    d.WinPoolAmount1,
+    d.WinPoolCount2,
+    d.WinPoolAmount2,
+    d.WinPoolCount3,
+    d.WinPoolAmount3,
+    d.WinPoolCount4,
+    d.WinPoolAmount4,
     d.CreatedAt
 )).ToList();
 
@@ -590,7 +640,18 @@ public class Contracts
     public record DrawDto(
         int Id,
         DateTime DrawDate,
+        string LottoType,
         int[] Numbers,
+        int? DrawSystemId,
+        decimal? TicketPrice,
+        int? WinPoolCount1,
+        decimal? WinPoolAmount1,
+        int? WinPoolCount2,
+        decimal? WinPoolAmount2,
+        int? WinPoolCount3,
+        decimal? WinPoolAmount3,
+        int? WinPoolCount4,
+        decimal? WinPoolAmount4,
         DateTime CreatedAt
     );
 }
@@ -699,7 +760,18 @@ public class GetDrawsHandler : IRequestHandler<Contracts.GetDrawsRequest, Contra
             var drawDtos = draws.Select(d => new Contracts.DrawDto(
                 d.Id,
                 d.DrawDate,
+                d.LottoType,
                 d.Numbers.OrderBy(dn => dn.Position).Select(dn => dn.Number).ToArray(),
+                d.DrawSystemId,
+                d.TicketPrice,
+                d.WinPoolCount1,
+                d.WinPoolAmount1,
+                d.WinPoolCount2,
+                d.WinPoolAmount2,
+                d.WinPoolCount3,
+                d.WinPoolAmount3,
+                d.WinPoolCount4,
+                d.WinPoolAmount4,
                 d.CreatedAt
             )).ToList();
 

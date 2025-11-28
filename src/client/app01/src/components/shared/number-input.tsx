@@ -7,6 +7,7 @@ export interface NumberInputProps {
   error?: string;
   min?: number;
   max?: number;
+  step?: number;
   required?: boolean;
   className?: string;
 }
@@ -22,6 +23,7 @@ const NumberInput: React.FC<NumberInputProps> = ({
   error,
   min = 1,
   max = 49,
+  step,
   required = false,
   className = '',
 }) => {
@@ -33,7 +35,8 @@ const NumberInput: React.FC<NumberInputProps> = ({
     if (val === '') {
       onChange('');
     } else {
-      const numVal = parseInt(val, 10);
+      // Use parseFloat if step is provided (for decimal numbers), otherwise parseInt
+      const numVal = step ? parseFloat(val) : parseInt(val, 10);
       if (!isNaN(numVal)) {
         onChange(numVal);
       }
@@ -56,6 +59,7 @@ const NumberInput: React.FC<NumberInputProps> = ({
         onChange={handleChange}
         min={min}
         max={max}
+        step={step}
         required={required}
         {...(error && {
           "aria-invalid": "true",
