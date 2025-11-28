@@ -326,7 +326,7 @@ public class LottoWorker : BackgroundService
                                 LottoType = item.GameType ?? "UNKNOWN",
                                 CreatedAt = DateTime.UtcNow,
                                 CreatedByUserId = null, // Worker doesn't have userId
-                                TicketPrice = item.GameType == "Lotto" ? 3.0m : 1.0m,
+                                TicketPrice = item.GameType == "Lotto" ? _options.TicketPriceLotto : _options.TicketPriceLottoPlus,
                             };
                             dbContext.Draws.Add(draw);
                             await dbContext.SaveChangesAsync(stoppingToken);
