@@ -1177,44 +1177,52 @@ Number1,Number2,Number3,Number4,Number5,Number6,GroupName
 **Payload odpowiedzi (sukces):**
 ```json
 {
-  "results": [
+  "executionTimeMs": 1234,
+  "drawsResults": [
+    {
+      "drawId": 123,
+      "drawDate": "2025-10-28",
+      "drawSystemId": 20250001,
+      "lottoType": "LOTTO",
+      "drawNumbers": [12, 18, 25, 31, 40, 49],
+      "ticketPrice": 3.00,
+      "winPoolCount1": 2,
+      "winPoolAmount1": 5000000.00,
+      "winPoolCount2": 15,
+      "winPoolAmount2": 50000.00,
+      "winPoolCount3": 120,
+      "winPoolAmount3": 500.00,
+      "winPoolCount4": 850,
+      "winPoolAmount4": 20.00,
+      "winningTicketsResult": [
+        {
+          "ticketId": 1,
+          "matchingNumbers": [12, 25, 31]
+        }
+      ]
+    }
+  ],
+  "ticketsResults": [
     {
       "ticketId": 1,
       "groupName": "Ulubione",
-      "numbers": [3, 12, 25, 31, 42, 48],
-      "draws": [
-        {
-          "drawId": 123,
-          "drawDate": "2025-10-28",
-          "drawSystemId": 20250001,
-          "lottoType": "LOTTO",
-          "drawNumbers": [12, 18, 25, 31, 40, 49],
-          "matchCount": 3,
-          "matchedNumbers": [12, 25, 31],
-          "ticketPrice": 3.00,
-          "winPoolCount1": 2,
-          "winPoolAmount1": 5000000.00,
-          "winPoolCount2": 15,
-          "winPoolAmount2": 50000.00,
-          "winPoolCount3": 120,
-          "winPoolAmount3": 500.00,
-          "winPoolCount4": 850,
-          "winPoolAmount4": 20.00
-        }
-      ]
+      "ticketNumbers": [3, 12, 25, 31, 42, 48]
     },
     {
       "ticketId": 2,
       "groupName": "",
-      "numbers": [1, 2, 3, 4, 5, 6],
-      "draws": []
+      "ticketNumbers": [1, 2, 3, 4, 5, 6]
     }
-  ],
-  "totalTickets": 42,
-  "totalDraws": 8,
-  "executionTimeMs": 1234
+  ]
 }
 ```
+
+**Uwaga o strukturze odpowiedzi:**
+Response zawiera dwie osobne listy zamiast zagnieżdżonej struktury:
+- `drawsResults[]` - wszystkie losowania z zakresu dat, każde z listą wygranych kuponów (`winningTicketsResult[]` - tylko kupony z ≥3 trafieniami)
+- `ticketsResults[]` - wszystkie kupony użytkownika (lub filtrowane po groupName jeśli podane)
+
+Frontend musi przekształcić tę strukturę do wyświetlenia wyników pogrupowanych po losowaniach.
 
 **Kody sukcesu:**
 - `200 OK` - Weryfikacja zakończona
@@ -1260,61 +1268,55 @@ Number1,Number2,Number3,Number4,Number5,Number6,GroupName
    - Draws nie filtrowany po UserId - globalna tabela dostępna dla wszystkich
    - Filtr groupName stosowany opcjonalnie na poziomie zapytania SQL (wyszukiwanie częściowe LIKE z ToLower() dla case-insensitive)
 
-4. **Faza 2: Weryfikacja w pamięci (LINQ Intersect)**
+4. **Faza 2: Budowanie listy ticketsResults**
    ```csharp
-   var results = new List<VerificationResult>();
-
-   foreach (var ticket in tickets) {
-       var ticketNumbers = ticket.Numbers
-           .OrderBy(n => n.Position)
-           .Select(n => n.Number)
-           .ToArray(); // 6 liczb
-
-       var ticketDraws = new List<DrawMatch>();
-
-       foreach (var draw in draws) {
-           var drawNumbers = draw.Numbers
-               .OrderBy(n => n.Position)
-               .Select(n => n.Number)
-               .ToArray(); // 6 liczb
-
-           // Intersect: liczby wspólne
-           var matches = ticketNumbers.Intersect(drawNumbers).ToArray();
-           var matchCount = matches.Length;
-
-           if (matchCount >= 3) { // Minimalna wygrana
-               ticketDraws.Add(new DrawMatch {
-                   DrawId = draw.Id,
-                   DrawDate = draw.DrawDate,
-                   DrawSystemId = draw.DrawSystemId,
-                   LottoType = draw.LottoType,
-                   DrawNumbers = drawNumbers,
-                   MatchCount = matchCount,
-                   MatchedNumbers = matches,
-                   TicketPrice = draw.TicketPrice,
-                   WinPoolCount1 = draw.WinPoolCount1,
-                   WinPoolAmount1 = draw.WinPoolAmount1,
-                   WinPoolCount2 = draw.WinPoolCount2,
-                   WinPoolAmount2 = draw.WinPoolAmount2,
-                   WinPoolCount3 = draw.WinPoolCount3,
-                   WinPoolAmount3 = draw.WinPoolAmount3,
-                   WinPoolCount4 = draw.WinPoolCount4,
-                   WinPoolAmount4 = draw.WinPoolAmount4
-               });
-           }
-       }
-
-       results.Add(new VerificationResult {
-           TicketId = ticket.Id,
-           GroupName = ticket.GroupName,
-           Numbers = ticketNumbers,
-           Draws = ticketDraws
-       });
-   }
+   var ticketResults = new List<Contracts.TicketsResult>();
+   tickets.ForEach(t => {
+       var ticketNumbers = t.Numbers
+            .OrderBy(n => n.Number)
+            .Select(n => n.Number)
+            .ToList();
+       var tr = new Contracts.TicketsResult(t.Id, t.GroupName ?? string.Empty, ticketNumbers);
+       ticketResults.Add(tr);
+   });
    ```
 
-5. Timestamp end (obliczenie executionTimeMs)
-6. Zwrot wyników + metadanych (totalTickets, totalDraws, executionTimeMs)
+5. **Faza 3: Weryfikacja w pamięci (LINQ Intersect) - budowanie drawsResults**
+   ```csharp
+   var drawResults = new List<Contracts.DrawsResult>();
+   draws.ForEach(d => {
+       var drawNumbers = d.Numbers
+            .OrderBy(n => n.Number)
+            .Select(n => n.Number)
+            .ToList();
+
+       var winningTickets = new List<WinningTicketResult>();
+
+       // Weryfikacja każdego ticketu względem bieżącego losowania
+       foreach (var ticket in ticketResults)
+       {
+           var ticketNumbers = ticket.TicketNumbers.ToList();
+           // Lista pasujących numerów (Intersect)
+           var matchingNumbers = drawNumbers.Intersect(ticketNumbers).ToList();
+
+           // Dodaj tylko jeśli >=3 trafienia
+           if (matchingNumbers.Count > 2)
+               winningTickets.Add(new WinningTicketResult(ticket.TicketId, matchingNumbers));
+       }
+
+       var dr = new Contracts.DrawsResult(d.Id, d.DrawDate, d.DrawSystemId, d.LottoType, drawNumbers,
+                                          d.TicketPrice,
+                                          d.WinPoolCount1, d.WinPoolAmount1,
+                                          d.WinPoolCount2, d.WinPoolAmount2,
+                                          d.WinPoolCount3, d.WinPoolAmount3,
+                                          d.WinPoolCount4, d.WinPoolAmount4,
+                                          winningTickets);
+       drawResults.Add(dr);
+   });
+   ```
+
+6. Timestamp end (obliczenie executionTimeMs)
+7. Zwrot wyników: `new Response(executionTimeMs, drawResults, ticketResults)`
 
 **Wydajność:**
 - Wymaganie NFR-001: 100 zestawów × 1 losowanie ≤ 2 sekundy

@@ -15,32 +15,37 @@ public class Contracts
     /// <param name="GroupName">Optional group name to filter tickets (partial match, case-insensitive). If provided, only tickets whose group name contains this text will be verified</param>
     public record Request(DateOnly DateFrom, DateOnly DateTo, string? GroupName) : IRequest<Response>;
 
+
     /// <summary>
     /// Response containing verification results for all user tickets
-    /// </summary>
-    /// <param name="Results">List of verification results for each ticket with hits</param>
-    /// <param name="TotalTickets">Total number of tickets checked</param>
-    /// <param name="TotalDraws">Total number of draws checked</param>
+    /// </summary>    
     /// <param name="ExecutionTimeMs">Time taken to perform verification in milliseconds</param>
+    /// <param name="DrawsResults">List of verification results for draws</param>
+    /// <param name="TicketsResults">List of verification results for tickets</param>
     public record Response(
-        List<TicketVerificationResult> Results,
-        int TotalTickets,
-        int TotalDraws,
-        long ExecutionTimeMs
+        long ExecutionTimeMs,
+        List<DrawsResult> DrawsResults,
+        List<TicketsResult> TicketsResults
     );
 
+    
+    
     /// <summary>
     /// Verification result for a single ticket
     /// </summary>
     /// <param name="TicketId">Ticket identifier</param>
     /// <param name="GroupName">Group name for organizing tickets (empty string if not assigned)</param>
     /// <param name="TicketNumbers">Array of 6 numbers from the ticket</param>
-    /// <param name="Draws">List of draws where this ticket had hits (3 or more matching numbers)</param>
-    public record TicketVerificationResult(
+    public record TicketsResult(
         int TicketId,
         string GroupName,
-        List<int> TicketNumbers,
-        List<DrawVerificationResult> Draws
+        List<int> TicketNumbers        
+    );
+
+
+    public record WinningTicketResult(
+        int TicketId,
+        List<int> MatchingNumbers
     );
 
     /// <summary>
@@ -51,8 +56,6 @@ public class Contracts
     /// <param name="DrawSystemId">System identifier for the draw</param>
     /// <param name="LottoType">Type of lottery game (LOTTO, LOTTO PLUS, etc.)</param>
     /// <param name="DrawNumbers">Array of 6 numbers from the draw</param>
-    /// <param name="Hits">Number of matching numbers between ticket and draw</param>
-    /// <param name="WinningNumbers">List of the actual matching numbers</param>
     /// <param name="TicketPrice">Price of the ticket (nullable)</param>
     /// <param name="WinPoolCount1">Number of winners for tier 1 (6 matches) - nullable</param>
     /// <param name="WinPoolAmount1">Prize amount for tier 1 (6 matches) - nullable</param>
@@ -62,14 +65,13 @@ public class Contracts
     /// <param name="WinPoolAmount3">Prize amount for tier 3 (4 matches) - nullable</param>
     /// <param name="WinPoolCount4">Number of winners for tier 4 (3 matches) - nullable</param>
     /// <param name="WinPoolAmount4">Prize amount for tier 4 (3 matches) - nullable</param>
-    public record DrawVerificationResult(
+    /// <param name="WinningTicket">Dict key = ID winning ticket, value = conunt winning numbers</param>
+    public record DrawsResult(
         int DrawId,
         DateOnly DrawDate,
         int DrawSystemId,
         string LottoType,
         List<int> DrawNumbers,
-        int Hits,
-        List<int> WinningNumbers,
         decimal? TicketPrice,
         int? WinPoolCount1,
         decimal? WinPoolAmount1,
@@ -78,6 +80,7 @@ public class Contracts
         int? WinPoolCount3,
         decimal? WinPoolAmount3,
         int? WinPoolCount4,
-        decimal? WinPoolAmount4
+        decimal? WinPoolAmount4,
+        List<WinningTicketResult> WinningTicketsResult
     );
 }

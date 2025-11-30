@@ -61,25 +61,26 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
         Assert.NotNull(result);
-        Assert.Equal(1, result.TotalTickets);
-        Assert.Equal(1, result.TotalDraws);
-        Assert.Single(result.Results); // One ticket with hits
+        Assert.Single(result.TicketsResults); // One ticket
+        Assert.Single(result.DrawsResults); // One draw
 
-        var ticketResult = result.Results[0];
+        var ticketResult = result.TicketsResults[0];
         Assert.Equal(ticketId, ticketResult.TicketId);
         Assert.NotNull(ticketResult.GroupName);
         Assert.Equal(6, ticketResult.TicketNumbers.Count);
-        Assert.Single(ticketResult.Draws); // One draw with 3+ hits
 
-        var drawResult = ticketResult.Draws[0];
+        var drawResult = result.DrawsResults[0];
         Assert.Equal("LOTTO", drawResult.LottoType);
-        Assert.Equal(3, drawResult.Hits);
-        Assert.Equal(3, drawResult.WinningNumbers.Count);
-        Assert.Contains(14, drawResult.WinningNumbers);
-        Assert.Contains(23, drawResult.WinningNumbers);
-        Assert.Contains(37, drawResult.WinningNumbers);
+        Assert.Single(drawResult.WinningTicketsResult); // One winning ticket
+        
+        var winningTicket = drawResult.WinningTicketsResult[0];
+        Assert.Equal(ticketId, winningTicket.TicketId);
+        Assert.Equal(3, winningTicket.MatchingNumbers.Count);
+        Assert.Contains(14, winningTicket.MatchingNumbers);
+        Assert.Contains(23, winningTicket.MatchingNumbers);
+        Assert.Contains(37, winningTicket.MatchingNumbers);
 
-        // Verify new fields
+        // Verify draw fields
         Assert.True(drawResult.DrawSystemId > 0);
         Assert.Equal(3.00m, drawResult.TicketPrice);
         Assert.Equal(2, drawResult.WinPoolCount1);
@@ -128,9 +129,9 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
         Assert.NotNull(result);
-        Assert.Equal(1, result.TotalTickets);
-        Assert.Equal(1, result.TotalDraws);
-        Assert.Empty(result.Results); // No tickets with 3+ hits
+        Assert.Single(result.TicketsResults); // Ticket exists
+        Assert.Single(result.DrawsResults); // Draw exists
+        Assert.Empty(result.DrawsResults[0].WinningTicketsResult); // No winning tickets (less than 3 matches)
     }
 
     /// <summary>
@@ -172,9 +173,11 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
         Assert.NotNull(result);
-        Assert.Equal(3, result.TotalTickets);
-        Assert.Equal(2, result.TotalDraws);
-        Assert.Equal(2, result.Results.Count); // Two tickets with hits
+        Assert.Equal(3, result.TicketsResults.Count); // Three tickets
+        Assert.Equal(2, result.DrawsResults.Count); // Two draws
+        
+        // Each draw should have one winning ticket
+        Assert.All(result.DrawsResults, d => Assert.Single(d.WinningTicketsResult));
     }
 
     /// <summary>
@@ -189,7 +192,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var userId = SeedTestUser(testDbName, "user@example.com", "Password123!", false);
 
-        SeedTestTicket(factory, userId, new[] { 5, 14, 23, 29, 37, 41 });
+        var ticketId = SeedTestTicket(factory, userId, new[] { 5, 14, 23, 29, 37, 41 });
 
         // Create draw with exactly 3 matching numbers
         SeedTestDraw(factory, userId, DateOnly.Parse("2025-10-15"), new[] { 5, 14, 23, 31, 32, 33 });
@@ -212,8 +215,9 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
         Assert.NotNull(result);
-        Assert.Single(result.Results);
-        Assert.Equal(3, result.Results[0].Draws[0].Hits);
+        Assert.Single(result.DrawsResults);
+        Assert.Single(result.DrawsResults[0].WinningTicketsResult);
+        Assert.Equal(3, result.DrawsResults[0].WinningTicketsResult[0].MatchingNumbers.Count);
     }
 
     /// <summary>
@@ -251,7 +255,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
         Assert.NotNull(result);
-        Assert.Empty(result.Results); // Should not include tickets with less than 3 hits
+        Assert.Empty(result.DrawsResults[0].WinningTicketsResult); // Should not include tickets with less than 3 matches
     }
 
     /// <summary>
@@ -369,9 +373,9 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
         Assert.NotNull(result);
-        Assert.Equal(0, result.TotalTickets);
-        Assert.Equal(1, result.TotalDraws);
-        Assert.Empty(result.Results);
+        Assert.Empty(result.TicketsResults);
+        Assert.Single(result.DrawsResults);
+        Assert.Empty(result.DrawsResults[0].WinningTicketsResult);
     }
 
     /// <summary>
@@ -409,9 +413,8 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
         Assert.NotNull(result);
-        Assert.Equal(1, result.TotalTickets);
-        Assert.Equal(0, result.TotalDraws);
-        Assert.Empty(result.Results);
+        Assert.Single(result.TicketsResults);
+        Assert.Empty(result.DrawsResults);
     }
 
     /// <summary>
@@ -452,8 +455,8 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
         Assert.NotNull(result);
-        Assert.Equal(1, result.TotalTickets); // Only user1's ticket
-        Assert.Single(result.Results);
+        Assert.Single(result.TicketsResults); // Only user1's ticket
+        Assert.Single(result.DrawsResults[0].WinningTicketsResult);
     }
 
     /// <summary>
@@ -469,7 +472,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         var userId = SeedTestUser(testDbName, "user@example.com", "Password123!", false);
 
         // Create a ticket that matches both draws
-        SeedTestTicket(factory, userId, new[] { 5, 14, 23, 29, 37, 41 });
+        var ticketId = SeedTestTicket(factory, userId, new[] { 5, 14, 23, 29, 37, 41 });
 
         // Create LOTTO draw with 3 matching numbers: 5, 14, 23
         SeedTestDrawWithType(factory, userId, DateOnly.Parse("2025-10-15"), new[] { 5, 14, 23, 31, 32, 33 }, "LOTTO");
@@ -495,24 +498,22 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
         Assert.NotNull(result);
-        Assert.Equal(1, result.TotalTickets);
-        Assert.Equal(2, result.TotalDraws);
-        Assert.Single(result.Results); // One ticket with hits
-
-        var ticketResult = result.Results[0];
-        Assert.Equal(2, ticketResult.Draws.Count); // Two draws with 3+ hits
+        Assert.Single(result.TicketsResults);
+        Assert.Equal(2, result.DrawsResults.Count); // Two draws
 
         // Verify LOTTO draw
-        var lottoDraw = ticketResult.Draws.FirstOrDefault(d => d.LottoType == "LOTTO");
+        var lottoDraw = result.DrawsResults.FirstOrDefault(d => d.LottoType == "LOTTO");
         Assert.NotNull(lottoDraw);
-        Assert.Equal(3, lottoDraw.Hits);
+        Assert.Single(lottoDraw.WinningTicketsResult);
+        Assert.Equal(3, lottoDraw.WinningTicketsResult[0].MatchingNumbers.Count);
         Assert.True(lottoDraw.DrawSystemId > 0);
         Assert.NotNull(lottoDraw.TicketPrice);
 
         // Verify LOTTO PLUS draw
-        var lottoPlusDraw = ticketResult.Draws.FirstOrDefault(d => d.LottoType == "LOTTO PLUS");
+        var lottoPlusDraw = result.DrawsResults.FirstOrDefault(d => d.LottoType == "LOTTO PLUS");
         Assert.NotNull(lottoPlusDraw);
-        Assert.Equal(3, lottoPlusDraw.Hits);
+        Assert.Single(lottoPlusDraw.WinningTicketsResult);
+        Assert.Equal(3, lottoPlusDraw.WinningTicketsResult[0].MatchingNumbers.Count);
         Assert.True(lottoPlusDraw.DrawSystemId > 0);
         Assert.NotNull(lottoPlusDraw.TicketPrice);
     }
@@ -590,10 +591,9 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
         Assert.NotNull(result);
-        Assert.Equal(2, result.TotalTickets); // Only 2 tickets containing "ubi"
-        Assert.Equal(1, result.TotalDraws);
-        Assert.Single(result.Results); // Only one ticket from matching groups has hits
-        Assert.All(result.Results, r => Assert.Contains("ubi", r.GroupName, StringComparison.OrdinalIgnoreCase));
+        Assert.Equal(2, result.TicketsResults.Count); // Only 2 tickets containing "ubi"
+        Assert.Single(result.DrawsResults);
+        Assert.All(result.TicketsResults, r => Assert.Contains("ubi", r.GroupName, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>
@@ -633,10 +633,10 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
         Assert.NotNull(result);
-        Assert.Equal(1, result.TotalTickets); // Only 1 ticket matches (case-insensitive)
-        Assert.Equal(1, result.TotalDraws);
-        Assert.Single(result.Results);
-        Assert.Equal("Ulubione", result.Results[0].GroupName);
+        Assert.Single(result.TicketsResults); // Only 1 ticket matches (case-insensitive)
+        Assert.Single(result.DrawsResults);
+        Assert.Single(result.DrawsResults[0].WinningTicketsResult);
+        Assert.Equal("Ulubione", result.TicketsResults[0].GroupName);
     }
 
     /// <summary>
@@ -675,9 +675,9 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
         Assert.NotNull(result);
-        Assert.Equal(0, result.TotalTickets); // No tickets in "Testowe" group
-        Assert.Equal(1, result.TotalDraws);
-        Assert.Empty(result.Results);
+        Assert.Empty(result.TicketsResults); // No tickets match the filter
+        Assert.Single(result.DrawsResults);
+        Assert.Empty(result.DrawsResults[0].WinningTicketsResult);
     }
 
     /// <summary>
@@ -717,9 +717,9 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var result = await response.Content.ReadFromJsonAsync<Contracts.Response>();
         Assert.NotNull(result);
-        Assert.Equal(2, result.TotalTickets); // All tickets checked
-        Assert.Equal(1, result.TotalDraws);
-        Assert.Single(result.Results); // Only one ticket has hits
+        Assert.Equal(2, result.TicketsResults.Count); // All tickets checked
+        Assert.Single(result.DrawsResults);
+        Assert.Single(result.DrawsResults[0].WinningTicketsResult); // Only one ticket has 3+ matches
     }
 
     /// <summary>

@@ -213,7 +213,10 @@ public class LottoWorker : BackgroundService
             var lottoOpenApiService = scope.ServiceProvider.GetRequiredService<ILottoOpenApiService>();
             var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-            var draw = await dbContext.Draws.FirstOrDefaultAsync(d => d.DrawSystemId > 0 && d.WinPoolCount1 == null, stoppingToken);
+            var draw = await dbContext.Draws
+                .Where(d => d.DrawSystemId > 0 && d.WinPoolCount1 == null)
+                .OrderByDescending(d => d.DrawDate)
+                .FirstOrDefaultAsync(stoppingToken);
             if (draw == null)
             {
                 _logger.LogDebug("No draws found that require stats update.");

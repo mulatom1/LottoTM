@@ -23,17 +23,18 @@ Ten punkt końcowy umożliwia zalogowanemu użytkownikowi weryfikację swoich za
 
   - `dateFrom` (string, "YYYY-MM-DD"): Data początkowa okresu weryfikacji.
   - `dateTo` (string, "YYYY-MM-DD"): Data końcowa okresu weryfikacji.
-  - `groupName` (string, opcjonalne): Nazwa grupy kuponów do filtrowania (wyszukiwanie częściowe). Jeśli podane, weryfikowane są tylko kupony, których nazwa grupy zawiera podany tekst (case-insensitive). Jeśli puste lub nie podane, weryfikowane są wszystkie kupony użytkownika.
+  - `groupName` (string, opcjonalne): Nazwa grupy kuponów do filtrowania (wyszukiwanie częściowe, case-insensitive). Jeśli podane, zwracane są tylko kupony, których nazwa grupy zawiera podany tekst (używając `.ToLower().Contains()`). Jeśli puste lub nie podane, weryfikowane są wszystkie kupony użytkownika.
 
 ## 3. Wykorzystywane typy
 
-Wszystkie typy zostaną zdefiniowane w nowym folderze `Features/Verification/Check`.
+Wszystkie typy zostały zdefiniowane w folderze `Features/Verification/Check`.
 
 - **`Contracts.cs`**:
   - `Request(DateOnly DateFrom, DateOnly DateTo, string? GroupName)`: Model żądania.
-  - `Response(List<TicketVerificationResult> Results, int TotalTickets, int TotalDraws, long ExecutionTimeMs)`: Model odpowiedzi.
-  - `TicketVerificationResult(int TicketId, string GroupName, List<int> TicketNumbers, List<DrawVerificationResult> Draws)`: Wynik dla pojedynczego kuponu.
-  - `DrawVerificationResult(int DrawId, DateOnly DrawDate, int DrawSystemId, string LottoType, List<int> DrawNumbers, int Hits, List<int> WinningNumbers, decimal? TicketPrice, int? WinPoolCount1, decimal? WinPoolAmount1, int? WinPoolCount2, decimal? WinPoolAmount2, int? WinPoolCount3, decimal? WinPoolAmount3, int? WinPoolCount4, decimal? WinPoolAmount4)`: Wynik trafienia w losowaniu z dodatkowymi danymi o losowaniu (ID systemowe, cena kuponu, informacje o pulach wygranych dla wszystkich 4 stopni wygranej).
+  - `Response(long ExecutionTimeMs, List<DrawsResult> DrawsResults, List<TicketsResult> TicketsResults)`: Model odpowiedzi.
+  - `DrawsResult(int DrawId, DateOnly DrawDate, int DrawSystemId, string LottoType, List<int> DrawNumbers, decimal? TicketPrice, int? WinPoolCount1, decimal? WinPoolAmount1, int? WinPoolCount2, decimal? WinPoolAmount2, int? WinPoolCount3, decimal? WinPoolAmount3, int? WinPoolCount4, decimal? WinPoolAmount4, List<WinningTicketResult> WinningTicketsResult)`: Dane losowania wraz z listą wygranych kuponów (≥3 trafienia).
+  - `WinningTicketResult(int TicketId, List<int> MatchingNumbers)`: Informacje o wygranym kuponie w kontekście konkretnego losowania.
+  - `TicketsResult(int TicketId, string GroupName, List<int> TicketNumbers)`: Dane kuponu użytkownika.
 
 ## 4. Szczegóły odpowiedzi
 
@@ -41,38 +42,46 @@ Wszystkie typy zostaną zdefiniowane w nowym folderze `Features/Verification/Che
 
   ```json
   {
-    "results": [
+    "executionTimeMs": 123,
+    "drawsResults": [
       {
-        "ticketId": 1001,
-        "groupName": "Ulubione",
-        "ticketNumbers": [5, 14, 23, 29, 37, 41],
-        "draws": [
+        "drawId": 123,
+        "drawDate": "2025-10-15",
+        "drawSystemId": 20250001,
+        "lottoType": "LOTTO",
+        "drawNumbers": [3, 14, 23, 31, 37, 48],
+        "ticketPrice": 3.00,
+        "winPoolCount1": 2,
+        "winPoolAmount1": 5000000.00,
+        "winPoolCount2": 15,
+        "winPoolAmount2": 50000.00,
+        "winPoolCount3": 120,
+        "winPoolAmount3": 500.00,
+        "winPoolCount4": 850,
+        "winPoolAmount4": 20.00,
+        "winningTicketsResult": [
           {
-            "drawId": 123,
-            "drawDate": "2025-10-15",
-            "drawSystemId": 20250001,
-            "lottoType": "LOTTO",
-            "drawNumbers": [3, 14, 23, 31, 37, 48],
-            "hits": 3,
-            "winningNumbers": [14, 23, 37],
-            "ticketPrice": 3.00,
-            "winPoolCount1": 2,
-            "winPoolAmount1": 5000000.00,
-            "winPoolCount2": 15,
-            "winPoolAmount2": 50000.00,
-            "winPoolCount3": 120,
-            "winPoolAmount3": 500.00,
-            "winPoolCount4": 850,
-            "winPoolAmount4": 20.00
+            "ticketId": 1001,
+            "matchingNumbers": [14, 23, 37]
           }
         ]
       }
     ],
-    "totalTickets": 42,
-    "totalDraws": 8,
-    "executionTimeMs": 123
+    "ticketsResults": [
+      {
+        "ticketId": 1001,
+        "groupName": "Ulubione",
+        "ticketNumbers": [5, 14, 23, 29, 37, 41]
+      }
+    ]
   }
   ```
+
+  **Uwaga o strukturze odpowiedzi:**
+  - Response zawiera dwie osobne listy zamiast zagnieżdżonej struktury
+  - `drawsResults[]` - wszystkie losowania z zakresu dat wraz z listą wygranych kuponów (`winningTicketsResult[]` zawiera tylko kupony z ≥3 trafieniami dla danego losowania)
+  - `ticketsResults[]` - wszystkie kupony użytkownika (lub filtrowane po groupName jeśli podane w request)
+  - Frontend łączy obie listy używając `ticketId` jako klucza, aby wyświetlić pełne informacje (groupName i ticketNumbers z `ticketsResults`, matchingNumbers z `drawsResults.winningTicketsResult`)
 
 - **Odpowiedź błędu (400 Bad Request)**:
 
@@ -87,22 +96,26 @@ Wszystkie typy zostaną zdefiniowane w nowym folderze `Features/Verification/Che
 
 ## 5. Przepływ danych
 
-1. Użytkownik wysyła żądanie `POST` na `/api/verification/check` z zakresem dat.
+1. Użytkownik wysyła żądanie `POST` na `/api/verification/check` z zakresem dat i opcjonalnym filtrem `groupName`.
 2. Endpoint `Check` odbiera żądanie.
 3. `Mediator` przekazuje żądanie do `CheckVerificationHandler`.
-4. Handler najpierw waliduje żądanie za pomocą `FluentValidation` (zakres dat, poprawność).
+4. Handler waliduje żądanie za pomocą `FluentValidation` (zakres dat, poprawność).
 5. Handler pobiera `UserId` z `ClaimsPrincipal` (z `IHttpContextAccessor`).
 6. Handler uruchamia `Stopwatch` do pomiaru czasu.
 7. Handler wykonuje dwa równoległe zapytania do bazy danych (`AppDbContext`):
    a. Pobiera kupony (`Tickets`) wraz z ich numerami (`TicketNumbers`) i nazwami grup (`GroupName`) dla danego `UserId`. Jeśli w żądaniu podano `GroupName`, filtruje kupony tylko do tych, których `GroupName` zawiera podany tekst (wyszukiwanie częściowe, case-insensitive używając `.ToLower().Contains()`).
-   b. Pobiera wszystkie losowania (`Draws`) wraz z ich numerami (`DrawNumbers`) i typami gry (`LottoType`) w zadanym zakresie dat.
-8. W pamięci serwera, handler iteruje po każdym pobranym kuponie użytkownika.
-9. Dla każdego kuponu, iteruje po każdym pobranym losowaniu.
-10. Za pomocą `Enumerable.Intersect`, znajduje liczbę trafień między numerami kuponu a numerami losowania.
-11. Jeśli liczba trafień jest równa lub większa niż 3, tworzy obiekt `DrawVerificationResult` i dodaje go do listy trafień dla danego kuponu.
-12. Po sprawdzeniu wszystkich kombinacji, handler zatrzymuje `Stopwatch`.
-13. Konstruuje finalny obiekt `Response` z wynikami, metadanymi i czasem wykonania.
-14. Zwraca odpowiedź `200 OK`.
+   b. Pobiera wszystkie losowania (`Draws`) wraz z ich numerami (`DrawNumbers`), typami gry (`LottoType`) i danymi o wygranych (`TicketPrice`, `WinPoolCount1-4`, `WinPoolAmount1-4`) w zadanym zakresie dat.
+8. **Faza 2: Budowanie listy `ticketsResults`**:
+   - Handler iteruje po pobranych kuponach i tworzy `TicketsResult` dla każdego kuponu (zawierające `TicketId`, `GroupName`, `TicketNumbers`).
+9. **Faza 3: Budowanie listy `drawsResults`**:
+   - Handler iteruje po każdym pobranym losowaniu.
+   - Dla każdego losowania, weryfikuje wszystkie kupony z `ticketsResults`:
+     - Za pomocą `Enumerable.Intersect`, znajduje listę pasujących numerów między kuponem a losowaniem.
+     - Jeśli liczba trafień jest większa niż 2 (≥3), dodaje `WinningTicketResult` (zawierające `TicketId` i `MatchingNumbers`) do listy wygranych kuponów dla danego losowania.
+   - Tworzy `DrawsResult` dla każdego losowania (zawierające dane losowania, informacje o wygranych i listę `WinningTicketsResult`).
+10. Po sprawdzeniu wszystkich kombinacji, handler zatrzymuje `Stopwatch`.
+11. Konstruuje finalny obiekt `Response(ExecutionTimeMs, DrawsResults, TicketsResults)`.
+12. Zwraca odpowiedź `200 OK`.
 
 ## 6. Względy bezpieczeństwa
 

@@ -7,6 +7,7 @@ Checks Page to widok umożliwiający użytkownikom weryfikację swoich zestawów
 **Główne funkcjonalności:**
 - Wybór zakresu dat do weryfikacji (domyślnie ostatni tydzień, maksymalnie 3 lata)
 - Opcjonalne filtrowanie kuponów według nazwy grupy (groupName) z wyszukiwaniem częściowym (Contains)
+- Filtrowanie wyników: pokazywanie tylko losowań z kuponami trafionymi (lokalne filtrowanie bez ponownego odpytywania backendu)
 - Automatyczne porównanie zestawów użytkownika z losowaniami w wybranym okresie
 - Prezentacja wyników w formie rozwijalnego accordion (grupowanie po losowaniach)
 - Wyróżnienie trafionych liczb (pogrubienie)
@@ -32,16 +33,43 @@ ChecksPage (główny komponent strony)
 │   ├── TextInput (nazwa grupy - opcjonalnie)
 │   └── Button (Sprawdź wygrane)
 ├── Spinner (wyświetlany podczas weryfikacji)
+├── CheckSummary (podsumowanie statystyk - wyświetlane po zakończeniu weryfikacji)
+│   ├── Header z przyciskiem toggle (ikona statystyk + "Podsumowanie wyników")
+│   └── Content (grid ze statystykami - domyślnie rozwinięte)
+│       ├── StatCard (Liczba losowań)
+│       ├── StatCard (Liczba kuponów)
+│       ├── StatCard (Suma nakładów)
+│       ├── WinStatCard (Wygrane 1° - trójki)
+│       ├── WinStatCard (Wygrane 2° - czwórki)
+│       ├── WinStatCard (Wygrane 3° - piątki)
+│       ├── WinStatCard (Wygrane 4° - szóstki)
+│       ├── WinStatCard (Suma wygranych)
+│       └── BalanceCard (Bilans z emoji)
+├── FilterCheckbox (filtr "Pokaż tylko losowania z kuponami trafionymi")
 └── CheckResults (sekcja z wynikami)
-    └── AccordionItem[] (dla każdego losowania)
-        ├── AccordionHeader (data + drawSystemId + typ gry + wylosowane liczby)
-        └── AccordionContent (lista zestawów użytkownika)
-            └── ResultTicketItem[] (dla każdego zestawu)
-                ├── Ticket info (nazwa grupy)
-                ├── Ticket numbers (niebieskie kółka dla trafionych, szare dla nietrafionych)
-                └── Win info box (ramka - tylko dla ≥3 trafień)
-                    ├── WinBadge (badge stopnia wygranej)
-                    └── Win details grid (koszt kuponu, ilość wygranych, wartość wygranej)
+    └── DrawCard[] (dla każdego losowania - przefiltrowane jeśli filter aktywny)
+        ├── DrawHeader (zawsze widoczny, nie klikany)
+        │   ├── Data losowania (duża czcionka, pogrubiona)
+        │   ├── Badge typu losowania (LOTTO/LOTTO PLUS)
+        │   ├── DrawSystemId (mniejsza czcionka, szary kolor)
+        │   └── Wylosowane numery (niebieskie kółka)
+        ├── ExpandableSection1 (Koszt kuponu - domyślnie ukryta)
+        │   ├── Header (kliknąlny): "Koszt kuponu" + ikona ▼/▶
+        │   └── Content (po rozwinięciu):
+        │       ├── Cena biletu
+        │       └── WinPoolStatsGrid (statystyki wygranych 1-4 stopnia)
+        │           ├── WinPoolCard (Stopień 1 - 6 trafień, zielona)
+        │           ├── WinPoolCard (Stopień 2 - 5 trafień, niebieska)
+        │           ├── WinPoolCard (Stopień 3 - 4 trafienia, żółta)
+        │           └── WinPoolCard (Stopień 4 - 3 trafienia, pomarańczowa)
+        └── ExpandableSection2 (Ilość wygranych zestawów - domyślnie ukryta)
+            ├── Header (kliknąlny): "Ilość wygranych zestawów (X)" + ikona ▼/▶
+            └── Content (po rozwinięciu):
+                └── WinningTicketsList (lista wygranych kuponów)
+                    └── WinningTicketItem[] (dla każdego wygrywającego kuponu)
+                        ├── GroupName badge (szary)
+                        ├── WinBadge (stopień wygranej: 3-6 trafień)
+                        └── TicketNumbers (szare kółka dla nietrafionych, niebieskie pogrubione dla trafionych)
 ```
 
 ## 4. Szczegóły komponentów
@@ -56,6 +84,7 @@ Główny kontener strony weryfikacji wygranych. Zarządza stanem formularza zakr
 - `<h1>` - nagłówek strony "Sprawdź swoje wygrane"
 - `<CheckPanel />` - panel z formularzem zakresu dat
 - `<Spinner />` - wskaźnik ładowania (warunkowe renderowanie)
+- `<CheckSummary />` - podsumowanie statystyk (warunkowe renderowanie po zakończeniu weryfikacji)
 - `<CheckResults />` - sekcja z wynikami (warunkowe renderowanie)
 
 **Obsługiwane zdarzenia:**
@@ -83,6 +112,7 @@ interface ChecksPageState {
   dateFrom: string;          // Format YYYY-MM-DD
   dateTo: string;            // Format YYYY-MM-DD
   groupName: string;         // Nazwa grupy (opcjonalnie)
+  showOnlyWins: boolean;     // Filtr: pokaż tylko losowania z wygranymi (domyślnie false)
   isLoading: boolean;        // Stan ładowania
   results: VerificationResult[] | null;  // Wyniki weryfikacji
   error: string | null;      // Komunikat błędu
@@ -134,127 +164,335 @@ interface CheckPanelProps {
 
 ---
 
-### 4.3 CheckResults (kontener wyników)
+### 4.3 CheckSummary (podsumowanie statystyk)
 
 **Opis komponentu:**
-Kontener renderujący wyniki weryfikacji w formie accordion. Każde losowanie to osobny accordion item z listą zestawów użytkownika.
+Komponent wyświetlający zagregowane statystyki wyników weryfikacji. Pokazuje podsumowanie liczby losowań, kuponów, nakładów, wygranych po poziomach (3-6 trafień) oraz bilans zysku/straty. Domyślnie rozwinięty z możliwością zwinięcia przez użytkownika.
+
+**Główne elementy HTML:**
+- `<div>` - kontener główny (gradient background, border, rounded)
+- `<button>` - nagłówek z przyciskiem toggle (ikona statystyk + "Podsumowanie wyników" + ikona ▼/▲)
+- `<div>` - zawartość rozwijalna (conditional rendering)
+  - `<div>` - grid ze statystykami (responsive: 1/2/3 kolumny)
+    - `<StatCard>` × 3 - podstawowe statystyki (losowania, kupony, nakłady)
+    - `<WinStatCard>` × 5 - statystyki wygranych (1°-4° + suma)
+    - `<BalanceCard>` - bilans z emoji
+
+**Obsługiwane interakcje:**
+- `onClick` na nagłówku - toggle rozwinięcia/zwinięcia (zmiana stanu `isExpanded`)
+- Animacja rotacji ikony (▼/▲) podczas toggle
+
+**Logika kalkulacji statystyk:**
+
+1. **Liczba losowań**: liczba unikalnych dat losowań (`Set(drawsResults.map(d => d.drawDate)).size`)
+   - Każda data to 1 losowanie (zawiera zarówno LOTTO jak i LOTTO PLUS)
+2. **Liczba kuponów**: `ticketsResults.length` (unikalne zestawy użytkownika)
+3. **Suma nakładów**: `drawsCount × ticketsCount × (lottoPrice + lottoPlusPrice)`
+   - Pobranie cen: `Map<lottoType, ticketPrice>` dla LOTTO i LOTTO PLUS
+   - Suma cen: `pricePerTicketPerDraw = lottoPrice + lottoPlusPrice`
+   - Koszt całkowity: `drawsCount × ticketsCount × pricePerTicketPerDraw`
+   - Przykład:
+     - 5 losowań (unikalnych dat)
+     - 10 kuponów
+     - LOTTO = 3.00 zł, LOTTO PLUS = 1.50 zł
+     - Koszt = 5 × 10 × (3.00 + 1.50) = 5 × 10 × 4.50 = 225.00 zł
+4. **Wygrane po poziomach**:
+   - Iteracja przez `drawsResults.forEach(draw => draw.winningTicketsResult)`
+   - Dla każdego wygrywającego kuponu:
+     - `hits = winningTicket.matchingNumbers.length`
+     - Mapowanie na poziomy:
+       - 3 trafienia → wins3 (count++, value += draw.winPoolAmount4)
+       - 4 trafienia → wins4 (count++, value += draw.winPoolAmount3)
+       - 5 trafień → wins5 (count++, value += draw.winPoolAmount2)
+       - 6 trafień → wins6 (count++, value += draw.winPoolAmount1)
+5. **Suma wygranych**: suma count i value z wins3-6
+6. **Bilans**: `totalWinValue - totalCost`
+   - Emoji: 😊 jeśli bilans ≥ 0, 😠 jeśli < 0
+
+**Typy:**
+```typescript
+interface CheckSummaryProps {
+  drawsResults: DrawsResult[];
+  ticketsResults: TicketsResult[];
+}
+
+interface WinStats {
+  count: number;
+  value: number;
+}
+
+interface SummaryStats {
+  drawsCount: number;
+  ticketsCount: number;
+  totalCost: number;
+  wins3: WinStats;  // 3 trafienia (winPoolAmount4)
+  wins4: WinStats;  // 4 trafienia (winPoolAmount3)
+  wins5: WinStats;  // 5 trafień (winPoolAmount2)
+  wins6: WinStats;  // 6 trafień (winPoolAmount1)
+  totalWinCount: number;
+  totalWinValue: number;
+}
+```
+
+**Propsy:**
+```typescript
+interface CheckSummaryProps {
+  drawsResults: DrawsResult[];  // Wyniki losowań z API
+  ticketsResults: TicketsResult[];  // Zestawy użytkownika
+}
+```
+
+**Stan lokalny:**
+```typescript
+interface CheckSummaryState {
+  isExpanded: boolean;  // Domyślnie true
+}
+```
+
+**Responsywność:**
+- Mobile (< 640px): 1 kolumna grid
+- Tablet (640-1024px): 2 kolumny grid
+- Desktop (≥ 1024px): 3 kolumny grid
+
+**Kolorystyka kart statystyk:**
+- Liczba losowań: niebieska (bg-blue-100)
+- Liczba kuponów: zielona (bg-green-100)
+- Suma nakładów: pomarańczowa (bg-orange-100)
+- Wygrane 1° (trójki): żółta (bg-yellow-100)
+- Wygrane 2° (czwórki): jasnozielona (bg-lime-100)
+- Wygrane 3° (piątki): ciemnozielona (bg-emerald-100)
+- Wygrane 4° (szóstki): fioletowa (bg-purple-100)
+- Suma wygranych: granatowa (bg-indigo-100)
+- Bilans: zielona (zysk, bg-green-100) lub czerwona (strata, bg-red-100)
+
+**Format wyświetlania:**
+- Waluta: `XX.XX zł` (zawsze 2 miejsca po przecinku)
+- Wygrane: `ilość | wartość zł` (np. "5 | 25.00 zł")
+  - ilość = liczba wygranych kuponów
+  - wartość = suma wszystkich wygranych dla danego poziomu (już zsumowana)
+- Bilans: `+XX.XX zł` lub `-XX.XX zł` + podpis "Zysk"/"Strata"
+
+**Układ grid (3 kolumny × 3 rzędy):**
+- Rząd 1: Liczba losowań | Liczba kuponów | **Suma nakładów** (kolumna 3)
+- Rząd 2: Wygrane 1° | Wygrane 2° | **Suma wygranych** (kolumna 3)
+- Rząd 3: Wygrane 3° | Wygrane 4° | **Bilans** (kolumna 3)
+
+---
+
+### 4.4 CheckResults (kontener wyników)
+
+**Opis komponentu:**
+Kontener renderujący wyniki weryfikacji w formie listy Draw Cards. Każde losowanie to osobna karta z dwoma rozwijalnymi sekcjami. Komponent transformuje dane z API (osobne listy `drawsResults` i `ticketsResults`) do struktury UI (`DrawWithTickets[]`) przez połączenie danych za pomocą `ticketId`. Zawiera checkbox do filtrowania wyników (pokazywanie tylko losowań z wygranymi kuponami).
 
 **Główne elementy:**
 - `<div>` - kontener główny
-- `<div>` - info o liczbie wyników (opcjonalnie: "Znaleziono X losowań")
-- `<AccordionItem[]>` - lista accordion items (dla każdego losowania)
+- `<div>` - header sekcji wyników z filtrem:
+  - `<div>` - info o liczbie wyników (opcjonalnie: "Znaleziono X losowań")
+  - `<label>` + `<input type="checkbox">` - filtr "Pokaż tylko losowania z kuponami trafionymi"
+- `<DrawCard[]>` - lista Draw Cards (dla każdego losowania - przefiltrowane jeśli showOnlyWins === true)
 - Empty state `<div>` - gdy brak wygranych: "Nie znaleziono wygranych w wybranym zakresie dat."
 
+**Transformacja danych (w komponencie CheckResults):**
+```typescript
+// Funkcja pomocnicza do transformacji response API do struktury UI
+function transformResponseToDrawsWithTickets(response: CheckResponse): DrawWithTickets[] {
+  // Tworzenie mapy ticketId -> TicketsResult dla szybkiego wyszukiwania
+  const ticketsMap = new Map<number, TicketsResult>();
+  response.ticketsResults.forEach(ticket => {
+    ticketsMap.set(ticket.ticketId, ticket);
+  });
+
+  // Transformacja każdego draw
+  return response.drawsResults.map(draw => {
+    // Łączenie WinningTicketResult z TicketsResult
+    const winningTickets: WinningTicketWithDetails[] = draw.winningTicketsResult.map(winTicket => {
+      const ticketDetails = ticketsMap.get(winTicket.ticketId);
+      if (!ticketDetails) {
+        console.warn(`Ticket ${winTicket.ticketId} not found in ticketsResults`);
+        return null;
+      }
+      return {
+        ticketId: winTicket.ticketId,
+        groupName: ticketDetails.groupName,
+        ticketNumbers: ticketDetails.ticketNumbers,
+        matchingNumbers: winTicket.matchingNumbers,
+      };
+    }).filter(Boolean) as WinningTicketWithDetails[];
+
+    return {
+      drawId: draw.drawId,
+      drawDate: draw.drawDate,
+      drawSystemId: draw.drawSystemId,
+      lottoType: draw.lottoType,
+      drawNumbers: draw.drawNumbers,
+      ticketPrice: draw.ticketPrice,
+      winPoolCount1: draw.winPoolCount1,
+      winPoolAmount1: draw.winPoolAmount1,
+      winPoolCount2: draw.winPoolCount2,
+      winPoolAmount2: draw.winPoolAmount2,
+      winPoolCount3: draw.winPoolCount3,
+      winPoolAmount3: draw.winPoolAmount3,
+      winPoolCount4: draw.winPoolCount4,
+      winPoolAmount4: draw.winPoolAmount4,
+      winningTickets,
+    };
+  });
+}
+```
+
+**Logika filtrowania (w komponencie CheckResults):**
+```typescript
+// Filtrowanie losowań jeśli showOnlyWins === true
+const filteredDraws = showOnlyWins
+  ? drawsWithTickets.filter(draw => draw.winningTickets.length > 0)
+  : drawsWithTickets;
+```
+
 **Obsługiwane interakcje:**
-- Brak bezpośrednich interakcji (delegowane do AccordionItem)
+- `onChange` na checkboxie - wywołanie callback `onShowOnlyWinsChange(e.target.checked)`
 
 **Obsługiwana walidacja:**
 - Brak
 
 **Typy:**
 ```typescript
-interface VerificationResult {
-  drawId: number;
-  drawDate: string;
-  drawNumbers: number[];
-  tickets: TicketMatch[];
+// Response z API
+interface CheckResponse {
+  executionTimeMs: number;
+  drawsResults: DrawsResult[];
+  ticketsResults: TicketsResult[];
 }
 
-interface TicketMatch {
-  ticketId: string;
-  numbers: number[];
-  matchCount: number;
-  matchedNumbers: number[];
+interface DrawsResult {
+  drawId: number;
+  drawDate: string;
+  drawSystemId: number;
+  lottoType: string;
+  drawNumbers: number[];
+  ticketPrice: number | null;
+  winPoolCount1: number | null;
+  winPoolAmount1: number | null;
+  winPoolCount2: number | null;
+  winPoolAmount2: number | null;
+  winPoolCount3: number | null;
+  winPoolAmount3: number | null;
+  winPoolCount4: number | null;
+  winPoolAmount4: number | null;
+  winningTicketsResult: WinningTicketResult[];
+}
+
+interface WinningTicketResult {
+  ticketId: number;
+  matchingNumbers: number[];
+}
+
+interface TicketsResult {
+  ticketId: number;
+  groupName: string;
+  ticketNumbers: number[];
+}
+
+// Typy pomocnicze dla UI (po transformacji)
+interface DrawWithTickets {
+  drawId: number;
+  drawDate: string;
+  drawSystemId: number;
+  lottoType: string;
+  drawNumbers: number[];
+  ticketPrice: number | null;
+  winPoolCount1: number | null;
+  winPoolAmount1: number | null;
+  winPoolCount2: number | null;
+  winPoolAmount2: number | null;
+  winPoolCount3: number | null;
+  winPoolAmount3: number | null;
+  winPoolCount4: number | null;
+  winPoolAmount4: number | null;
+  winningTickets: WinningTicketWithDetails[];
+}
+
+interface WinningTicketWithDetails {
+  ticketId: number;
+  groupName: string;
+  ticketNumbers: number[];
+  matchingNumbers: number[];
 }
 ```
 
 **Propsy:**
 ```typescript
 interface CheckResultsProps {
-  results: VerificationResult[];
-  loading: boolean;
+  drawsResults: DrawsResult[];
+  ticketsResults: TicketsResult[];
+  executionTimeMs: number;
+  showOnlyWins: boolean;
+  onShowOnlyWinsChange: (value: boolean) => void;
 }
 ```
 
 ---
 
-### 4.4 AccordionItem (pojedyncze losowanie)
+### 4.5 DrawCard (karta pojedynczego losowania)
 
 **Opis komponentu:**
-Rozwijany accordion item reprezentujący pojedyncze losowanie. Header zawiera datę, ID systemowe losowania, typ gry i wylosowane liczby. Content zawiera listę zestawów użytkownika z wyróżnionymi trafieniami oraz szczegółowymi informacjami o wygranej (stopień, cena kuponu, ilość wygranych, wartość wygranej).
+Karta reprezentująca pojedyncze losowanie z dwoma rozwijalnymi sekcjami. Header główny (zawsze widoczny) zawiera datę, ID systemowe, typ gry i wylosowane liczby. Sekcja 1 (rozwijalna) zawiera koszt kuponu i statystyki wygranych dla 4 stopni. Sekcja 2 (rozwijalna) zawiera listę wygranych kuponów użytkownika.
 
 **Główne elementy HTML:**
-- `<div>` - kontener accordion item
-- `<button>` - header (klikany, aria-expanded)
-  - `<span>` - ikona strzałki (▼/▶)
-  - `<div>` - informacje o losowaniu:
-    - `<span>` - data losowania
-    - `<span>` - ID systemowe (drawSystemId)
-    - `<span>` - typ gry (badge: LOTTO / LOTTO PLUS)
-    - `<div>` - wylosowane liczby (6 kółek)
-- `<div>` - content (collapsible, aria-hidden gdy collapsed)
-  - `<ResultTicketItem[]>` - lista zestawów użytkownika z dodatkowymi informacjami o wygranej
+- `<div>` - kontener główny karty (border, shadow, padding)
+- **Header główny (zawsze widoczny, nie klikany):**
+  - `<div>` - data losowania (duża, pogrubiona czcionka)
+  - `<span>` - badge typu gry (LOTTO / LOTTO PLUS, różne kolory)
+  - `<span>` - ID systemowe (mniejsza czcionka, szary)
+  - `<div>` - wylosowane liczby (6 niebieskich kółek)
+
+- **Rozwijalna sekcja 1 (domyślnie ukryta):**
+  - `<button>` - nagłówek sekcji (klikany): "Koszt kuponu" + ikona ▼/▶
+  - `<div>` - zawartość (collapsible, aria-hidden gdy collapsed):
+    - `<div>` - cena biletu: "Cena biletu: X.XX zł" (lub "Brak danych")
+    - `<WinPoolStatsGrid>` - grid 4 kart z statystykami wygranych (stopień 1-4)
+
+- **Rozwijalna sekcja 2 (domyślnie ukryta):**
+  - `<button>` - nagłówek sekcji (klikany): "Ilość wygranych zestawów (X)" + ikona ▼/▶
+  - `<div>` - zawartość (collapsible, aria-hidden gdy collapsed):
+    - `<WinningTicketItem[]>` - lista wygranych kuponów
+    - Empty state: "Brak wygranych kuponów dla tego losowania" (jeśli brak wygranych)
 
 **Obsługiwane interakcje:**
-- `onClick` na header - toggle expand/collapse
+- `onClick` na nagłówku sekcji 1 - toggle expand/collapse sekcji 1
+- `onClick` na nagłówku sekcji 2 - toggle expand/collapse sekcji 2
 - Keyboard: Enter/Space - toggle expand/collapse
-- Stan rozwinięcia zarządzany lokalnie (useState)
+- Niezależne stany rozwinięcia dla obu sekcji (useState dla każdej)
 
 **Obsługiwana walidacja:**
 - Brak
 
-**Typy:**
-Jak w CheckResults (VerificationResult)
-
 **Propsy:**
 ```typescript
-interface AccordionItemProps {
-  draw: {
-    drawDate: string;
-    drawSystemId: number;
-    lottoType: string;
-    drawNumbers: number[];
-    ticketPrice: number | null;
-    winPoolCount1: number | null;
-    winPoolAmount1: number | null;
-    winPoolCount2: number | null;
-    winPoolAmount2: number | null;
-    winPoolCount3: number | null;
-    winPoolAmount3: number | null;
-    winPoolCount4: number | null;
-    winPoolAmount4: number | null;
-  };
-  tickets: TicketMatch[];
-  defaultExpanded?: boolean;  // Domyślnie true dla pierwszego losowania
+interface DrawCardProps {
+  draw: DrawWithTickets;
 }
 ```
 
 **Stan lokalny:**
 ```typescript
-const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+const [isSection1Expanded, setIsSection1Expanded] = useState(false); // Domyślnie ukryta
+const [isSection2Expanded, setIsSection2Expanded] = useState(false); // Domyślnie ukryta
 ```
 
 ---
 
-### 4.5 ResultTicketItem (pojedynczy zestaw w wynikach)
+### 4.6 WinningTicketItem (pojedynczy wygrany kupon)
 
 **Opis komponentu:**
-Prezentacja pojedynczego zestawu użytkownika z wyróżnionymi trafionymi liczbami (niebieskie kółka dla trafionych, szare dla nietrafionych) i ramką z szczegółowymi informacjami o wygranej (stopień, cena kuponu, ilość wygranych uczestników, wartość wygranej).
+Prezentacja pojedynczego wygrywającego kuponu użytkownika z wyróżnionymi trafionymi liczbami. Wyświetlana tylko w sekcji 2 DrawCard dla kuponów z ≥3 trafieniami. Zawiera badge nazwy grupy, badge stopnia wygranej i liczby kuponu (szare dla nietrafionych, niebieskie pogrubione dla trafionych).
 
 **Główne elementy HTML:**
-- `<div>` - kontener główny zestawu
-- `<div>` - sekcja z numerami kuponu
-  - `<div>` - informacje o kuponie (nazwa grupy jako badge)
-  - `<div>` - lista liczb
-    - `<span>` × 6 - liczby zestawu (trafione: niebieskie kółka z `font-bold`, nietrafione: szare kółka)
-- `<div>` - ramka z informacjami o wygranej (warunkowe renderowanie dla hits ≥ 3)
-  - `<div>` - badge wygranej (WinBadge) z ikoną i tekstem "Wygrana X stopnia"
-  - `<div>` - szczegóły wygranej (grid layout):
-    - `<div>` - Koszt kuponu: {ticketPrice} zł (lub "Brak danych" jeśli null)
-    - `<div>` - Ilość wygranych: {winPoolCountX} osób (lub "Brak danych" jeśli null)
-    - `<div>` - Wartość wygranej: {winPoolAmountX} zł (lub "Brak danych" jeśli null)
-  - Gdzie X to stopień wygranej zależny od hits: 6 hits = tier 1, 5 hits = tier 2, 4 hits = tier 3, 3 hits = tier 4
-- `<span>` - tekst "Brak trafień" (dla hits < 3, zamiast ramki)
+- `<div>` - kontener główny kuponu (card/row z padding, border)
+- `<div>` - header kuponu (flex layout):
+  - `<span>` - badge nazwy grupy (szary, mniejszy)
+  - `<span>` - badge wygranej (WinBadge - kolorowy z emoji i tekstem)
+- `<div>` - liczby kuponu:
+  - `<span>` × 6 - liczby zestawu (trafione: niebieskie kółka z `font-bold`, nietrafione: szare kółka)
 
 **Obsługiwane interakcje:**
 - Brak (komponent prezentacyjny)
@@ -262,45 +500,26 @@ Prezentacja pojedynczego zestawu użytkownika z wyróżnionymi trafionymi liczba
 **Obsługiwana walidacja:**
 - Brak
 
-**Typy:**
-```typescript
-interface TicketMatch {
-  ticketId: number;
-  groupName: string;
-  ticketNumbers: number[];
-  hits: number;
-  winningNumbers: number[];
-}
-```
-
 **Propsy:**
 ```typescript
-interface ResultTicketItemProps {
-  ticket: TicketMatch;
-  drawData: {
-    ticketPrice: number | null;
-    winPoolCount1: number | null;
-    winPoolAmount1: number | null;
-    winPoolCount2: number | null;
-    winPoolAmount2: number | null;
-    winPoolCount3: number | null;
-    winPoolAmount3: number | null;
-    winPoolCount4: number | null;
-    winPoolAmount4: number | null;
-  };
+interface WinningTicketItemProps {
+  ticket: WinningTicketWithDetails;
 }
 ```
 
 **Logika renderowania:**
 ```typescript
+// Liczba trafień (długość matchingNumbers)
+const hits = ticket.matchingNumbers.length;
+
 // Dla każdej liczby w zestawie
-ticketNumbers.map(num => {
-  const isMatched = winningNumbers.includes(num);
+ticket.ticketNumbers.map(num => {
+  const isMatched = ticket.matchingNumbers.includes(num);
   return (
     <span className={`
       inline-flex items-center justify-center w-8 h-8 rounded-full text-sm
       ${isMatched
-        ? 'font-bold bg-blue-600 text-white'  // Trafione: niebieskie
+        ? 'font-bold bg-blue-600 text-white'  // Trafione: niebieskie, pogrubione
         : 'bg-gray-100 text-gray-700'         // Nietrafione: szare
       }
     `}>
@@ -308,57 +527,103 @@ ticketNumbers.map(num => {
     </span>
   );
 })
-
-// Mapowanie hits → tier (stopień wygranej)
-const getTierData = (hits: number) => {
-  switch (hits) {
-    case 6: return { tier: 1, count: drawData.winPoolCount1, amount: drawData.winPoolAmount1 };
-    case 5: return { tier: 2, count: drawData.winPoolCount2, amount: drawData.winPoolAmount2 };
-    case 4: return { tier: 3, count: drawData.winPoolCount3, amount: drawData.winPoolAmount3 };
-    case 3: return { tier: 4, count: drawData.winPoolCount4, amount: drawData.winPoolAmount4 };
-    default: return null;
-  }
-};
-
-// Ramka z informacjami o wygranej (tylko dla hits >= 3)
-{hits >= 3 && (
-  <div className="mt-3 p-4 bg-green-50 border border-green-200 rounded-lg">
-    {/* Badge wygranej */}
-    <div className="mb-2">
-      <WinBadge count={hits as WinLevel} />
-    </div>
-
-    {/* Szczegóły wygranej */}
-    <div className="grid grid-cols-3 gap-4 text-sm">
-      <div>
-        <span className="text-gray-600">Koszt kuponu:</span>
-        <div className="font-semibold">
-          {drawData.ticketPrice !== null ? `${drawData.ticketPrice.toFixed(2)} zł` : 'Brak danych'}
-        </div>
-      </div>
-      <div>
-        <span className="text-gray-600">Ilość wygranych:</span>
-        <div className="font-semibold">
-          {getTierData(hits)?.count !== null ? `${getTierData(hits)!.count} osób` : 'Brak danych'}
-        </div>
-      </div>
-      <div>
-        <span className="text-gray-600">Wartość wygranej:</span>
-        <div className="font-semibold">
-          {getTierData(hits)?.amount !== null ? `${getTierData(hits)!.amount.toFixed(2)} zł` : 'Brak danych'}
-        </div>
-      </div>
-    </div>
-  </div>
-)}
-
-{/* Brak trafień */}
-{hits < 3 && <span className="text-gray-500 text-sm">Brak trafień</span>}
 ```
 
 ---
 
-### 4.6 WinBadge (badge wygranej)
+### 4.7 WinPoolStatsGrid (grid statystyk wygranych)
+
+**Opis komponentu:**
+Grid zawierający 4 karty (WinPoolCard) reprezentujące statystyki wygranych dla każdego stopnia (1-4). Wyświetlany w sekcji 1 DrawCard po rozwinięciu. Responsywny layout: 4 kolumny na desktop, 2 na tablet, 1 na mobile.
+
+**Główne elementy HTML:**
+- `<div>` - kontener grid (Tailwind: `grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4`)
+- `<WinPoolCard>` × 4 - karty dla każdego stopnia wygranej
+
+**Obsługiwane interakcje:**
+- Brak (komponent prezentacyjny)
+
+**Obsługiwana walidacja:**
+- Brak
+
+**Propsy:**
+```typescript
+interface WinPoolStatsGridProps {
+  ticketPrice: number | null;
+  winPoolCount1: number | null;
+  winPoolAmount1: number | null;
+  winPoolCount2: number | null;
+  winPoolAmount2: number | null;
+  winPoolCount3: number | null;
+  winPoolAmount3: number | null;
+  winPoolCount4: number | null;
+  winPoolAmount4: number | null;
+}
+```
+
+---
+
+### 4.8 WinPoolCard (karta statystyk dla pojedynczego stopnia)
+
+**Opis komponentu:**
+Kolorowa karta wyświetlająca statystyki wygranej dla jednego stopnia (1-4). Zawiera ikonę z liczbą trafień, ilość wygranych i kwotę. Każdy stopień ma inny kolor.
+
+**Główne elementy HTML:**
+- `<div>` - kontener karty (padding, border, rounded, kolorowe tło)
+  - `<div>` - ikona stopnia (duża, pogrubiona liczba w kolorowym kółku)
+  - `<div>` - nagłówek: "Stopień X (Y trafień)"
+  - `<div>` - ilość wygranych: "Ilość: Z osób" (lub "Brak danych")
+  - `<div>` - kwota: "Kwota: W zł" (lub "Brak danych")
+
+**Warianty kolorystyczne (dla każdego stopnia):**
+- **Stopień 1 (6 trafień):**
+  - Border: `border-green-300`
+  - Tło ikony: `bg-green-500 text-white`
+  - Tekst: "Stopień 1 (6 trafień)"
+- **Stopień 2 (5 trafień):**
+  - Border: `border-blue-300`
+  - Tło ikony: `bg-blue-500 text-white`
+  - Tekst: "Stopień 2 (5 trafień)"
+- **Stopień 3 (4 trafienia):**
+  - Border: `border-yellow-300`
+  - Tło ikony: `bg-yellow-500 text-white`
+  - Tekst: "Stopień 3 (4 trafienia)"
+- **Stopień 4 (3 trafienia):**
+  - Border: `border-orange-300`
+  - Tło ikony: `bg-orange-500 text-white`
+  - Tekst: "Stopień 4 (3 trafienia)"
+
+**Obsługiwane interakcje:**
+- Brak (komponent prezentacyjny)
+
+**Obsługiwana walidacja:**
+- Brak
+
+**Propsy:**
+```typescript
+interface WinPoolCardProps {
+  tier: 1 | 2 | 3 | 4;
+  count: number | null;
+  amount: number | null;
+}
+```
+
+**Logika renderowania:**
+```typescript
+// Mapowanie tier → label i kolor
+const tierConfig = {
+  1: { label: 'Stopień 1 (6 trafień)', icon: '6', borderColor: 'border-green-300', bgColor: 'bg-green-500' },
+  2: { label: 'Stopień 2 (5 trafień)', icon: '5', borderColor: 'border-blue-300', bgColor: 'bg-blue-500' },
+  3: { label: 'Stopień 3 (4 trafienia)', icon: '4', borderColor: 'border-yellow-300', bgColor: 'bg-yellow-500' },
+  4: { label: 'Stopień 4 (3 trafienia)', icon: '3', borderColor: 'border-orange-300', bgColor: 'bg-orange-500' },
+};
+
+const config = tierConfig[tier];
+```
+
+---
+
+### 4.9 WinBadge (badge wygranej)
 
 **Opis komponentu:**
 Badge wyświetlający liczbę trafień z emoji i opisem. Kolorystyka zależna od liczby trafień.
@@ -393,7 +658,7 @@ interface WinBadgeProps {
 
 ---
 
-### 4.7 DatePicker (komponent współdzielony)
+### 4.10 DatePicker (komponent współdzielony)
 
 **Opis komponentu:**
 Input type="date" z labelem i obsługą błędów walidacji.
@@ -447,39 +712,41 @@ interface CheckRequest {
 
 // Response z API
 interface CheckResponse {
-  results: VerificationResult[];
-  totalTickets: number;
-  totalDraws: number;
   executionTimeMs: number;
+  drawsResults: DrawsResult[];
+  ticketsResults: TicketsResult[];
 }
 
-interface VerificationResult {
+interface DrawsResult {
+  drawId: number;
+  drawDate: string;
+  drawSystemId: number;
+  lottoType: string;
+  drawNumbers: number[];
+  ticketPrice: number | null;
+  winPoolCount1: number | null;
+  winPoolAmount1: number | null;
+  winPoolCount2: number | null;
+  winPoolAmount2: number | null;
+  winPoolCount3: number | null;
+  winPoolAmount3: number | null;
+  winPoolCount4: number | null;
+  winPoolAmount4: number | null;
+  winningTicketsResult: WinningTicketResult[];
+}
+
+interface WinningTicketResult {
+  ticketId: number;
+  matchingNumbers: number[];
+}
+
+interface TicketsResult {
   ticketId: number;
   groupName: string;
   ticketNumbers: number[];
-  draws: DrawVerificationResult[];
 }
 
-interface DrawVerificationResult {
-  drawId: number;
-  drawDate: string;
-  drawSystemId: number; // ID systemowe losowania
-  lottoType: string; // "LOTTO" lub "LOTTO PLUS"
-  drawNumbers: number[];
-  hits: number;
-  winningNumbers: number[];
-  ticketPrice: number | null; // Cena kuponu (może być null)
-  winPoolCount1: number | null; // Ilość wygranych dla 6 trafień
-  winPoolAmount1: number | null; // Wartość wygranej dla 6 trafień
-  winPoolCount2: number | null; // Ilość wygranych dla 5 trafień
-  winPoolAmount2: number | null; // Wartość wygranej dla 5 trafień
-  winPoolCount3: number | null; // Ilość wygranych dla 4 trafień
-  winPoolAmount3: number | null; // Wartość wygranej dla 4 trafień
-  winPoolCount4: number | null; // Ilość wygranych dla 3 trafień
-  winPoolAmount4: number | null; // Wartość wygranej dla 3 trafień
-}
-
-// Typ pomocniczy po transformacji w CheckResults (grupowanie po draws)
+// Typy pomocnicze dla UI (po transformacji w CheckResults)
 interface DrawWithTickets {
   drawId: number;
   drawDate: string;
@@ -495,15 +762,14 @@ interface DrawWithTickets {
   winPoolAmount3: number | null;
   winPoolCount4: number | null;
   winPoolAmount4: number | null;
-  tickets: TicketMatch[];
+  winningTickets: WinningTicketWithDetails[];
 }
 
-interface TicketMatch {
+interface WinningTicketWithDetails {
   ticketId: number;
   groupName: string;
   ticketNumbers: number[];
-  hits: number;
-  winningNumbers: number[];
+  matchingNumbers: number[];
 }
 ```
 
@@ -555,6 +821,7 @@ const WIN_LABELS: Record<WinLevel, string> = {
 const [dateFrom, setDateFrom] = useState<string>(getDefaultDateFrom());  // -1 tydzień
 const [dateTo, setDateTo] = useState<string>(getDefaultDateTo());        // dzisiaj
 const [groupName, setGroupName] = useState<string>('');                   // puste domyślnie
+const [showOnlyWins, setShowOnlyWins] = useState<boolean>(false);        // domyślnie false (pokazuj wszystkie)
 const [isLoading, setIsLoading] = useState<boolean>(false);
 const [results, setResults] = useState<VerificationResult[] | null>(null);
 const [error, setError] = useState<string | null>(null);
@@ -1018,39 +1285,53 @@ numbers.map(num => {
 - Warianty kolorystyczne (green/blue/orange/red)
 - Mapowanie WinLevel → kolor + emoji + tekst
 
-### Krok 6: Implementacja ResultTicketItem
-- Renderowanie liczb jako kółek (niebieskie dla trafionych, szare dla nietrafionych)
-- Wyróżnienie trafionych liczb przez `font-bold` w niebieskich kółkach
-- Warunkowe renderowanie ramki z informacjami o wygranej (hits ≥ 3):
-  - Badge stopnia wygranej (WinBadge)
-  - Grid z 3 kolumnami: koszt kuponu, ilość wygranych, wartość wygranej
-  - Mapowanie hits → tier (6=tier1, 5=tier2, 4=tier3, 3=tier4) do wybrania odpowiednich pól winPoolCountX i winPoolAmountX
-  - Wyświetlanie "Brak danych" dla wartości null
-- Tekst "Brak trafień" dla hits < 3 (zamiast ramki)
+### Krok 6: Implementacja WinPoolCard
+- Renderowanie kolorowej karty dla pojedynczego stopnia wygranej (1-4)
+- Ikona z liczbą trafień w kolorowym kółku
+- Nagłówek: "Stopień X (Y trafień)"
+- Wyświetlanie ilości wygranych i kwoty (lub "Brak danych" dla wartości null)
+- Warianty kolorystyczne dla każdego stopnia (zielony, niebieski, żółty, pomarańczowy)
 
-### Krok 7: Implementacja AccordionItem
-- Stan lokalny `isExpanded` (useState)
-- Toggle expand/collapse na click
-- Header zawiera:
-  - Data losowania
-  - ID systemowe (drawSystemId)
-  - Badge typu gry (LOTTO / LOTTO PLUS) z różnymi kolorami
+### Krok 7: Implementacja WinPoolStatsGrid
+- Responsywny grid layout (4 kolumny desktop, 2 tablet, 1 mobile)
+- Renderowanie 4 kart WinPoolCard (dla stopni 1-4)
+- Przekazanie odpowiednich danych (count i amount) do każdej karty
+
+### Krok 8: Implementacja WinningTicketItem
+- Renderowanie liczb jako kółek (niebieskie pogrubione dla trafionych, szare dla nietrafionych)
+- Badge nazwy grupy (szary)
+- Badge stopnia wygranej (WinBadge)
+- Obliczanie liczby trafień z `matchingNumbers.length`
+
+### Krok 9: Implementacja DrawCard
+- Stan lokalny dla dwóch sekcji: `isSection1Expanded`, `isSection2Expanded` (useState)
+- Header główny (zawsze widoczny, nie klikany):
+  - Data losowania (duża, pogrubiona)
+  - Badge typu gry (LOTTO/LOTTO PLUS z różnymi kolorami)
+  - DrawSystemId (mniejsza czcionka, szary)
   - Wylosowane liczby jako niebieskie kółka
-  - Licznik kuponów (badge po prawej stronie)
-- Content przekazuje dane draw (z polami winPool*) do ResultTicketItem
-- ARIA attributes (aria-expanded, aria-controls)
-- Keyboard navigation (Enter/Space)
+- Rozwijalna sekcja 1 (domyślnie ukryta):
+  - Header klikany: "Koszt kuponu" + ikona ▼/▶
+  - Content: cena biletu + WinPoolStatsGrid
+- Rozwijalna sekcja 2 (domyślnie ukryta):
+  - Header klikany: "Ilość wygranych zestawów (X)" + ikona ▼/▶
+  - Content: lista WinningTicketItem[] (tylko kupony z ≥3 trafieniami)
+  - Empty state: "Brak wygranych kuponów dla tego losowania"
+- ARIA attributes (aria-expanded, aria-controls) dla obu sekcji
+- Keyboard navigation (Enter/Space) dla obu nagłówków
 
-### Krok 8: Implementacja CheckResults
-- Transformacja struktury danych z "tickets → draws" na "draws → tickets" (używając Map)
-- Grupowanie kuponów według losowań (drawId + drawDate jako klucz)
-- Przeniesienie wszystkich pól z draw (drawSystemId, lottoType, ticketPrice, winPoolCount1-4, winPoolAmount1-4) do struktury drawsMap
+### Krok 10: Implementacja CheckResults
+- Transformacja response API (`CheckResponse`) do struktury UI (`DrawWithTickets[]`)
+- Funkcja `transformResponseToDrawsWithTickets`:
+  - Tworzenie mapy `ticketId → TicketsResult` dla szybkiego lookup
+  - Dla każdego draw z `drawsResults`: łączenie `winningTicketsResult` z `ticketsResults` przez `ticketId`
+  - Budowanie `WinningTicketWithDetails[]` (połączenie matchingNumbers + ticketNumbers + groupName)
 - Sortowanie losowań według daty (najnowsze na górze)
-- Mapowanie `drawsArray` → AccordionItem[] z pełnymi danymi draw
-- Empty state dla `results.length === 0`
+- Mapowanie `DrawWithTickets[]` → DrawCard[]
+- Empty state dla pustej listy
 - Conditional rendering (loading spinner vs results)
 
-### Krok 9: Implementacja CheckPanel
+### Krok 11: Implementacja CheckPanel
 - Formularz z 2 date pickerami i text inputem dla groupName
 - Inline validation (dateFrom ≤ dateTo)
 - Pole groupName (opcjonalne) z placeholderem "np. Ulubione"
@@ -1058,42 +1339,45 @@ numbers.map(num => {
 - Button "Sprawdź wygrane" z disabled state
 - Callback `onSubmit(dateFrom, dateTo, groupName)`
 
-### Krok 10: Implementacja ChecksPage (główny komponent)
+### Krok 12: Implementacja ChecksPage (główny komponent)
 - Stan lokalny (dateFrom, dateTo, groupName, isLoading, results, error)
 - Helper functions (getDefaultDateFrom, getDefaultDateTo, validateDateRange)
 - Handler `handleSubmit()` z API call (przekazuje dateFrom, dateTo, groupName)
 - Renderowanie: CheckPanel + Spinner + CheckResults
 - Error handling z ErrorModal
 
-### Krok 11: Stylizacja Tailwind CSS
+### Krok 13: Stylizacja Tailwind CSS
 - Mobile-first responsive design
 - Date range picker layout (vertical/inline)
-- Accordion styling (hover effects, transitions)
-- Badge variants (green/blue/orange/red)
+- DrawCard styling (border, shadow, padding)
+- Rozwijalne sekcje (hover effects, transitions)
+- WinPoolCard styling (kolorowe borders i backgrounds)
+- Badge variants (green/blue/orange/red dla różnych stopni)
 - Touch targets min 44x44px
 
-### Krok 12: Accessibility audit
+### Krok 14: Accessibility audit
 - Semantic HTML (`<main>`, `<form>`, `<button>`)
-- ARIA attributes (aria-expanded, aria-controls, aria-describedby)
+- ARIA attributes (aria-expanded, aria-controls, aria-describedby) dla obu sekcji
 - Keyboard navigation testing (Tab, Enter/Space, Escape)
 - Focus management (focus trap w ErrorModal)
 - Screen reader testing (NVDA/JAWS)
 
-### Krok 13: Integracja z routing
+### Krok 15: Integracja z routing
 - Dodanie route `/checks` w `src/main.tsx` (React Router 7)
 - Protected route wrapper (redirect `/login` jeśli niezalogowany)
 - Dodanie zakładki "Sprawdź Wygrane" w Navbar
 
-### Krok 14: Testowanie
+### Krok 16: Testowanie
 - Test manual: happy path (weryfikacja z wygranymi)
+- Test manual: rozwijanie/zwijanie sekcji 1 i 2
 - Test manual: empty state (brak wygranych)
 - Test manual: edge cases (brak zestawów, brak losowań)
 - Test manual: walidacja (nieprawidłowy zakres, >31 dni)
-- Test manual: responsywność (mobile/tablet/desktop)
-- Test manual: keyboard navigation
-- Opcjonalnie: testy jednostkowe dla helper functions (validateDateRange, getDefaultDateFrom)
+- Test manual: responsywność (mobile/tablet/desktop - grid WinPoolStatsGrid)
+- Test manual: keyboard navigation (obie sekcje rozwijalne)
+- Opcjonalnie: testy jednostkowe dla helper functions (validateDateRange, getDefaultDateFrom, transformResponseToDrawsWithTickets)
 
-### Krok 15: Polish translation audit
+### Krok 17: Polish translation audit
 - Przegląd wszystkich tekstów w komponentach
 - Upewnienie się, że wszystkie komunikaty są po polsku
 - Sprawdzenie poprawności gramatycznej i stylistycznej

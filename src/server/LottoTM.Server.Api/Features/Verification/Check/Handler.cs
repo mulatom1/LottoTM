@@ -1,9 +1,11 @@
 using FluentValidation;
+using LottoTM.Server.Api.Repositories;
+using LottoTM.Server.Api.Services;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using LottoTM.Server.Api.Repositories;
 using System.Diagnostics;
 using System.Security.Claims;
+using static LottoTM.Server.Api.Features.Verification.Check.Contracts;
 
 namespace LottoTM.Server.Api.Features.Verification.Check;
 
@@ -14,18 +16,18 @@ public class CheckVerificationHandler : IRequestHandler<Contracts.Request, Contr
 {
     private readonly AppDbContext _dbContext;
     private readonly IValidator<Contracts.Request> _validator;
-    private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IJwtService _jwtService;
     private readonly ILogger<CheckVerificationHandler> _logger;
 
     public CheckVerificationHandler(
         AppDbContext dbContext,
         IValidator<Contracts.Request> validator,
-        IHttpContextAccessor httpContextAccessor,
+        IJwtService jwtService,
         ILogger<CheckVerificationHandler> logger)
     {
         _dbContext = dbContext;
         _validator = validator;
-        _httpContextAccessor = httpContextAccessor;
+        _jwtService = jwtService;
         _logger = logger;
     }
 
@@ -33,22 +35,18 @@ public class CheckVerificationHandler : IRequestHandler<Contracts.Request, Contr
         Contracts.Request request,
         CancellationToken cancellationToken)
     {
-        // 1. Validate request
+        // 1. Start performance measurement
+        var stopwatch = Stopwatch.StartNew();
+
+        // 2. Validate request
         var validationResult = await _validator.ValidateAsync(request, cancellationToken);
         if (!validationResult.IsValid)
         {
             throw new ValidationException(validationResult.Errors);
         }
 
-        // 2. Get UserId from JWT token
-        var userIdClaim = _httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier);
-        if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out var userId))
-        {
-            throw new UnauthorizedAccessException("Nie można zidentyfikować użytkownika");
-        }
-
-        // 3. Start performance measurement
-        var stopwatch = Stopwatch.StartNew();
+        // 3. Get UserId from JWT token
+        var userId = await _jwtService.GetUserIdFromJwt();
 
         try
         {
@@ -69,87 +67,67 @@ public class CheckVerificationHandler : IRequestHandler<Contracts.Request, Contr
                 .Include(t => t.Numbers)
                 .ToListAsync(cancellationToken);
 
+            var ticketResults = new List<Contracts.TicketsResult>();
+            tickets.ForEach(t => {
+                var ticketNumbers = t.Numbers
+                     .OrderBy(n => n.Number)
+                     .Select(n => n.Number)
+                     .ToList();
+                var tr = new Contracts.TicketsResult(t.Id, t.GroupName ?? string.Empty, ticketNumbers);
+               ticketResults.Add(tr);
+            });
+            
+
             var draws = await _dbContext.Draws
                 .AsNoTracking()
                 .Where(d => d.DrawDate >= request.DateFrom && d.DrawDate <= request.DateTo)
                 .Include(d => d.Numbers)
                 .ToListAsync(cancellationToken);
 
+            var drawResults = new List<Contracts.DrawsResult>();
+            draws.ForEach(d => {
+                
+                var drawNumbers = d.Numbers
+                     .OrderBy(n => n.Number)
+                     .Select(n => n.Number)
+                     .ToList();
+
+                
+                var winningTickets = new List<WinningTicketResult>();
+                // TU dopisz logike dotyczaca WinningTicket jesli bedzie potrzebna
+                foreach (var ticket in ticketResults)
+                {
+                    var ticketNumbers = ticket.TicketNumbers.ToList();                    
+                    // Lista pasujących numerów
+                    var matchingNumbers = drawNumbers.Intersect(ticketNumbers).ToList();
+                    if (matchingNumbers.Count > 2) winningTickets.Add(new WinningTicketResult(ticket.TicketId, matchingNumbers));
+                }
+
+                var dr = new Contracts.DrawsResult(d.Id, d.DrawDate, d.DrawSystemId, d.LottoType, drawNumbers,
+                                                   d.TicketPrice,
+                                                   d.WinPoolCount1, d.WinPoolAmount1,
+                                                   d.WinPoolCount2, d.WinPoolAmount2,
+                                                   d.WinPoolCount3, d.WinPoolAmount3,
+                                                   d.WinPoolCount4, d.WinPoolAmount4,
+                                                   winningTickets);
+                drawResults.Add(dr);
+            });
+
+
             _logger.LogDebug(
                 "Weryfikacja: pobrano {TicketCount} kuponów i {DrawCount} losowań dla użytkownika {UserId}",
                 tickets.Count, draws.Count, userId);
 
-            // 5. Perform verification in memory
-            var results = new List<Contracts.TicketVerificationResult>();
-
-            foreach (var ticket in tickets)
-            {
-                var ticketNumbers = ticket.Numbers
-                    .OrderBy(n => n.Position)
-                    .Select(n => n.Number)
-                    .ToList();
-
-                var drawResults = new List<Contracts.DrawVerificationResult>();
-
-                foreach (var draw in draws)
-                {
-                    var drawNumbers = draw.Numbers
-                        .OrderBy(n => n.Position)
-                        .Select(n => n.Number)
-                        .ToList();
-
-                    // Find matching numbers using Intersect
-                    var winningNumbers = ticketNumbers.Intersect(drawNumbers).OrderBy(n => n).ToList();
-                    var hits = winningNumbers.Count;
-
-                    // Only include draws with 3 or more hits
-                    if (hits >= 3)
-                    {
-                        drawResults.Add(new Contracts.DrawVerificationResult(
-                            draw.Id,
-                            draw.DrawDate,
-                            draw.DrawSystemId,
-                            draw.LottoType,
-                            drawNumbers,
-                            hits,
-                            winningNumbers,
-                            draw.TicketPrice,
-                            draw.WinPoolCount1,
-                            draw.WinPoolAmount1,
-                            draw.WinPoolCount2,
-                            draw.WinPoolAmount2,
-                            draw.WinPoolCount3,
-                            draw.WinPoolAmount3,
-                            draw.WinPoolCount4,
-                            draw.WinPoolAmount4
-                        ));
-                    }
-                }
-
-                // Only include tickets that have at least one hit
-                if (drawResults.Count > 0)
-                {
-                    results.Add(new Contracts.TicketVerificationResult(
-                        ticket.Id,
-                        ticket.GroupName ?? string.Empty,
-                        ticketNumbers,
-                        drawResults
-                    ));
-                }
-            }
 
             // 6. Stop measurement and build response
             stopwatch.Stop();
 
-            _logger.LogDebug(
-                "Weryfikacja zakończona: znaleziono {ResultCount} kuponów z trafieniami, czas wykonania: {ExecutionTime}ms",
-                results.Count, stopwatch.ElapsedMilliseconds);
+            _logger.LogDebug("Weryfikacja zakończona: czas wykonania: {ExecutionTime}ms", stopwatch.ElapsedMilliseconds);
 
             return new Contracts.Response(
-                results,
-                tickets.Count,
-                draws.Count,
-                stopwatch.ElapsedMilliseconds
+                stopwatch.ElapsedMilliseconds,
+                drawResults,
+                ticketResults
             );
         }
         catch (ValidationException)

@@ -5,11 +5,12 @@
 import { useState } from 'react';
 import { useAppContext } from '../../context/app-context';
 import { CheckPanel } from '../../components/checks/check-panel';
+import { CheckSummary } from '../../components/checks/check-summary';
 import { CheckResults } from '../../components/checks/check-results';
 import Spinner from '../../components/shared/spinner';
 import ErrorModal from '../../components/shared/error-modal';
 import { getDefaultDateFrom, getDefaultDateTo } from '../../utils/date-helpers';
-import type { TicketVerificationResult } from '../../services/contracts/verification-check-response';
+import type { DrawsResult, TicketsResult } from '../../services/contracts/verification-check-response';
 
 /**
  * Checks Page - Main page for verifying user's lottery tickets against draw results
@@ -29,10 +30,11 @@ export default function ChecksPage() {
   const [dateFrom, setDateFrom] = useState<string>(getDefaultDateFrom());
   const [dateTo, setDateTo] = useState<string>(getDefaultDateTo());
   const [groupName, setGroupName] = useState<string>('');
+  const [showOnlyWins, setShowOnlyWins] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [results, setResults] = useState<TicketVerificationResult[] | null>(null);
-  const [totalTickets, setTotalTickets] = useState<number>(0);
-  const [totalDraws, setTotalDraws] = useState<number>(0);
+  const [drawsResults, setDrawsResults] = useState<DrawsResult[] | null>(null);
+  const [ticketsResults, setTicketsResults] = useState<TicketsResult[] | null>(null);
+  const [executionTimeMs, setExecutionTimeMs] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
 
   /**
@@ -47,7 +49,8 @@ export default function ChecksPage() {
 
     setIsLoading(true);
     setError(null);
-    setResults(null);
+    setDrawsResults(null);
+    setTicketsResults(null);
 
     try {
       const response = await apiService.verificationCheck({
@@ -56,9 +59,9 @@ export default function ChecksPage() {
         groupName: groupNameValue && groupNameValue.trim() !== '' ? groupNameValue : null
       });
 
-      setResults(response.results);
-      setTotalTickets(response.totalTickets);
-      setTotalDraws(response.totalDraws);
+      setDrawsResults(response.drawsResults);
+      setTicketsResults(response.ticketsResults);
+      setExecutionTimeMs(response.executionTimeMs);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Wystąpił nieoczekiwany błąd';
 
@@ -128,12 +131,21 @@ export default function ChecksPage() {
         )}
 
         {/* Results Display */}
-        {!isLoading && results && (
-          <div className="animate-fadeIn">
+        {!isLoading && drawsResults && ticketsResults && (
+          <div className="animate-fadeIn space-y-6">
+            {/* Summary Statistics */}
+            <CheckSummary
+              drawsResults={drawsResults}
+              ticketsResults={ticketsResults}
+            />
+
+            {/* Detailed Results */}
             <CheckResults
-              results={results}
-              totalTickets={totalTickets}
-              totalDraws={totalDraws}
+              drawsResults={drawsResults}
+              ticketsResults={ticketsResults}
+              executionTimeMs={executionTimeMs}
+              showOnlyWins={showOnlyWins}
+              onShowOnlyWinsChange={setShowOnlyWins}
             />
           </div>
         )}

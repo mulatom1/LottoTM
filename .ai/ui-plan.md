@@ -568,6 +568,76 @@ W MVP **całkowicie zrezygnowano z widoku Dashboard** (`/dashboard`). Po zalogow
 **Header section:**
 - **Nagłówek h1:** "Sprawdź swoje wygrane"
 
+**Sekcja podsumowania (CheckSummary):**
+
+Wyświetlana po zakończeniu weryfikacji, przed szczegółową listą losowań.
+
+- **Nagłówek z przyciskiem toggle:**
+  - Ikona statystyk + "Podsumowanie wyników"
+  - Przycisk rozwijania/zwijania (ikona ▼/▲)
+  - Domyślnie: rozwinięta (isExpanded: true)
+
+- **Zawartość (gdy rozwinięta):**
+  - Grid ze statystykami (responsive: 1 kolumna mobile, 2 tablet, 3 desktop)
+
+  **Układ kart (3 kolumny × 3 rzędy):**
+
+  **Rząd 1:**
+  1. **Liczba losowań** - niebieska karta
+     - Ikona: 📅
+     - Wartość: liczba unikalnych dat losowań (każda data = 1 losowanie z LOTTO + LOTTO PLUS)
+
+  2. **Liczba kuponów** - zielona karta
+     - Ikona: 🎫
+     - Wartość: liczba unikalnych zestawów użytkownika
+
+  3. **Suma nakładów** - pomarańczowa karta (kolumna 3)
+     - Ikona: 💰
+     - Formuła: **liczba losowań × liczba kuponów × (cena LOTTO + cena LOTTO PLUS)**
+     - Logika:
+       - Liczba losowań = liczba unikalnych dat losowań (każda data to 1 losowanie z LOTTO + LOTTO PLUS)
+       - Cena za kupon na losowanie = suma cen LOTTO i LOTTO PLUS
+       - Przykład: 5 dni × 10 kuponów × (3.00 + 1.50) zł = 5 × 10 × 4.50 = 225.00 zł
+     - Format: "XX.XX zł"
+
+  **Rząd 2:**
+  4. **Wygrane 1° (trójki)** - żółta karta
+     - Label: "Wygrane 1° (trójki)"
+     - Format: "ilość | wartość zł"
+     - Przykład: "5 | 25.00 zł"
+     - Mapowanie: 3 trafienia → winPoolAmount4
+
+  5. **Wygrane 2° (czwórki)** - jasnozielona karta
+     - Label: "Wygrane 2° (czwórki)"
+     - Format: "ilość | wartość zł"
+     - Mapowanie: 4 trafienia → winPoolAmount3
+
+  6. **Suma wygranych** - granatowa karta (kolumna 3)
+     - Łączna liczba wszystkich wygranych i ich wartość
+     - Format: "ilość | wartość zł"
+
+  **Rząd 3:**
+  7. **Wygrane 3° (piątki)** - ciemnozielona karta
+     - Label: "Wygrane 3° (piątki)"
+     - Format: "ilość | wartość zł"
+     - Mapowanie: 5 trafień → winPoolAmount2
+
+  8. **Wygrane 4° (szóstki)** - fioletowa karta
+     - Label: "Wygrane 4° (szóstki)"
+     - Format: "ilość | wartość zł"
+     - Mapowanie: 6 trafień → winPoolAmount1
+
+  9. **Bilans** - zielona (zysk) lub czerwona (strata) karta (kolumna 3)
+     - Emoji: 😊 (zysk ≥0) lub 😠 (strata <0)
+     - Wartość: suma wygranych - suma nakładów
+     - Format: "+XX.XX zł" lub "-XX.XX zł"
+     - Podpis: "Zysk" lub "Strata"
+
+- **Responsywność:**
+  - Mobile: 1 kolumna, karty pełnej szerokości
+  - Tablet: 2 kolumny
+  - Desktop: 3 kolumny, równomierne rozmieszczenie
+
 **Formularz zakresu dat:**
 - **Date range picker:**
   - **Input "Od:"**
@@ -600,30 +670,58 @@ W MVP **całkowicie zrezygnowano z widoku Dashboard** (`/dashboard`). Po zalogow
 - Navbar i formularz zakresu dat pozostają aktywne
 - Text: "Weryfikuję wygrane..." (opcjonalnie)
 
-**Accordion z wynikami (po zakończeniu weryfikacji):**
+**Filtr wyników (po zakończeniu weryfikacji, przed listą losowań):**
+- **Checkbox/Toggle:** "Pokaż tylko losowania z kuponami trafionymi"
+  - Default: false (wyłączony - pokazuje wszystkie losowania)
+  - Gdy włączony (true): ukrywa losowania bez trafień (drawsResults z pustą listą winningTicketsResult)
+  - Filtrowanie lokalne (bez odpytywania backendu ponownie)
+  - Layout: nad listą losowań, wyrównany do prawej lub lewej strony
 
-Struktura accordion - każde losowanie jako rozwijalna sekcja:
+**Lista Draws z rozwijalnymi sekcjami (po zakończeniu weryfikacji):**
 
-**Accordion Item (dla każdego losowania w zakresie):**
-- **Header (kliknąlny, rozwijany):**
-  - Icon: ▼ (expanded) / ▶ (collapsed)
-  - Text: "Losowanie 2025-10-28: [12, 18, 25, 31, 40, 49]"
-  - Styling: bold, larger font, hover effect
-- **Content (expanded):**
-  - Lista wszystkich zestawów użytkownika dla tego losowania
-  - Każdy zestaw jako card/row:
-    - **Liczby zestawu:** [3, **12**, 19, **25**, **31**, 44]
-      - Wygrane liczby (matched) **pogrubione** (bold, `font-weight-bold`)
-      - Pozostałe liczby normalną czcionką
-    - **Badge wygranych** (tylko dla ≥3 trafień):
-      - 3 trafienia: 🏆 "Wygrana 3 (trójka)" - badge zielony (`bg-green-100 text-green-800`)
-      - 4 trafienia: 🏆 "Wygrana 4 (czwórka)" - badge niebieski (`bg-blue-100 text-blue-800`)
-      - 5 trafień: 🏆 "Wygrana 5 (piątka)" - badge pomarańczowy (`bg-orange-100 text-orange-800`)
-      - 6 trafień: 🎉 "Wygrana 6 (szóstka)" - badge czerwony/złoty (`bg-red-100 text-red-800` lub złoty gradient)
-    - Jeśli 0-2 trafienia: text "Brak trafień" (szary, mniejszy font)
+Struktura - każde losowanie (Draw) jako card/rekord z dwoma rozwijalnymi sekcjami:
 
-**Empty state (jeśli brak wygranych w zakresie):**
+**Draw Card (dla każdego losowania w zakresie):**
+- **Header główny (zawsze widoczny, nie klikany):**
+  - **Data losowania:** "2025-10-28" (duża, pogrubiona czcionka)
+  - **Typ losowania:** Badge "LOTTO" lub "LOTTO PLUS" (różne kolory: zielony dla LOTTO, niebieski dla LOTTO PLUS)
+  - **DrawSystemId:** "ID: 20250001" (mniejsza czcionka, szary kolor)
+  - **Wylosowane numery:** [12, 18, 25, 31, 40, 49] (niebieskie kółka, inline display)
+
+- **Rozwijalna sekcja 1 (domyślnie ukryta):**
+  - **Nagłówek sekcji (kliknąlny):** "Koszt kuponu" + ikona ▼/▶
+  - **Zawartość (po rozwinięciu):**
+    - **Cena kuponu:** "Cena biletu: 3.00 zł" (lub "Brak danych" jeśli null)
+    - **Statystyki wygranych (stopień 1-4):**
+      - Grid layout (4 kolumny na desktop, 2 na tablet, 1 na mobile)
+      - Dla każdego stopnia (1-4):
+        - **Stopień 1 (6 trafień):** Zielona karta z ikoną "6", ilość wygranych + kwota
+          - "Ilość: 2 osoby" (lub "Brak danych")
+          - "Kwota: 5,000,000.00 zł" (lub "Brak danych")
+        - **Stopień 2 (5 trafień):** Niebieska karta z ikoną "5", ilość + kwota
+        - **Stopień 3 (4 trafienia):** Żółta karta z ikoną "4", ilość + kwota
+        - **Stopień 4 (3 trafienia):** Pomarańczowa karta z ikoną "3", ilość + kwota
+
+- **Rozwijalna sekcja 2 (domyślnie ukryta):**
+  - **Nagłówek sekcji (kliknąlny):** "Ilość wygranych zestawów (X)" + ikona ▼/▶
+    - Gdzie X to liczba wygranych kuponów dla tego losowania (np. "Ilość wygranych zestawów (3)")
+  - **Zawartość (po rozwinięciu):**
+    - **Lista wygranych kuponów** (tylko kupony z ≥3 trafieniami):
+      - Każdy kupon jako card/row:
+        - **GroupName kuponu:** Badge szary z nazwą grupy (np. "Ulubione")
+        - **Status wygranej:** Badge kolorowy z emoji i tekstem:
+          - 3 trafienia: 🏆 "Wygrana 3 (trójka)" - zielony badge
+          - 4 trafienia: 🏆 "Wygrana 4 (czwórka)" - niebieski badge
+          - 5 trafień: 🏆 "Wygrana 5 (piątka)" - pomarańczowy badge
+          - 6 trafień: 🎉 "Wygrana 6 (szóstka)" - czerwony/złoty badge
+        - **Liczby z kuponu:**
+          - Szare kółka dla nietrafionych liczb
+          - Niebieskie kółka z pogrubionym tekstem dla trafionych liczb (matchingNumbers)
+          - Przykład: [3, **12**, 19, **25**, **31**, 44] - gdzie 12, 25, 31 są trafione (niebieskie), a 3, 19, 44 są nietrafione (szare)
+
+**Empty state (jeśli brak losowań z wygranymi w zakresie):**
 - "Nie znaleziono wygranych w wybranym zakresie dat."
+- Lub (jeśli są losowania, ale żaden kupon nie wygrał): każdy Draw Card wyświetla "Brak wygranych kuponów dla tego losowania" w sekcji 2
 
 **UX, dostępność i względy bezpieczeństwa:**
 - **UX:**
