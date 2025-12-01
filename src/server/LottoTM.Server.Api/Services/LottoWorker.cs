@@ -79,7 +79,7 @@ public class LottoWorker : BackgroundService
             }
 
             //Archiwum
-            if (_options.Enable && lastArchRunTime.Year >= 1957)
+            if (_options.Enable && lastArchRunTime.Year >= 1991)
             {
                 lastArchRunTime = lastArchRunTime.AddDays(-1);
 
@@ -87,11 +87,11 @@ public class LottoWorker : BackgroundService
                     await FetchAndSaveArchDrawsFromLottoOpenApi(lastArchRunTime, stoppingToken);
             }
 
-            //Wygrane
-            if (_options.Enable)
-            {
-                await FetchAndSaveStatsDrawsFromLottoOpenApi(stoppingToken);
-            }
+            ////Wygrane
+            //if (_options.Enable)
+            //{
+            //    await FetchAndSaveStatsDrawsFromLottoOpenApi(stoppingToken);
+            //}
 
             if (!_options.Enable)
             {

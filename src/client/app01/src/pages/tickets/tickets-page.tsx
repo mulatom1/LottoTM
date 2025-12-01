@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { useAppContext } from '../../context/app-context';
 import { Button, ErrorModal, Toast } from '../../components/shared';
@@ -23,6 +23,22 @@ function TicketsPage() {
   const { getApiService, logout, isLoggedIn } = useAppContext();
   const navigate = useNavigate();
   const apiService = getApiService();
+
+  // Generate random lotto numbers for background
+  const backgroundNumbers = useMemo(() => {
+    const colors = ['text-gray-500', 'text-blue-600', 'text-yellow-600'];
+    return Array.from({ length: 50 }, (_, i) => ({
+      id: i,
+      number: Math.floor(Math.random() * 49) + 1,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      size: Math.random() * 2.5 + 1.5,
+      opacity: Math.random() * 0.25 + 0.15,
+      duration: Math.random() * 20 + 15,
+      delay: Math.random() * 5,
+      color: colors[Math.floor(Math.random() * colors.length)],
+    }));
+  }, []);
 
   // Redirect if no API service available
   useEffect(() => {
@@ -463,8 +479,28 @@ function TicketsPage() {
   };
 
   return (
-    <>
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
+    <main className="min-h-screen bg-gradient-to-br from-gray-100 via-blue-50 to-yellow-50 relative overflow-hidden">
+      {/* Animated background numbers */}
+      <div className="absolute inset-0 pointer-events-none">
+        {backgroundNumbers.map((item) => (
+          <div
+            key={item.id}
+            className={`absolute ${item.color} font-bold animate-float`}
+            style={{
+              left: `${item.x}%`,
+              top: `${item.y}%`,
+              fontSize: `${item.size}rem`,
+              opacity: item.opacity,
+              animation: `float ${item.duration}s infinite ease-in-out`,
+              animationDelay: `${item.delay}s`,
+            }}
+          >
+            {item.number}
+          </div>
+        ))}
+      </div>
+
+      <div className="container mx-auto px-4 py-8 max-w-6xl relative z-10 bg-white/90 backdrop-blur-sm rounded-lg shadow-lg">
         {/* Header Section */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
           <div className="flex items-center gap-3">
@@ -601,7 +637,7 @@ function TicketsPage() {
           onClose={() => setToastMessage(null)}
         />
       )}
-    </>
+    </main>
   );
 }
 

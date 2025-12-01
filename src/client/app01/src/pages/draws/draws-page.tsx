@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAppContext } from '../../context/app-context';
 import DrawsFilterPanel from '../../components/draws/draws-filter-panel';
 import DrawList from '../../components/draws/draw-list';
@@ -27,6 +27,22 @@ function DrawsPage() {
   const { user, getApiService } = useAppContext();
   const apiService = getApiService()!; // Non-null assertion - AppContext always provides ApiService
   const isAdmin = user?.isAdmin || false;
+
+  // Generate random lotto numbers for background
+  const backgroundNumbers = useMemo(() => {
+    const colors = ['text-gray-500', 'text-blue-600', 'text-yellow-600'];
+    return Array.from({ length: 50 }, (_, i) => ({
+      id: i,
+      number: Math.floor(Math.random() * 49) + 1,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      size: Math.random() * 2.5 + 1.5,
+      opacity: Math.random() * 0.25 + 0.15,
+      duration: Math.random() * 20 + 15,
+      delay: Math.random() * 5,
+      color: colors[Math.floor(Math.random() * colors.length)],
+    }));
+  }, []);
 
   // State: draws list
   const [draws, setDraws] = useState<DrawDto[]>([]);
@@ -381,7 +397,28 @@ function DrawsPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-6xl">
+    <main className="min-h-screen bg-gradient-to-br from-gray-100 via-blue-50 to-yellow-50 relative overflow-hidden">
+      {/* Animated background numbers */}
+      <div className="absolute inset-0 pointer-events-none">
+        {backgroundNumbers.map((item) => (
+          <div
+            key={item.id}
+            className={`absolute ${item.color} font-bold animate-float`}
+            style={{
+              left: `${item.x}%`,
+              top: `${item.y}%`,
+              fontSize: `${item.size}rem`,
+              opacity: item.opacity,
+              animation: `float ${item.duration}s infinite ease-in-out`,
+              animationDelay: `${item.delay}s`,
+            }}
+          >
+            {item.number}
+          </div>
+        ))}
+      </div>
+
+      <div className="container mx-auto px-4 py-6 max-w-6xl relative z-10">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
         <h1 className="text-3xl font-bold text-gray-900">Historia losowań</h1>
@@ -455,7 +492,8 @@ function DrawsPage() {
         onClose={handleCloseToast}
         variant="success"
       />
-    </div>
+      </div>
+    </main>
   );
 }
 

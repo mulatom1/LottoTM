@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LottoTM - Prezentacja MVP</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            overflow: hidden;
+            color: #333;
+        }
+
+        .presentation-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        .slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 3rem;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .slide.active {
+            opacity: 1;
+            transform: translateX(0);
+            z-index: 1;
+        }
+
+        .slide.prev {
+            transform: translateX(-100%);
+        }
+
+        /* Slide tytułowy */
+        .title-slide {
+            text-align: center;
+        }
+
+        .title-slide h1 {
+            font-size: 4rem;
+            font-weight: 800;
+            color: white;
+            margin-bottom: 1rem;
+            text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            animation: fadeInUp 1s ease-out;
+        }
+
+        .title-slide .subtitle {
+            font-size: 1.8rem;
+            color: rgba(255, 255, 255, 0.95);
+            margin-bottom: 2rem;
+            animation: fadeInUp 1s ease-out 0.2s both;
+        }
+
+        .title-slide .description {
+            font-size: 1.2rem;
+            color: rgba(255, 255, 255, 0.9);
+            max-width: 800px;
+            line-height: 1.8;
+            animation: fadeInUp 1s ease-out 0.4s both;
+        }
+
+        /* Slide ze screenem */
+        .content-slide {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 1400px;
+            width: 90%;
+            max-height: 90vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: row;
+            align-items: stretch;
+        }
+
+        .content-left {
+            flex: 1;
+            padding: 3rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+
+        .content-left h2 {
+            font-size: 2.5rem;
+            color: #2d3748;
+            margin-bottom: 1.5rem;
+            font-weight: 700;
+        }
+
+        .content-left .feature-list {
+            list-style: none;
+            margin: 0;
+        }
+
+        .content-left .feature-list li {
+            font-size: 1.1rem;
+            color: #4a5568;
+            margin-bottom: 1rem;
+            padding-left: 2rem;
+            position: relative;
+            line-height: 1.6;
+        }
+
+        .content-left .feature-list li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #667eea;
+            font-weight: bold;
+            font-size: 1.4rem;
+        }
+
+        .content-right {
+            flex: 1.2;
+            padding: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f8f9fa;
+        }
+
+        .content-right img {
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            object-fit: contain;
+        }
+
+        /* Slide końcowy */
+        .final-slide {
+            text-align: center;
+        }
+
+        .final-slide h2 {
+            font-size: 3.5rem;
+            color: white;
+            margin-bottom: 2rem;
+            animation: fadeInUp 1s ease-out;
+        }
+
+        .final-slide .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            max-width: 1000px;
+            margin: 3rem auto;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            animation: fadeInUp 1s ease-out both;
+        }
+
+        .stat-card:nth-child(1) { animation-delay: 0.2s; }
+        .stat-card:nth-child(2) { animation-delay: 0.3s; }
+        .stat-card:nth-child(3) { animation-delay: 0.4s; }
+        .stat-card:nth-child(4) { animation-delay: 0.5s; }
+
+        .stat-card .stat-number {
+            font-size: 3rem;
+            font-weight: 800;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-card .stat-label {
+            font-size: 1rem;
+            color: #4a5568;
+            font-weight: 600;
+        }
+
+        /* Nawigacja */
+        .navigation {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 1rem;
+            z-index: 100;
+        }
+
+        .nav-button {
+            background: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #667eea;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .nav-button:hover {
+            background: #667eea;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .nav-button:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Progress dots */
+        .progress-dots {
+            position: fixed;
+            top: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 0.8rem;
+            z-index: 100;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .dot.active {
+            background: white;
+            transform: scale(1.3);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);
+        }
+
+        /* Animacje */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .content-slide {
+                flex-direction: column;
+                overflow-y: auto;
+            }
+
+            .content-left, .content-right {
+                flex: none;
+                width: 100%;
+            }
+
+            .title-slide h1 {
+                font-size: 2.5rem;
+            }
+
+            .title-slide .subtitle {
+                font-size: 1.3rem;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .slide {
+                padding: 1.5rem;
+            }
+
+            .content-left h2 {
+                font-size: 1.8rem;
+            }
+
+            .content-left .feature-list li {
+                font-size: 0.95rem;
+            }
+
+            .nav-button {
+                padding: 0.8rem 1.5rem;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="presentation-container">
+        <!-- Progress dots -->
+        <div class="progress-dots">
+            <div class="dot active" data-slide="0"></div>
+            <div class="dot" data-slide="1"></div>
+            <div class="dot" data-slide="2"></div>
+            <div class="dot" data-slide="3"></div>
+            <div class="dot" data-slide="4"></div>
+            <div class="dot" data-slide="5"></div>
+        </div>
+
+        <!-- Slide 1: Tytuł -->
+        <div class="slide active title-slide">
+            <h1>LottoTM</h1>
+            <p class="subtitle">System Wspomagający Gracza - Wersja MVP</p>
+            <p class="description">
+                Intuicyjne rozwiązanie dla graczy LOTTO, które eliminuje problem czasochłonnego
+                i podatnego na błędy ręcznego sprawdzania kuponów. Zarządzaj wieloma zestawami liczb
+                i automatycznie wykrywaj wygrane.
+            </p>
+        </div>
+
+        <!-- Slide 2: Logowanie -->
+        <div class="slide">
+            <div class="content-slide">
+                <div class="content-left">
+                    <h2>Bezpieczny dostęp</h2>
+                    <ul class="feature-list">
+                        <li><strong>Prywatne konto użytkownika</strong> - Twoje zestawy liczb są dostępne tylko dla Ciebie</li>
+                        <li><strong>Pełna izolacja danych</strong> - Każdy gracz ma własną, oddzielną przestrzeń roboczą</li>
+                        <li><strong>Elegancki interfejs</strong> - Czysty design z tłem inspirowanym kulkami LOTTO</li>
+                        <li><strong>Szybki dostęp</strong> - Zaloguj się emailem i hasłem w kilka sekund</li>
+                        <li><strong>Opcja rejestracji</strong> - Nowi użytkownicy mogą łatwo założyć konto</li>
+                    </ul>
+                </div>
+                <div class="content-right">
+                    <img src="../EkranLogowania.png" alt="Ekran logowania">
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 3: Moje kupony -->
+        <div class="slide">
+            <div class="content-slide">
+                <div class="content-left">
+                    <h2>Zarządzanie kuponami</h2>
+                    <ul class="feature-list">
+                        <li><strong>Dodawanie ręczne</strong> - Wprowadź swoje ulubione zestawy liczb</li>
+                        <li><strong>Generator losowy</strong> - Wygeneruj pojedynczy zestaw liczb automatycznie</li>
+                        <li><strong>Generator systemowy</strong> - Stwórz do 9 zestawów pokrywających wszystkie 49 liczb</li>
+                        <li><strong>Import/Export CSV</strong> - Łatwe przenoszenie danych między urządzeniami</li>
+                        <li><strong>Edycja i usuwanie</strong> - Pełna kontrola nad zapisanymi zestawami</li>
+                        <li><strong>Limit 100 zestawów</strong> - Wystarczająco dużo miejsca dla każdego gracza</li>
+                    </ul>
+                </div>
+                <div class="content-right">
+                    <img src="../MojeKupony.png" alt="Zarządzanie kuponami">
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 4: Historia losowań -->
+        <div class="slide">
+            <div class="content-slide">
+                <div class="content-left">
+                    <h2>Historia losowań</h2>
+                    <ul class="feature-list">
+                        <li><strong>Pełna historia wyników</strong> - Wszystkie losowania LOTTO i LOTTO Plus w jednym miejscu</li>
+                        <li><strong>Automatyczne pobieranie</strong> - Worker automatycznie ściąga wyniki między 22:15-23:00</li>
+                        <li><strong>Ręczne dodawanie</strong> - Możliwość wprowadzenia wyników przez administratora</li>
+                        <li><strong>Szczegóły wygranych</strong> - Zobacz ilość trafień (6, 5, 4, 3) i kwoty nagród</li>
+                        <li><strong>Filtrowanie dat</strong> - Szybkie wyszukiwanie losowań z wybranego okresu</li>
+                        <li><strong>Ceny biletów</strong> - Informacja o kosztach za konkretne losowanie</li>
+                    </ul>
+                </div>
+                <div class="content-right">
+                    <img src="../HistoriaLosowan.png" alt="Historia losowań">
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 5: Sprawdź wygrane -->
+        <div class="slide">
+            <div class="content-slide">
+                <div class="content-left">
+                    <h2>Weryfikacja wygranych</h2>
+                    <ul class="feature-list">
+                        <li><strong>Automatyczna weryfikacja</strong> - System sprawdza wszystkie Twoje kupony w zadanym okresie</li>
+                        <li><strong>Podsumowanie wyników</strong> - Zobacz liczbę losowań, kuponów i sumę wygranych</li>
+                        <li><strong>Analiza trafień</strong> - Szczegółowy podział na wygrane 1°-4° (trójki, czwórki, piątki, szóstki)</li>
+                        <li><strong>Bilans finansowy</strong> - Sprawdź czy jesteś na plusie czy minusie</li>
+                        <li><strong>Wizualizacja trafień</strong> - Wyróżnione trafione liczby na każdym kuponie</li>
+                        <li><strong>Wydajność &lt;2s</strong> - Sprawdzenie 100 zestawów w mniej niż 2 sekundy</li>
+                    </ul>
+                </div>
+                <div class="content-right">
+                    <img src="../MojeWygrane.png" alt="Weryfikacja wygranych">
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 6: Podsumowanie -->
+        <div class="slide final-slide">
+            <h2>Kryteria sukcesu MVP</h2>
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-number">75%</div>
+                    <div class="stat-label">Akceptacja wygenerowanych zestawów</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">&lt;2s</div>
+                    <div class="stat-label">Sprawdzenie 100 zestawów</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">40%</div>
+                    <div class="stat-label">Retencja użytkowników tygodniowo</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">4/5</div>
+                    <div class="stat-label">Średnia ocena w ankietach</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Nawigacja -->
+        <div class="navigation">
+            <button class="nav-button" id="prevBtn">← Poprzedni</button>
+            <button class="nav-button" id="nextBtn">Następny →</button>
+        </div>
+    </div>
+
+    <script>
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+        const dots = document.querySelectorAll('.dot');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+
+        function showSlide(n) {
+            // Ograniczenia
+            if (n >= slides.length) n = slides.length - 1;
+            if (n < 0) n = 0;
+
+            // Aktualizacja slajdów
+            slides.forEach((slide, index) => {
+                slide.classList.remove('active', 'prev');
+                if (index === n) {
+                    slide.classList.add('active');
+                } else if (index < n) {
+                    slide.classList.add('prev');
+                }
+            });
+
+            // Aktualizacja dots
+            dots.forEach((dot, index) => {
+                dot.classList.toggle('active', index === n);
+            });
+
+            // Aktualizacja przycisków
+            prevBtn.disabled = n === 0;
+            nextBtn.disabled = n === slides.length - 1;
+
+            currentSlide = n;
+        }
+
+        // Event listeners dla przycisów
+        prevBtn.addEventListener('click', () => showSlide(currentSlide - 1));
+        nextBtn.addEventListener('click', () => showSlide(currentSlide + 1));
+
+        // Event listeners dla dots
+        dots.forEach((dot, index) => {
+            dot.addEventListener('click', () => showSlide(index));
+        });
+
+        // Nawigacja klawiaturą
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') showSlide(currentSlide - 1);
+            if (e.key === 'ArrowRight' || e.key === ' ') {
+                e.preventDefault();
+                showSlide(currentSlide + 1);
+            }
+            if (e.key === 'Home') showSlide(0);
+            if (e.key === 'End') showSlide(slides.length - 1);
+        });
+
+        // Inicjalizacja
+        showSlide(0);
+    </script>
+</body>
+</html>
