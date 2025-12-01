@@ -49,7 +49,7 @@ function LoginPage() {
   // Generate random lotto numbers for background
   const backgroundNumbers = useMemo(() => {
     const colors = ['text-gray-500', 'text-blue-600', 'text-yellow-600'];
-    return Array.from({ length: 50 }, (_, i) => ({
+    return Array.from({ length: 200 }, (_, i) => ({
       id: i,
       number: Math.floor(Math.random() * 49) + 1,
       x: Math.random() * 100,

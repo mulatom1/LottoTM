@@ -6,7 +6,7 @@ Accept: application/json
 ###
 
 
-GET https://developers.lotto.pl/api/open/v1/lotteries/draw-results/by-date-per-game?drawDate=1957-12-22&gameType=Lotto&size=10&sort=drawDate&order=desc&index=1
+GET https://developers.lotto.pl/api/open/v1/lotteries/draw-results/by-date-per-game?drawDate=1990-12-29&gameType=Lotto&size=10&sort=drawDate&order=desc&index=1
 Accept: application/json
 Secret: xxx
 
