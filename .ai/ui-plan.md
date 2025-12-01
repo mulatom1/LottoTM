@@ -670,12 +670,23 @@ Wyświetlana po zakończeniu weryfikacji, przed szczegółową listą losowań.
 - Navbar i formularz zakresu dat pozostają aktywne
 - Text: "Weryfikuję wygrane..." (opcjonalnie)
 
-**Filtr wyników (po zakończeniu weryfikacji, przed listą losowań):**
-- **Checkbox/Toggle:** "Pokaż tylko losowania z kuponami trafionymi"
-  - Default: false (wyłączony - pokazuje wszystkie losowania)
-  - Gdy włączony (true): ukrywa losowania bez trafień (drawsResults z pustą listą winningTicketsResult)
-  - Filtrowanie lokalne (bez odpytywania backendu ponownie)
-  - Layout: nad listą losowań, wyrównany do prawej lub lewej strony
+**Filtry wyników (po zakończeniu weryfikacji, przed listą losowań):**
+- **Panel granularnych filtrów (5 checkboxów):**
+  - **Checkbox 1:** "Pokaż kupony bez trafień" (showNonWinningTickets)
+    - Default: true (zaznaczony - pokazuje kupony z 0 trafień)
+  - **Checkbox 2:** "Pokaż 3 trafienia" (show3Hits)
+    - Default: true (zaznaczony)
+  - **Checkbox 3:** "Pokaż 4 trafienia" (show4Hits)
+    - Default: true (zaznaczony)
+  - **Checkbox 4:** "Pokaż 5 trafień" (show5Hits)
+    - Default: true (zaznaczony)
+  - **Checkbox 5:** "Pokaż 6 trafień" (show6Hits)
+    - Default: true (zaznaczony)
+  - **Logika filtrowania:**
+    - Każdy checkbox kontroluje wyświetlanie kuponów z określoną liczbą trafień w sekcji 2 każdego DrawCard
+    - Filtrowanie lokalne (bez odpytywania backendu ponownie)
+    - Kupony są filtrowane w obrębie każdego losowania (nie ukrywa całych losowań, tylko filtruje kupony w sekcji 2)
+  - **Layout:** nad listą losowań, ułożone poziomo (5 checkboxów obok siebie na desktop, 2-3 w rzędzie na mobile)
 
 **Lista Draws z rozwijalnymi sekcjami (po zakończeniu weryfikacji):**
 

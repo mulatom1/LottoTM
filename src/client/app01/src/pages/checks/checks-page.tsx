@@ -46,7 +46,11 @@ export default function ChecksPage() {
   const [dateFrom, setDateFrom] = useState<string>(getDefaultDateFrom());
   const [dateTo, setDateTo] = useState<string>(getDefaultDateTo());
   const [groupName, setGroupName] = useState<string>('');
-  const [showOnlyWins, setShowOnlyWins] = useState<boolean>(false);
+  const [showNonWinningTickets, setShowNonWinningTickets] = useState<boolean>(true);
+  const [show3Hits, setShow3Hits] = useState<boolean>(true);
+  const [show4Hits, setShow4Hits] = useState<boolean>(true);
+  const [show5Hits, setShow5Hits] = useState<boolean>(true);
+  const [show6Hits, setShow6Hits] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [drawsResults, setDrawsResults] = useState<DrawsResult[] | null>(null);
   const [ticketsResults, setTicketsResults] = useState<TicketsResult[] | null>(null);
@@ -180,8 +184,16 @@ export default function ChecksPage() {
               drawsResults={drawsResults}
               ticketsResults={ticketsResults}
               executionTimeMs={executionTimeMs}
-              showOnlyWins={showOnlyWins}
-              onShowOnlyWinsChange={setShowOnlyWins}
+              showNonWinningTickets={showNonWinningTickets}
+              onShowNonWinningTicketsChange={setShowNonWinningTickets}
+              show3Hits={show3Hits}
+              onShow3HitsChange={setShow3Hits}
+              show4Hits={show4Hits}
+              onShow4HitsChange={setShow4Hits}
+              show5Hits={show5Hits}
+              onShow5HitsChange={setShow5Hits}
+              show6Hits={show6Hits}
+              onShow6HitsChange={setShow6Hits}
             />
           </div>
         )}

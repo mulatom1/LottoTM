@@ -7,7 +7,7 @@ Checks Page to widok umożliwiający użytkownikom weryfikację swoich zestawów
 **Główne funkcjonalności:**
 - Wybór zakresu dat do weryfikacji (domyślnie ostatni tydzień, maksymalnie 3 lata)
 - Opcjonalne filtrowanie kuponów według nazwy grupy (groupName) z wyszukiwaniem częściowym (Contains)
-- Filtrowanie wyników: pokazywanie tylko losowań z kuponami trafionymi (lokalne filtrowanie bez ponownego odpytywania backendu)
+- Granularne filtrowanie wyników: kontrola wyświetlania kuponów według liczby trafień (0, 3, 4, 5, 6 trafień) - lokalne filtrowanie bez ponownego odpytywania backendu
 - Automatyczne porównanie zestawów użytkownika z losowaniami w wybranym okresie
 - Prezentacja wyników w formie rozwijalnego accordion (grupowanie po losowaniach)
 - Wyróżnienie trafionych liczb (pogrubienie)
@@ -45,9 +45,14 @@ ChecksPage (główny komponent strony)
 │       ├── WinStatCard (Wygrane 4° - szóstki)
 │       ├── WinStatCard (Suma wygranych)
 │       └── BalanceCard (Bilans z emoji)
-├── FilterCheckbox (filtr "Pokaż tylko losowania z kuponami trafionymi")
-└── CheckResults (sekcja z wynikami)
-    └── DrawCard[] (dla każdego losowania - przefiltrowane jeśli filter aktywny)
+└── CheckResults (sekcja z wynikami z granularnymi filtrami)
+    ├── Filtry wyświetlania (checkboxy dla każdego typu wyników)
+    │   ├── Checkbox "Pokaż kupony bez trafień"
+    │   ├── Checkbox "Pokaż 3 trafienia"
+    │   ├── Checkbox "Pokaż 4 trafienia"
+    │   ├── Checkbox "Pokaż 5 trafień"
+    │   └── Checkbox "Pokaż 6 trafień"
+    └── DrawCard[] (dla każdego losowania - kupony przefiltrowane według aktywnych filtrów)
         ├── DrawHeader (zawsze widoczny, nie klikany)
         │   ├── Data losowania (duża czcionka, pogrubiona)
         │   ├── Badge typu losowania (LOTTO/LOTTO PLUS)
@@ -109,13 +114,19 @@ Brak (komponent strony, nie przyjmuje propsów)
 **Stan lokalny:**
 ```typescript
 interface ChecksPageState {
-  dateFrom: string;          // Format YYYY-MM-DD
-  dateTo: string;            // Format YYYY-MM-DD
-  groupName: string;         // Nazwa grupy (opcjonalnie)
-  showOnlyWins: boolean;     // Filtr: pokaż tylko losowania z wygranymi (domyślnie false)
-  isLoading: boolean;        // Stan ładowania
-  results: VerificationResult[] | null;  // Wyniki weryfikacji
-  error: string | null;      // Komunikat błędu
+  dateFrom: string;                  // Format YYYY-MM-DD
+  dateTo: string;                    // Format YYYY-MM-DD
+  groupName: string;                 // Nazwa grupy (opcjonalnie)
+  showNonWinningTickets: boolean;    // Filtr: pokaż kupony bez trafień (domyślnie true)
+  show3Hits: boolean;                // Filtr: pokaż kupony z 3 trafieniami (domyślnie true)
+  show4Hits: boolean;                // Filtr: pokaż kupony z 4 trafieniami (domyślnie true)
+  show5Hits: boolean;                // Filtr: pokaż kupony z 5 trafieniami (domyślnie true)
+  show6Hits: boolean;                // Filtr: pokaż kupony z 6 trafieniami (domyślnie true)
+  isLoading: boolean;                // Stan ładowania
+  drawsResults: DrawsResult[] | null;      // Wyniki losowań z API
+  ticketsResults: TicketsResult[] | null;  // Wyniki kuponów z API
+  executionTimeMs: number;           // Czas wykonania zapytania (ms)
+  error: string | null;              // Komunikat błędu
 }
 ```
 
@@ -282,15 +293,20 @@ interface CheckSummaryState {
 ### 4.4 CheckResults (kontener wyników)
 
 **Opis komponentu:**
-Kontener renderujący wyniki weryfikacji w formie listy Draw Cards. Każde losowanie to osobna karta z dwoma rozwijalnymi sekcjami. Komponent transformuje dane z API (osobne listy `drawsResults` i `ticketsResults`) do struktury UI (`DrawWithTickets[]`) przez połączenie danych za pomocą `ticketId`. Zawiera checkbox do filtrowania wyników (pokazywanie tylko losowań z wygranymi kuponami).
+Kontener renderujący wyniki weryfikacji w formie listy Draw Cards. Każde losowanie to osobna karta z dwoma rozwijalnymi sekcjami. Komponent transformuje dane z API (osobne listy `drawsResults` i `ticketsResults`) do struktury UI (`DrawWithTickets[]`) przez połączenie danych za pomocą `ticketId`. Zawiera granularne filtry do kontroli wyświetlania kuponów według liczby trafień (0, 3, 4, 5, 6 trafień).
 
 **Główne elementy:**
 - `<div>` - kontener główny
-- `<div>` - header sekcji wyników z filtrem:
+- `<div>` - header sekcji wyników z filtrami:
   - `<div>` - info o liczbie wyników (opcjonalnie: "Znaleziono X losowań")
-  - `<label>` + `<input type="checkbox">` - filtr "Pokaż tylko losowania z kuponami trafionymi"
-- `<DrawCard[]>` - lista Draw Cards (dla każdego losowania - przefiltrowane jeśli showOnlyWins === true)
-- Empty state `<div>` - gdy brak wygranych: "Nie znaleziono wygranych w wybranym zakresie dat."
+  - **Panel filtrów (checkboxy):**
+    - `<label>` + `<input type="checkbox">` - "Pokaż kupony bez trafień" (showNonWinningTickets, domyślnie zaznaczony)
+    - `<label>` + `<input type="checkbox">` - "Pokaż 3 trafienia" (show3Hits, domyślnie zaznaczony)
+    - `<label>` + `<input type="checkbox">` - "Pokaż 4 trafienia" (show4Hits, domyślnie zaznaczony)
+    - `<label>` + `<input type="checkbox">` - "Pokaż 5 trafień" (show5Hits, domyślnie zaznaczony)
+    - `<label>` + `<input type="checkbox">` - "Pokaż 6 trafień" (show6Hits, domyślnie zaznaczony)
+- `<DrawCard[]>` - lista Draw Cards (dla każdego losowania - kupony wewnątrz przefiltrowane według aktywnych filtrów)
+- Empty state `<div>` - gdy brak wyników: "Nie znaleziono wygranych w wybranym zakresie dat."
 
 **Transformacja danych (w komponencie CheckResults):**
 ```typescript
@@ -342,14 +358,32 @@ function transformResponseToDrawsWithTickets(response: CheckResponse): DrawWithT
 
 **Logika filtrowania (w komponencie CheckResults):**
 ```typescript
-// Filtrowanie losowań jeśli showOnlyWins === true
-const filteredDraws = showOnlyWins
-  ? drawsWithTickets.filter(draw => draw.winningTickets.length > 0)
-  : drawsWithTickets;
+// Filtrowanie kuponów w każdym losowaniu według aktywnych filtrów
+// Każdy DrawCard otrzymuje przefiltrowaną listę winningTickets na podstawie:
+// - showNonWinningTickets: czy pokazywać kupony z 0 trafień
+// - show3Hits: czy pokazywać kupony z 3 trafieniami
+// - show4Hits: czy pokazywać kupony z 4 trafieniami
+// - show5Hits: czy pokazywać kupony z 5 trafieniami
+// - show6Hits: czy pokazywać kupony z 6 trafieniami
+
+// Przykładowa logika filtrowania:
+const shouldShowTicket = (hits: number): boolean => {
+  if (hits === 0) return showNonWinningTickets;
+  if (hits === 3) return show3Hits;
+  if (hits === 4) return show4Hits;
+  if (hits === 5) return show5Hits;
+  if (hits === 6) return show6Hits;
+  return false;
+};
 ```
 
 **Obsługiwane interakcje:**
-- `onChange` na checkboxie - wywołanie callback `onShowOnlyWinsChange(e.target.checked)`
+- `onChange` na każdym checkboxie - wywołanie odpowiedniego callbacka:
+  - `onShowNonWinningTicketsChange(value: boolean)`
+  - `onShow3HitsChange(value: boolean)`
+  - `onShow4HitsChange(value: boolean)`
+  - `onShow5HitsChange(value: boolean)`
+  - `onShow6HitsChange(value: boolean)`
 
 **Obsługiwana walidacja:**
 - Brak
@@ -425,8 +459,16 @@ interface CheckResultsProps {
   drawsResults: DrawsResult[];
   ticketsResults: TicketsResult[];
   executionTimeMs: number;
-  showOnlyWins: boolean;
-  onShowOnlyWinsChange: (value: boolean) => void;
+  showNonWinningTickets: boolean;
+  onShowNonWinningTicketsChange: (value: boolean) => void;
+  show3Hits: boolean;
+  onShow3HitsChange: (value: boolean) => void;
+  show4Hits: boolean;
+  onShow4HitsChange: (value: boolean) => void;
+  show5Hits: boolean;
+  onShow5HitsChange: (value: boolean) => void;
+  show6Hits: boolean;
+  onShow6HitsChange: (value: boolean) => void;
 }
 ```
 
@@ -820,10 +862,16 @@ const WIN_LABELS: Record<WinLevel, string> = {
 ```typescript
 const [dateFrom, setDateFrom] = useState<string>(getDefaultDateFrom());  // -1 tydzień
 const [dateTo, setDateTo] = useState<string>(getDefaultDateTo());        // dzisiaj
-const [groupName, setGroupName] = useState<string>('');                   // puste domyślnie
-const [showOnlyWins, setShowOnlyWins] = useState<boolean>(false);        // domyślnie false (pokazuj wszystkie)
+const [groupName, setGroupName] = useState<string>('');                  // puste domyślnie
+const [showNonWinningTickets, setShowNonWinningTickets] = useState<boolean>(true);  // domyślnie true
+const [show3Hits, setShow3Hits] = useState<boolean>(true);               // domyślnie true
+const [show4Hits, setShow4Hits] = useState<boolean>(true);               // domyślnie true
+const [show5Hits, setShow5Hits] = useState<boolean>(true);               // domyślnie true
+const [show6Hits, setShow6Hits] = useState<boolean>(true);               // domyślnie true
 const [isLoading, setIsLoading] = useState<boolean>(false);
-const [results, setResults] = useState<VerificationResult[] | null>(null);
+const [drawsResults, setDrawsResults] = useState<DrawsResult[] | null>(null);
+const [ticketsResults, setTicketsResults] = useState<TicketsResult[] | null>(null);
+const [executionTimeMs, setExecutionTimeMs] = useState<number>(0);
 const [error, setError] = useState<string | null>(null);
 ```
 

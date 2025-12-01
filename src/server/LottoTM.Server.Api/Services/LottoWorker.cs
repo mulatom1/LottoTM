@@ -79,7 +79,7 @@ public class LottoWorker : BackgroundService
             }
 
             //Archiwum
-            if (_options.Enable && lastArchRunTime.Year >= 1991)
+            if (_options.Enable && lastArchRunTime.Year >= 1957)
             {
                 lastArchRunTime = lastArchRunTime.AddDays(-1);
 
