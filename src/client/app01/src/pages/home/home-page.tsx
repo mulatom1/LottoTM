@@ -16,7 +16,7 @@ function HomePage() {
       x: Math.random() * 100,
       y: Math.random() * 100,
       size: Math.random() * 2.5 + 1.5,
-      opacity: Math.random() * 0.25 + 0.15,
+      opacity: Math.random() * 0.15 + 0.05,
       duration: Math.random() * 20 + 15,
       delay: Math.random() * 5,
       color: colors[Math.floor(Math.random() * colors.length)],
