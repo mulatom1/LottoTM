@@ -17,6 +17,16 @@ A modern lottery ticket management system that automates win verification and si
 
 LottoTM is a full-stack web application designed to solve a common problem for lottery players: manually checking multiple ticket sets against draw results is time-consuming, monotonous, and prone to human error. This MVP system automates the entire verification process, enabling users to check up to 100 ticket sets against official LOTTO draw results in less than 2 seconds.
 
+### 📊 Interactive Presentation
+
+An interactive HTML presentation showcasing the LottoTM MVP is available at:
+- **Local path**: `src/presentation/index.html`
+- **Features**: 6 slides covering system overview, authentication, ticket management, draw history, win verification, and success metrics
+- **Navigation**: Keyboard controls (arrow keys, spacebar, Home/End) or on-screen buttons
+- **Screenshots**: Includes visual examples of all major application screens
+
+Open the file in your browser to explore the system's features and user interface.
+
 ### Key Features
 
 - **Fast Verification**: Automated checking of 100 ticket sets in under 2 seconds

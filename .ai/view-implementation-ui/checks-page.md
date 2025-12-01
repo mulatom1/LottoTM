@@ -82,11 +82,21 @@ ChecksPage (główny komponent strony)
 ### 4.1 ChecksPage (główny komponent)
 
 **Opis komponentu:**
-Główny kontener strony weryfikacji wygranych. Zarządza stanem formularza zakresu dat, wywołuje API weryfikacji i renderuje wyniki w formie accordion.
+Główny kontener strony weryfikacji wygranych. Zarządza stanem formularza zakresu dat, wywołuje API weryfikacji i renderuje wyniki w formie accordion. Strona ma animowane tło z losowymi numerami loterii tworzącymi dynamiczny, wizualnie atrakcyjny interfejs.
 
 **Główne elementy HTML i komponenty:**
-- `<main>` - kontener główny
-- `<h1>` - nagłówek strony "Sprawdź swoje wygrane"
+- `<main>` - kontener główny z gradientowym tłem (`bg-gradient-to-br from-gray-100 via-blue-50 to-yellow-50`) i responsywnym paddingiem (`py-8 px-4 sm:px-6 lg:px-8`)
+- **Animowane tło** - `<div>` z 200 losowymi numerami loterii (1-49):
+  - Losowe pozycjonowanie (x, y w zakresie 0-100%)
+  - Losowy rozmiar czcionki (1.5-4rem)
+  - Losowa opacity (0.05-0.20)
+  - Losowy czas trwania animacji (15-35s)
+  - Losowe opóźnienie animacji (0-5s)
+  - Kolory: text-gray-500, text-blue-600, text-yellow-600
+  - Animacja: `animate-float` (unoszenie się)
+  - `pointer-events-none` (nie blokuje interakcji)
+- `<h1>` - nagłówek strony "Sprawdź swoje wygrane" (text-3xl font-bold text-gray-900)
+- `<p>` - podtytuł strony "Weryfikuj swoje zestawy liczb względem wyników losowań w wybranym zakresie dat" (text-gray-600)
 - `<CheckPanel />` - panel z formularzem zakresu dat
 - `<Spinner />` - wskaźnik ładowania (warunkowe renderowanie)
 - `<CheckSummary />` - podsumowanie statystyk (warunkowe renderowanie po zakończeniu weryfikacji)
@@ -1388,14 +1398,25 @@ numbers.map(num => {
 - Callback `onSubmit(dateFrom, dateTo, groupName)`
 
 ### Krok 12: Implementacja ChecksPage (główny komponent)
-- Stan lokalny (dateFrom, dateTo, groupName, isLoading, results, error)
-- Helper functions (getDefaultDateFrom, getDefaultDateTo, validateDateRange)
+- Stan lokalny (dateFrom, dateTo, groupName, showNonWinningTickets, show3Hits, show4Hits, show5Hits, show6Hits, isLoading, drawsResults, ticketsResults, executionTimeMs, error)
+- **Animowane tło** - generowanie 200 losowych numerów loterii z `useMemo`:
+  - Losowe pozycje (x, y), rozmiar, opacity, duration, delay
+  - Kolory: text-gray-500, text-blue-600, text-yellow-600
+  - Renderowanie jako absolute positioned divs z `animate-float` i `pointer-events-none`
+- Helper functions (getDefaultDateFrom, getDefaultDateTo)
 - Handler `handleSubmit()` z API call (przekazuje dateFrom, dateTo, groupName)
-- Renderowanie: CheckPanel + Spinner + CheckResults
+- Renderowanie:
+  - Kontener główny `<main>` z gradientem (`bg-gradient-to-br from-gray-100 via-blue-50 to-yellow-50`)
+  - Animowane tło
+  - Header z h1 i podtytułem
+  - CheckPanel + Spinner + CheckSummary + CheckResults
 - Error handling z ErrorModal
 
 ### Krok 13: Stylizacja Tailwind CSS
 - Mobile-first responsive design
+- Gradient background (from-gray-100 via-blue-50 to-yellow-50)
+- Responsywny padding: `py-8 px-4 sm:px-6 lg:px-8`
+- Animowane tło: animacja `animate-float` (zdefiniowana w Tailwind config)
 - Date range picker layout (vertical/inline)
 - DrawCard styling (border, shadow, padding)
 - Rozwijalne sekcje (hover effects, transitions)
@@ -1420,7 +1441,7 @@ numbers.map(num => {
 - Test manual: rozwijanie/zwijanie sekcji 1 i 2
 - Test manual: empty state (brak wygranych)
 - Test manual: edge cases (brak zestawów, brak losowań)
-- Test manual: walidacja (nieprawidłowy zakres, >31 dni)
+- Test manual: walidacja (nieprawidłowy zakres, >3 lata)
 - Test manual: responsywność (mobile/tablet/desktop - grid WinPoolStatsGrid)
 - Test manual: keyboard navigation (obie sekcje rozwijalne)
 - Opcjonalnie: testy jednostkowe dla helper functions (validateDateRange, getDefaultDateFrom, transformResponseToDrawsWithTickets)

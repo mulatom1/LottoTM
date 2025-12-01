@@ -565,8 +565,22 @@ W MVP **całkowicie zrezygnowano z widoku Dashboard** (`/dashboard`). Po zalogow
 
 **Kluczowe komponenty widoku:**
 
+**Background (animowane tło):**
+- **200 losowych numerów loterii (1-49)** animowanych w tle strony
+- Numery w różnych kolorach (gray-500, blue-600, yellow-600)
+- Rozmieszczone losowo na całym ekranie z różnymi parametrami:
+  - Pozycja (x, y): losowa w zakresie 0-100%
+  - Rozmiar: losowy w zakresie 1.5-4rem
+  - Opacity: losowa w zakresie 0.05-0.20
+  - Duration animacji: losowy w zakresie 15-35s
+  - Delay animacji: losowy w zakresie 0-5s
+- Animacja float (unoszenie się)
+- Element `pointer-events-none` (nie blokuje interakcji)
+- Tło główne: gradient `bg-gradient-to-br from-gray-100 via-blue-50 to-yellow-50`
+
 **Header section:**
 - **Nagłówek h1:** "Sprawdź swoje wygrane"
+- **Podtytuł:** "Weryfikuj swoje zestawy liczb względem wyników losowań w wybranym zakresie dat"
 
 **Sekcja podsumowania (CheckSummary):**
 
@@ -643,13 +657,13 @@ Wyświetlana po zakończeniu weryfikacji, przed szczegółową listą losowań.
   - **Input "Od:"**
     - Label: "Od:"
     - Type: date
-    - Default: dzisiaj - 31 dni
+    - Default: dzisiaj - 7 dni (ostatni tydzień)
     - Inline validation: data "Od" nie może być późniejsza niż "Do"
   - **Input "Do:"**
     - Label: "Do:"
     - Type: date
     - Default: dzisiaj
-    - Inline validation: data "Do" musi być ≥ "Od", max zakres 31 dni
+    - Inline validation: data "Do" musi być ≥ "Od"
   - Layout:
     - Mobile: stacked vertically (Od nad Do)
     - Desktop: inline (Od | Do obok siebie)
@@ -736,7 +750,8 @@ Struktura - każde losowanie (Draw) jako card/rekord z dwoma rozwijalnymi sekcja
 
 **UX, dostępność i względy bezpieczeństwa:**
 - **UX:**
-  - Domyślny zakres dat (-31 dni) redukuje friction (użytkownik może od razu kliknąć "Sprawdź wygrane")
+  - Animowane tło z numerami loterii tworzy dynamiczny, wizualnie atrakcyjny interfejs
+  - Domyślny zakres dat (-7 dni, ostatni tydzień) redukuje friction (użytkownik może od razu kliknąć "Sprawdź wygrane")
   - Opcjonalny filtr grupy kuponów z wyszukiwaniem częściowym pozwala na elastyczną weryfikację (np. 'ulu' znajdzie 'Ulubione', 'Ulubione 2024')
   - Opis pomocniczy "Wyszukiwanie częściowe - wpisz fragment nazwy grupy" jasno komunikuje działanie filtra
   - Accordion pozwala na stopniowe odkrywanie wyników (czytelność przy wielu losowaniach)
@@ -761,10 +776,14 @@ Struktura - każde losowanie (Draw) jako card/rekord z dwoma rozwijalnymi sekcja
 
 **Responsywność:**
 - Mobile:
+  - Padding: py-8 px-4 (32px vertical, 16px horizontal)
   - Date range picker: vertical stack (Od nad Do)
   - Accordion: full-width, touch-friendly tap targets (min 44x44px)
   - Zestawy: vertical stack, badges pod liczbami
-- Desktop:
+- Tablet (640px+):
+  - Padding: py-8 px-6 (32px vertical, 24px horizontal)
+- Desktop (1024px+):
+  - Padding: py-8 px-8 (32px vertical, 32px horizontal)
   - Date range picker: inline (Od | Do obok siebie)
   - Accordion: max-width dla czytelności
   - Zestawy: inline display, badges po prawej stronie
