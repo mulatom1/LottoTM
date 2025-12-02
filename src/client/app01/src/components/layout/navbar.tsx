@@ -23,13 +23,13 @@ function Navbar() {
   };
 
   return (
-    <nav className="bg-white shadow-sm border-b border-gray-200">
+    <nav className="bg-gradient-to-r from-blue-400 to-blue-950 shadow-lg">
       <div className="container mx-auto px-4 py-3">
         <div className="flex items-center justify-between">
           {/* Logo/Brand */}
           <button
             onClick={() => navigate('/')}
-            className="text-xl font-bold text-gray-900 hover:text-blue-600 transition-colors"
+            className="text-xl font-bold text-white hover:text-blue-100 transition-colors"
           >
             LottoTM
           </button>
@@ -40,8 +40,8 @@ function Navbar() {
               onClick={() => navigate('/draws')}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                 isActive('/draws')
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-700 hover:bg-gray-100'
+                  ? 'bg-white text-blue-600'
+                  : 'text-white hover:bg-blue-700'
               }`}
             >
               Historia losowań
@@ -51,8 +51,8 @@ function Navbar() {
               onClick={() => navigate('/tickets')}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                 isActive('/tickets')
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-700 hover:bg-gray-100'
+                  ? 'bg-white text-blue-600'
+                  : 'text-white hover:bg-blue-700'
               }`}
             >
               Moje zestawy
@@ -62,22 +62,22 @@ function Navbar() {
               onClick={() => navigate('/checks')}
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                 isActive('/checks')
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-700 hover:bg-gray-100'
+                  ? 'bg-white text-blue-600'
+                  : 'text-white hover:bg-blue-700'
               }`}
             >
               Sprawdź wygrane
             </button>
 
             {/* User menu */}
-            <div className="flex items-center gap-3 ml-4 pl-4 border-l border-gray-300">
-              <span className="text-sm text-gray-600">
+            <div className="flex items-center gap-3 ml-4 pl-4 border-l border-blue-500">
+              <span className="text-sm text-blue-100">
                 {user?.email}
               </span>
               <Button
                 variant="secondary"
                 onClick={handleLogout}
-                className="text-sm px-3 py-1"
+                className="text-sm px-3 py-1 bg-white text-blue-600 hover:bg-blue-50"
               >
                 Wyloguj
               </Button>
