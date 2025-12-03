@@ -43,7 +43,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var request = new
         {
-            lottoType = "LOTTO",
+            lottoType = "Lotto",
             drawDate = "2025-01-15",
             numbers = new[] { 3, 12, 25, 31, 42, 48 },
             drawSystemId = 20250001

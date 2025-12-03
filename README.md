@@ -235,7 +235,8 @@ Edit `appsettings.json` or `appsettings.Development.json` in `src/server/LottoTM
 - `GoogleGemini:ApiKey` - Google Gemini API key (base64 encoded) for XLottoService
 - `GoogleGemini:Model` - Gemini model to use (default: "gemini-2.0-flash")
 - `GoogleGemini:Enable` - **Feature Flag** to enable/disable XLotto on-demand functionality (default: false)
-- `Features:TicketImportExport:Enable` - **Feature Flag** to enable/disable CSV Import/Export functionality (default: false, enabled in development)
+- `Features:TicketImportExport:Enable` - **Feature Flag** to enable/disable Ticket CSV Import/Export functionality (default: false, enabled in development)
+- `Features:DrawImportExport:Enable` - **Feature Flag** to enable/disable Draw CSV Import/Export functionality (default: false, enabled in development)
 - `LottoWorker` - Background worker configuration (**Feature Flag**)
   - `Enable` - Enable/disable worker (default: false)
   - `StartTime` - Worker start time (default: "22:15:00")
@@ -316,6 +317,11 @@ dotnet ef database update --project src/server/LottoTM.Server.Api
 
 **Draw Management**
 - ✅ Manual entry of official LOTTO and LOTTO PLUS results
+- ✅ **CSV Import/Export** (Feature Flag controlled)
+  - Bulk import draw results from CSV file
+  - Export all draw results to CSV for backup or analysis
+  - Validates format, dates, number ranges, and prevents duplicates
+  - Admin-only functionality
 - ✅ **Background Worker for Automatic Draw Fetching** (LottoOpenApiService)
   - Automated background service (`LottoWorker`) that runs during configured time window (22:15-23:00)
   - **Feature Flag controlled** (`LottoWorker:Enable` in appsettings.json)
@@ -387,7 +393,8 @@ The project is actively under development with a focus on delivering core MVP fu
 - ✅ Comprehensive test coverage (Unit, Integration, Service tests)
 - ✅ Integration tests with WebApplicationFactory
 - ✅ XLotto integration with Google Gemini API (29 tests passing)
-- ✅ CSV Import/Export endpoints (18 integration tests passing)
+- ✅ Tickets CSV Import/Export endpoints (18 integration tests passing)
+- ✅ Draws CSV Import/Export endpoints (12 integration tests passing)
 
 ### Performance Metrics
 
@@ -395,6 +402,19 @@ The project is actively under development with a focus on delivering core MVP fu
 
 ### Recent Updates
 
+- **Draw CSV Import/Export Feature**: Added bulk import and export for lottery draw results
+  - **Import CSV** (`POST /api/draws/import-csv`): Upload CSV files with draw results (admin-only)
+    - 18-column CSV format: DrawDate, LottoType, DrawSystemId, TicketPrice, WinPools, Numbers
+    - Validates dates, types, number ranges (1-49), and prevents duplicates (DrawDate + LottoType)
+    - Returns detailed import report with imported/rejected counts and error details
+    - Feature Flag controlled: `Features:DrawImportExport:Enable`
+    - Max file size: 1MB
+  - **Export CSV** (`GET /api/draws/export-csv`): Download all draw results as CSV
+    - Full export of all historical draw results with complete data
+    - UTF-8 encoding support
+  - **Comprehensive test coverage**: 12 integration tests (ImportCsv: 6, ExportCsv: 6)
+  - **UI Integration**: Two new buttons on Draws page for admin users (Import/Export)
+  - Documentation: Updated API plan with new endpoints
 - **CSV Import/Export Feature**: Implemented bulk ticket import and export functionality
   - **Import CSV** (`POST /api/tickets/import-csv`): Upload CSV files with ticket data
     - Validates CSV format, number ranges (1-49), uniqueness, and user limits

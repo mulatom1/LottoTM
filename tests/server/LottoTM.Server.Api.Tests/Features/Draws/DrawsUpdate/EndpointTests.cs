@@ -290,7 +290,7 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
     /// Test draw update with duplicate date returns 400
     /// </summary>
     [Fact]
-    public async Task UpdateDraw_WithDuplicateDate_Returns400BadRequest()
+    public async Task UpdateDraw_WithDuplicateDrawSystemId_Returns400BadRequest()
     {
         // Arrange
         var testDbName = "TestDb_DuplicateDate_" + Guid.NewGuid();
@@ -306,10 +306,10 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         var token = GenerateTestToken(factory, adminUserId, "admin@example.com", true);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        // Try to update drawId1 to the same date as drawId2
+        // Try to update drawId1 to the same drawId2
         var request = new
         {
-            lottoType = "LOTTO",
+            lottoType = "Lotto",
             drawDate = "2025-01-20", // już istnieje w drawId2
             numbers = new[] { 3, 12, 25, 31, 42, 48 },
             drawSystemId = 20250003
