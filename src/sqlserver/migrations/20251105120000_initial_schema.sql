@@ -9,7 +9,9 @@ END;
 GO
 
 BEGIN TRANSACTION;
-CREATE TABLE [Users] (
+IF SCHEMA_ID(N'LottoTM') IS NULL EXEC(N'CREATE SCHEMA [LottoTM];');
+
+CREATE TABLE [LottoTM].[Users] (
     [Id] int NOT NULL IDENTITY,
     [Email] nvarchar(255) NOT NULL,
     [PasswordHash] nvarchar(255) NOT NULL,
@@ -18,7 +20,7 @@ CREATE TABLE [Users] (
     CONSTRAINT [PK_Users] PRIMARY KEY ([Id])
 );
 
-CREATE TABLE [Draws] (
+CREATE TABLE [LottoTM].[Draws] (
     [Id] int NOT NULL IDENTITY,
     [DrawSystemId] int NOT NULL,
     [DrawDate] date NOT NULL,
@@ -35,19 +37,19 @@ CREATE TABLE [Draws] (
     [WinPoolCount4] int NULL,
     [WinPoolAmount4] numeric(18,2) NULL,
     CONSTRAINT [PK_Draws] PRIMARY KEY ([Id]),
-    CONSTRAINT [FK_Draws_Users_CreatedByUserId] FOREIGN KEY ([CreatedByUserId]) REFERENCES [Users] ([Id]) ON DELETE CASCADE
+    CONSTRAINT [FK_Draws_Users_CreatedByUserId] FOREIGN KEY ([CreatedByUserId]) REFERENCES [LottoTM].[Users] ([Id]) ON DELETE CASCADE
 );
 
-CREATE TABLE [Tickets] (
+CREATE TABLE [LottoTM].[Tickets] (
     [Id] int NOT NULL IDENTITY,
     [UserId] int NOT NULL,
     [GroupName] nvarchar(100) NOT NULL,
     [CreatedAt] datetime2 NOT NULL DEFAULT (GETUTCDATE()),
     CONSTRAINT [PK_Tickets] PRIMARY KEY ([Id]),
-    CONSTRAINT [FK_Tickets_Users_UserId] FOREIGN KEY ([UserId]) REFERENCES [Users] ([Id]) ON DELETE CASCADE
+    CONSTRAINT [FK_Tickets_Users_UserId] FOREIGN KEY ([UserId]) REFERENCES [LottoTM].[Users] ([Id]) ON DELETE CASCADE
 );
 
-CREATE TABLE [DrawNumbers] (
+CREATE TABLE [LottoTM].[DrawNumbers] (
     [Id] int NOT NULL IDENTITY,
     [DrawId] int NOT NULL,
     [Number] int NOT NULL,
@@ -55,10 +57,10 @@ CREATE TABLE [DrawNumbers] (
     CONSTRAINT [PK_DrawNumbers] PRIMARY KEY ([Id]),
     CONSTRAINT [CHK_DrawNumbers_Number] CHECK ([Number] >= 1 AND [Number] <= 49),
     CONSTRAINT [CHK_DrawNumbers_Position] CHECK ([Position] >= 1 AND [Position] <= 6),
-    CONSTRAINT [FK_DrawNumbers_Draws_DrawId] FOREIGN KEY ([DrawId]) REFERENCES [Draws] ([Id]) ON DELETE CASCADE
+    CONSTRAINT [FK_DrawNumbers_Draws_DrawId] FOREIGN KEY ([DrawId]) REFERENCES [LottoTM].[Draws] ([Id]) ON DELETE CASCADE
 );
 
-CREATE TABLE [TicketNumbers] (
+CREATE TABLE [LottoTM].[TicketNumbers] (
     [Id] int NOT NULL IDENTITY,
     [TicketId] int NOT NULL,
     [Number] int NOT NULL,
@@ -66,32 +68,33 @@ CREATE TABLE [TicketNumbers] (
     CONSTRAINT [PK_TicketNumbers] PRIMARY KEY ([Id]),
     CONSTRAINT [CHK_TicketNumbers_Number] CHECK ([Number] >= 1 AND [Number] <= 49),
     CONSTRAINT [CHK_TicketNumbers_Position] CHECK ([Position] >= 1 AND [Position] <= 6),
-    CONSTRAINT [FK_TicketNumbers_Tickets_TicketId] FOREIGN KEY ([TicketId]) REFERENCES [Tickets] ([Id]) ON DELETE CASCADE
+    CONSTRAINT [FK_TicketNumbers_Tickets_TicketId] FOREIGN KEY ([TicketId]) REFERENCES [LottoTM].[Tickets] ([Id]) ON DELETE CASCADE
 );
 
-CREATE INDEX [IX_DrawNumbers_DrawId] ON [DrawNumbers] ([DrawId]);
+CREATE INDEX [IX_DrawNumbers_DrawId] ON [LottoTM].[DrawNumbers] ([DrawId]);
 
-CREATE UNIQUE INDEX [IX_DrawNumbers_DrawId_Position] ON [DrawNumbers] ([DrawId], [Position]);
+CREATE UNIQUE INDEX [IX_DrawNumbers_DrawId_Position] ON [LottoTM].[DrawNumbers] ([DrawId], [Position]);
 
-CREATE INDEX [IX_DrawNumbers_Number] ON [DrawNumbers] ([Number]);
+CREATE INDEX [IX_DrawNumbers_Number] ON [LottoTM].[DrawNumbers] ([Number]);
 
-CREATE INDEX [IX_Draws_CreatedByUserId] ON [Draws] ([CreatedByUserId]);
+CREATE INDEX [IX_Draws_CreatedByUserId] ON [LottoTM].[Draws] ([CreatedByUserId]);
 
-CREATE UNIQUE INDEX [IX_Draws_DrawDate_LottoType] ON [Draws] ([DrawDate], [LottoType]);
+CREATE INDEX [IX_Draws_DrawDate] ON [LottoTM].[Draws] ([DrawDate]);
 
-CREATE INDEX [IX_TicketNumbers_Number] ON [TicketNumbers] ([Number]);
+CREATE INDEX [IX_Draws_DrawSystemId] ON [LottoTM].[Draws] ([DrawSystemId]);
 
-CREATE INDEX [IX_TicketNumbers_TicketId] ON [TicketNumbers] ([TicketId]);
+CREATE INDEX [IX_TicketNumbers_Number] ON [LottoTM].[TicketNumbers] ([Number]);
 
-CREATE UNIQUE INDEX [IX_TicketNumbers_TicketId_Position] ON [TicketNumbers] ([TicketId], [Position]);
+CREATE INDEX [IX_TicketNumbers_TicketId] ON [LottoTM].[TicketNumbers] ([TicketId]);
 
-CREATE INDEX [IX_Tickets_UserId] ON [Tickets] ([UserId]);
+CREATE UNIQUE INDEX [IX_TicketNumbers_TicketId_Position] ON [LottoTM].[TicketNumbers] ([TicketId], [Position]);
 
-CREATE UNIQUE INDEX [IX_Users_Email] ON [Users] ([Email]);
+CREATE INDEX [IX_Tickets_UserId] ON [LottoTM].[Tickets] ([UserId]);
+
+CREATE UNIQUE INDEX [IX_Users_Email] ON [LottoTM].[Users] ([Email]);
 
 INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
-VALUES (N'20251127184900_Initial', N'9.0.10');
+VALUES (N'20251202211532_Init', N'9.0.10');
 
 COMMIT;
 GO
-

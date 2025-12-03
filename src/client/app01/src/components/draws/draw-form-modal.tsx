@@ -44,7 +44,7 @@ const DrawFormModal: React.FC<DrawFormModalProps> = ({
     }
     return {
       drawDate: '',
-      lottoType: 'LOTTO', // Default to LOTTO
+      lottoType: 'Lotto', // Default to LOTTO
       numbers: ['', '', '', '', '', ''],
       drawSystemId: '',
       ticketPrice: '',
@@ -107,8 +107,8 @@ const DrawFormModal: React.FC<DrawFormModalProps> = ({
     if (!type) {
       return 'Typ loterii jest wymagany';
     }
-    if (type !== 'LOTTO' && type !== 'LOTTO PLUS') {
-      return 'Dozwolone wartości: LOTTO, LOTTO PLUS';
+    if (type !== 'Lotto' && type !== 'LottoPlus') {
+      return 'Dozwolone wartości: Lotto, LottoPlus';
     }
     return undefined;
   };
@@ -325,8 +325,8 @@ const DrawFormModal: React.FC<DrawFormModalProps> = ({
               <input
                 type="radio"
                 name="lottoType"
-                value="LOTTO"
-                checked={formData.lottoType === 'LOTTO'}
+                value="Lotto"
+                checked={formData.lottoType === 'Lotto'}
                 onChange={(e) => handleLottoTypeChange(e.target.value)}
                 className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
               />
@@ -336,8 +336,8 @@ const DrawFormModal: React.FC<DrawFormModalProps> = ({
               <input
                 type="radio"
                 name="lottoType"
-                value="LOTTO PLUS"
-                checked={formData.lottoType === 'LOTTO PLUS'}
+                value="LottoPlus"
+                checked={formData.lottoType === 'LottoPlus'}
                 onChange={(e) => handleLottoTypeChange(e.target.value)}
                 className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
               />

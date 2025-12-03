@@ -27,8 +27,8 @@ public class CreateDrawValidator : AbstractValidator<Contracts.Request>
         RuleFor(x => x.LottoType)
            .NotEmpty()
            .WithMessage("Typ loterii jest wymagany")
-           .Must(lt => lt == "LOTTO" || lt == "LOTTO PLUS")
-           .WithMessage("Dozwolone wartości: LOTTO, LOTTO PLUS");
+           .Must(lt => lt == "Lotto" || lt == "LottoPlus")
+           .WithMessage("Dozwolone wartości: Lotto, LottoPlus");
 
         RuleFor(x => x.DrawSystemId)
             .NotEmpty()

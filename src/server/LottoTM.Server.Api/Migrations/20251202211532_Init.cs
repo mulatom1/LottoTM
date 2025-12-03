@@ -6,13 +6,17 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace LottoTM.Server.Api.Migrations
 {
     /// <inheritdoc />
-    public partial class Initial : Migration
+    public partial class Init : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.EnsureSchema(
+                name: "LottoTM");
+
             migrationBuilder.CreateTable(
                 name: "Users",
+                schema: "LottoTM",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
@@ -29,6 +33,7 @@ namespace LottoTM.Server.Api.Migrations
 
             migrationBuilder.CreateTable(
                 name: "Draws",
+                schema: "LottoTM",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
@@ -54,6 +59,7 @@ namespace LottoTM.Server.Api.Migrations
                     table.ForeignKey(
                         name: "FK_Draws_Users_CreatedByUserId",
                         column: x => x.CreatedByUserId,
+                        principalSchema: "LottoTM",
                         principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -61,6 +67,7 @@ namespace LottoTM.Server.Api.Migrations
 
             migrationBuilder.CreateTable(
                 name: "Tickets",
+                schema: "LottoTM",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
@@ -75,6 +82,7 @@ namespace LottoTM.Server.Api.Migrations
                     table.ForeignKey(
                         name: "FK_Tickets_Users_UserId",
                         column: x => x.UserId,
+                        principalSchema: "LottoTM",
                         principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -82,6 +90,7 @@ namespace LottoTM.Server.Api.Migrations
 
             migrationBuilder.CreateTable(
                 name: "DrawNumbers",
+                schema: "LottoTM",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
@@ -98,6 +107,7 @@ namespace LottoTM.Server.Api.Migrations
                     table.ForeignKey(
                         name: "FK_DrawNumbers_Draws_DrawId",
                         column: x => x.DrawId,
+                        principalSchema: "LottoTM",
                         principalTable: "Draws",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -105,6 +115,7 @@ namespace LottoTM.Server.Api.Migrations
 
             migrationBuilder.CreateTable(
                 name: "TicketNumbers",
+                schema: "LottoTM",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
@@ -121,6 +132,7 @@ namespace LottoTM.Server.Api.Migrations
                     table.ForeignKey(
                         name: "FK_TicketNumbers_Tickets_TicketId",
                         column: x => x.TicketId,
+                        principalSchema: "LottoTM",
                         principalTable: "Tickets",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -128,54 +140,69 @@ namespace LottoTM.Server.Api.Migrations
 
             migrationBuilder.CreateIndex(
                 name: "IX_DrawNumbers_DrawId",
+                schema: "LottoTM",
                 table: "DrawNumbers",
                 column: "DrawId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_DrawNumbers_DrawId_Position",
+                schema: "LottoTM",
                 table: "DrawNumbers",
                 columns: new[] { "DrawId", "Position" },
                 unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_DrawNumbers_Number",
+                schema: "LottoTM",
                 table: "DrawNumbers",
                 column: "Number");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Draws_CreatedByUserId",
+                schema: "LottoTM",
                 table: "Draws",
                 column: "CreatedByUserId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Draws_DrawDate_LottoType",
+                name: "IX_Draws_DrawDate",
+                schema: "LottoTM",
                 table: "Draws",
-                columns: new[] { "DrawDate", "LottoType" },
-                unique: true);
+                column: "DrawDate");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Draws_DrawSystemId",
+                schema: "LottoTM",
+                table: "Draws",
+                column: "DrawSystemId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_TicketNumbers_Number",
+                schema: "LottoTM",
                 table: "TicketNumbers",
                 column: "Number");
 
             migrationBuilder.CreateIndex(
                 name: "IX_TicketNumbers_TicketId",
+                schema: "LottoTM",
                 table: "TicketNumbers",
                 column: "TicketId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_TicketNumbers_TicketId_Position",
+                schema: "LottoTM",
                 table: "TicketNumbers",
                 columns: new[] { "TicketId", "Position" },
                 unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_Tickets_UserId",
+                schema: "LottoTM",
                 table: "Tickets",
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Users_Email",
+                schema: "LottoTM",
                 table: "Users",
                 column: "Email",
                 unique: true);
@@ -185,19 +212,24 @@ namespace LottoTM.Server.Api.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "DrawNumbers");
+                name: "DrawNumbers",
+                schema: "LottoTM");
 
             migrationBuilder.DropTable(
-                name: "TicketNumbers");
+                name: "TicketNumbers",
+                schema: "LottoTM");
 
             migrationBuilder.DropTable(
-                name: "Draws");
+                name: "Draws",
+                schema: "LottoTM");
 
             migrationBuilder.DropTable(
-                name: "Tickets");
+                name: "Tickets",
+                schema: "LottoTM");
 
             migrationBuilder.DropTable(
-                name: "Users");
+                name: "Users",
+                schema: "LottoTM");
         }
     }
 }

@@ -28,6 +28,7 @@ import type { XLottoActualDrawsResponse } from "./contracts/xlotto-actual-draws-
 import type { XLottoIsEnabledResponse } from "./contracts/xlotto-is-enabled-response";
 import type { TicketsImportCsvResponse } from "./contracts/tickets-import-csv-response";
 import type { TicketsDeleteAllResponse } from "./contracts/tickets-delete-all-response";
+import type { DrawsImportCsvResponse } from "./contracts/draws-import-csv-response";
 
 export class ApiService {
     private apiUrl: string = '';
@@ -465,6 +466,110 @@ export class ApiService {
 
       const result: DrawsGetListResponse = await response.json();
       return result;
+    }
+
+    /**
+     * Import lottery draw results from CSV file
+     * POST /api/draws/import-csv
+     * @param file - CSV file with draw data (max 1MB)
+     * @returns Promise<DrawsImportCsvResponse> - Import report with imported/rejected counts and errors
+     * @throws Error if unauthorized (401), feature disabled (404), validation fails (400), or server error occurs (500)
+     */
+    public async drawsImportCsv(file: File): Promise<DrawsImportCsvResponse> {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Get headers without Content-Type to let browser set multipart/form-data boundary
+      const headers: Record<string, string> = {
+        'X-TOKEN': this.appToken,
+        'Authorization': `Bearer ${this.usrToken}`,
+      };
+
+      const response = await fetch(`${this.apiUrl}/api/draws/import-csv`, {
+        method: 'POST',
+        headers: headers,
+        body: formData
+      });
+
+      if (!response.ok) {
+        // Handle different error scenarios
+        if (response.status === 401) {
+          throw new Error('Brak autoryzacji. Wymagany token JWT.');
+        }
+
+        if (response.status === 404) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Funkcja importu CSV dla losowań jest wyłączona');
+        }
+
+        if (response.status === 400) {
+          const errorData = await response.json();
+
+          // Extract validation errors from the response
+          if (errorData.errors) {
+            const errorMessages = Object.entries(errorData.errors)
+              .map(([field, messages]) => {
+                const msgArray = messages as string[];
+                return `${field}: ${msgArray.join(', ')}`;
+              })
+              .join('; ');
+            throw new Error(errorMessages);
+          }
+
+          // Handle specific business logic errors
+          if (errorData.detail) {
+            throw new Error(errorData.detail);
+          }
+
+          throw new Error('Błąd walidacji pliku CSV');
+        }
+
+        if (response.status === 500) {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || 'Błąd serwera podczas importu CSV');
+        }
+
+        throw new Error(`Error importing draws CSV: ${response.statusText}`);
+      }
+
+      const result: DrawsImportCsvResponse = await response.json();
+      return result;
+    }
+
+    /**
+     * Export all draw results to CSV file
+     * GET /api/draws/export-csv
+     * @returns Promise<Blob> - CSV file content as blob for download
+     * @throws Error if unauthorized (401), feature disabled (404), or server error occurs (500)
+     */
+    public async drawsExportCsv(): Promise<Blob> {
+      const response = await fetch(`${this.apiUrl}/api/draws/export-csv`, {
+        method: 'GET',
+        headers: this.getHeaders()
+      });
+
+      if (!response.ok) {
+        // Handle different error scenarios
+        if (response.status === 401) {
+          throw new Error('Brak autoryzacji. Wymagany token JWT.');
+        }
+
+        if (response.status === 404) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Funkcja eksportu CSV dla losowań jest wyłączona');
+        }
+
+        if (response.status === 500) {
+          const errorData = await response.json();
+          throw new Error(errorData.detail || 'Błąd serwera podczas eksportu CSV');
+        }
+
+        throw new Error(`Error exporting draws CSV: ${response.statusText}`);
+      }
+
+      // Return the response as a Blob for file download
+      const blob = await response.blob();
+      return blob;
     }
 
     /**

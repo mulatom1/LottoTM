@@ -4,9 +4,9 @@
 
 **Endpoint:** `GET /api/draws/{id}`
 
-**Opis:** Pobieranie szczegółów pojedynczego losowania LOTTO na podstawie jego identyfikatora. Endpoint zwraca datę losowania oraz wylosowane liczby. Losowania są globalnym zasobem dostępnym dla wszystkich zalogowanych użytkowników (nie wymagają filtrowania po UserId).
+**Opis:** Pobieranie szczegółów pojedynczego losowania Lotto na podstawie jego identyfikatora. Endpoint zwraca datę losowania oraz wylosowane liczby. Losowania są globalnym zasobem dostępnym dla wszystkich zalogowanych użytkowników (nie wymagają filtrowania po UserId).
 
-**Cel biznesowy:** Umożliwienie użytkownikom przeglądania szczegółów konkretnego wyniku losowania LOTTO w celu weryfikacji wyników lub weryfikacji swoich zestawów.
+**Cel biznesowy:** Umożliwienie użytkownikom przeglądania szczegółów konkretnego wyniku losowania Lotto w celu weryfikacji wyników lub weryfikacji swoich zestawów.
 
 **Architektura:** Vertical Slice Architecture z wykorzystaniem MediatR, FluentValidation, Entity Framework Core.
 
@@ -138,7 +138,7 @@ public class DrawNumber
 {
   "id": 123,
   "drawDate": "2025-10-30",
-  "lottoType": "LOTTO",
+  "lottoType": "Lotto",
   "numbers": [3, 12, 25, 31, 42, 48],
   "drawSystemId": 20250001,
   "ticketPrice": 3.00,
@@ -157,7 +157,7 @@ public class DrawNumber
 **Opis pól:**
 - `id` (int): Identyfikator losowania w bazie danych
 - `drawDate` (string): Data losowania w formacie ISO 8601 (YYYY-MM-DD)
-- `lottoType` (string): Typ gry ("LOTTO" lub "LOTTO PLUS")
+- `lottoType` (string): Typ gry ("Lotto" lub "LottoPlus")
 - `numbers` (int[]): Tablica 6 wylosowanych liczb w zakresie 1-49, posortowanych według pozycji
 - `drawSystemId` (int | null): Zewnętrzny identyfikator systemu losowań (opcjonalnie)
 - `ticketPrice` (decimal | null): Cena biletu dla tego losowania (opcjonalnie)

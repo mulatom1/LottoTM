@@ -38,8 +38,7 @@ public class UpdateDrawHandler : IRequestHandler<Contracts.Request, IResult>
     /// 2. Extracting user ID and admin status from JWT claims
     /// 3. Checking if user is admin
     /// 4. Finding the draw to update
-    /// 5. Checking if new draw date is unique (if changed)
-    /// 6. Updating Draw and DrawNumbers in a transaction
+    /// 5. Updating Draw and DrawNumbers in a transaction
     /// </summary>
     public async Task<IResult> Handle(Contracts.Request request, CancellationToken cancellationToken)
     {
@@ -80,26 +79,7 @@ public class UpdateDrawHandler : IRequestHandler<Contracts.Request, IResult>
             );
         }
 
-        // 5. Sprawdzenie unikalności kombinacji (DrawDate, LottoType) - jeśli zmieniona
-        if (draw.DrawDate != request.DrawDate || draw.LottoType != request.LottoType)
-        {
-            var dateExists = await _dbContext.Draws
-                .AnyAsync(d => d.DrawDate == request.DrawDate && d.LottoType == request.LottoType && d.Id != request.Id, cancellationToken);
-
-            if (dateExists)
-            {
-                _logger.LogDebug("Draw with date {DrawDate} and type {LottoType} already exists for another draw", 
-                    request.DrawDate, request.LottoType);
-
-                return Results.Problem(
-                    statusCode: StatusCodes.Status400BadRequest,
-                    title: "Bad Request",
-                    detail: $"Losowanie typu {request.LottoType} na datę {request.DrawDate} już istnieje w systemie"
-                );
-            }
-        }
-
-        // 6. Aktualizacja transakcyjna
+        // 5. Aktualizacja transakcyjna
         using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
         try
         {

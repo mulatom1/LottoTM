@@ -65,7 +65,7 @@ public class AppDbContext : DbContext
     {
         modelBuilder.Entity<User>(entity =>
         {
-            entity.ToTable("Users");
+            entity.ToTable("Users", "LottoTM");
 
             entity.HasKey(e => e.Id);
 
@@ -110,7 +110,7 @@ public class AppDbContext : DbContext
     {
         modelBuilder.Entity<Ticket>(entity =>
         {
-            entity.ToTable("Tickets");
+            entity.ToTable("Tickets", "LottoTM");
 
             entity.HasKey(e => e.Id);
             
@@ -149,7 +149,7 @@ public class AppDbContext : DbContext
     {
         modelBuilder.Entity<TicketNumber>(entity =>
         {
-            entity.ToTable("TicketNumbers", t =>
+            entity.ToTable("TicketNumbers", "LottoTM", t =>
             {
                 // Check constraint for Number range (1-49)
                 t.HasCheckConstraint(
@@ -197,7 +197,7 @@ public class AppDbContext : DbContext
     {
         modelBuilder.Entity<Draw>(entity =>
         {
-            entity.ToTable("Draws");
+            entity.ToTable("Draws", "LottoTM");
 
             entity.HasKey(e => e.Id);
 
@@ -223,8 +223,9 @@ public class AppDbContext : DbContext
                 .IsRequired()
                 .HasMaxLength(50);
 
-            entity.HasIndex(e => new { e.DrawDate, e.LottoType })
-                .IsUnique();
+            entity.HasIndex(e => e.DrawDate);
+
+            entity.HasIndex(e => e.DrawSystemId);
 
             entity.HasIndex(e => e.CreatedByUserId);
 
@@ -288,7 +289,7 @@ public class AppDbContext : DbContext
     {
         modelBuilder.Entity<DrawNumber>(entity =>
         {
-            entity.ToTable("DrawNumbers", t =>
+            entity.ToTable("DrawNumbers", "LottoTM", t =>
             {
                 // Check constraint for Number range (1-49)
                 t.HasCheckConstraint(

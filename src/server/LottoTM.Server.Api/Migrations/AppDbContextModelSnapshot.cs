@@ -85,10 +85,11 @@ namespace LottoTM.Server.Api.Migrations
 
                     b.HasIndex("CreatedByUserId");
 
-                    b.HasIndex("DrawDate", "LottoType")
-                        .IsUnique();
+                    b.HasIndex("DrawDate");
 
-                    b.ToTable("Draws", (string)null);
+                    b.HasIndex("DrawSystemId");
+
+                    b.ToTable("Draws", "LottoTM");
                 });
 
             modelBuilder.Entity("LottoTM.Server.Api.Entities.DrawNumber", b =>
@@ -117,7 +118,7 @@ namespace LottoTM.Server.Api.Migrations
                     b.HasIndex("DrawId", "Position")
                         .IsUnique();
 
-                    b.ToTable("DrawNumbers", null, t =>
+                    b.ToTable("DrawNumbers", "LottoTM", t =>
                         {
                             t.HasCheckConstraint("CHK_DrawNumbers_Number", "[Number] >= 1 AND [Number] <= 49");
 
@@ -150,7 +151,7 @@ namespace LottoTM.Server.Api.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Tickets", (string)null);
+                    b.ToTable("Tickets", "LottoTM");
                 });
 
             modelBuilder.Entity("LottoTM.Server.Api.Entities.TicketNumber", b =>
@@ -179,7 +180,7 @@ namespace LottoTM.Server.Api.Migrations
                     b.HasIndex("TicketId", "Position")
                         .IsUnique();
 
-                    b.ToTable("TicketNumbers", null, t =>
+                    b.ToTable("TicketNumbers", "LottoTM", t =>
                         {
                             t.HasCheckConstraint("CHK_TicketNumbers_Number", "[Number] >= 1 AND [Number] <= 49");
 
@@ -220,7 +221,7 @@ namespace LottoTM.Server.Api.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.ToTable("Users", (string)null);
+                    b.ToTable("Users", "LottoTM");
                 });
 
             modelBuilder.Entity("LottoTM.Server.Api.Entities.Draw", b =>

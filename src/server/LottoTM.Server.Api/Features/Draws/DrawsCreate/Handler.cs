@@ -37,8 +37,7 @@ public class CreateDrawHandler : IRequestHandler<Contracts.Request, Contracts.Re
     /// Handles the create draw request by:
     /// 1. Validating input data with FluentValidation
     /// 2. Extracting user ID from JWT claims
-    /// 3. Checking if draw for the date already exists
-    /// 4. Creating Draw and DrawNumbers in a transaction
+    /// 3. Creating Draw and DrawNumbers in a transaction
     /// </summary>
     public async Task<Contracts.Response> Handle(
         Contracts.Request request,
@@ -63,29 +62,12 @@ public class CreateDrawHandler : IRequestHandler<Contracts.Request, Contracts.Re
             throw new UnauthorizedAccessException("Brak uprawnień do tworzenia losowań");
         }
 
-        // 3. Sprawdź czy losowanie na daną datę i typ gry już istnieje (unique combination)
-        var existingDraw = await _dbContext.Draws
-            .AnyAsync(d => d.DrawDate == request.DrawDate && d.LottoType == request.LottoType, cancellationToken);
-        if (existingDraw)
-        {
-            _logger.LogDebug(
-                "Draw for date {DrawDate} with type {LottoType} already exists",
-                request.DrawDate, request.LottoType
-            );
-
-            var errors = new List<FluentValidation.Results.ValidationFailure>
-            {
-                new("DrawDate", $"Losowanie typu {request.LottoType} na datę {request.DrawDate} już istnieje")
-            };
-            throw new ValidationException(errors);
-        }
-
-        // 4. Transakcja: INSERT Draws + DrawNumbers
+        // 3. Transakcja: INSERT Draws + DrawNumbers
         using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
 
         try
         {
-            // 4a. Dodaj Draw
+            // 3a. Dodaj Draw
             var draw = new Draw
             {
                 DrawDate = request.DrawDate,
@@ -106,7 +88,7 @@ public class CreateDrawHandler : IRequestHandler<Contracts.Request, Contracts.Re
             _dbContext.Draws.Add(draw);
             await _dbContext.SaveChangesAsync(cancellationToken);
 
-            // 4b. Bulk insert DrawNumbers (6 rekordów)
+            // 3b. Bulk insert DrawNumbers (6 rekordów)
             var drawNumbers = request.Numbers
                 .Select((number, index) => new DrawNumber
                 {

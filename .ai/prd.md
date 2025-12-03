@@ -38,7 +38,7 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 
 **Zarządzanie losowaniami:**
 
-- Ręczne wprowadzanie wyników oficjalnych losowań LOTTO oraz LOTTO PLUS (6 z 49)
+- Ręczne wprowadzanie wyników oficjalnych losowań Lotto oraz LottoPlus (6 z 49)
 - Przechowywanie historii wyników losowań
 - Walidacja danych wejściowych (6 unikalnych liczb z zakresu 1-49 na podaną datę)
 
@@ -79,7 +79,7 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 
 ### 2.3 Kluczowe decyzje projektowe
 
-1. **Zakres gier:** MVP wspiera wyłącznie LOTTO, LOTTO PLUS (6 z 49)
+1. **Zakres gier:** MVP wspiera wyłącznie Lotto, LottoPlus (6 z 49)
 2. **Rejestracja:** Bez weryfikacji email - natychmiastowy dostęp po rejestracji, bez aktywacji linka z maila
 3. **UI wprowadzania wyników:** 6 oddzielnych pól numerycznych z walidacją w czasie rzeczywistym + date picker
 4. **Prezentacja wygranych:** Lista zbiorcza: data losowania oraz wygrane liczby, poniżej zestawy z pogrubionymi wygranymi liczbami + etykiety z liczbą trafień
@@ -161,13 +161,13 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 
 #### F-DRAW-001: Dodawanie wyniku losowania
 **Priorytet:** Must Have
-**Opis:** Użytkownik uprzywilejowany (admin, flaga isAdmin) może ręcznie wprowadzić oficjalne wyniki losowania LOTTO lub LOTTO PLUS do globalnej tabeli Draws.
+**Opis:** Użytkownik uprzywilejowany (admin, flaga isAdmin) może ręcznie wprowadzić oficjalne wyniki losowania Lotto lub LottoPlus do globalnej tabeli Draws.
 
 **Kryteria akceptacji:**
 - Formularz zawiera:
   - Pole numeryczne: DrawSystemId (identyfikator systemowy losowania) - wymagane
   - Date picker: data losowania - wymagane
-  - Wybór typu gry: LOTTO lub LOTTO PLUS (radio buttons lub select) - wymagane
+  - Wybór typu gry: Lotto lub LottoPlus (radio buttons lub select) - wymagane
   - 6 oddzielnych pól numerycznych (1-49) dla wylosowanych liczb - wymagane
   - Pole numeryczne: Cena kuponu (TicketPrice) - opcjonalne, format: 0.00
   - Pola dla wygranych stopnia 1 (6 trafionych):
@@ -189,11 +189,12 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 - Walidacja: data losowania nie może być w przyszłości
 - Zapis wyniku do bazy danych
 - Po zapisie: komunikat sukcesu + przekierowanie/odświeżenie listy losowań
-- Jeśli losowanie o podanej dacie i typie już istnieje zwraca błąd (unikalny klucz)
+- Jeśli losowanie o podanym DrawSystemId już istnieje zwraca błąd (duplikat)
+- UWAGA: W tym samym dniu może być wiele losowań tego samego typu
 
 **Endpointy API:**
 - `POST /api/draws`
-  - Body: `{ "drawSystemId": 12345, "drawDate": "2025-10-30", "lottoType": "LOTTO", "numbers": [3, 12, 25, 31, 42, 48], "ticketPrice": 3.00, "winPoolCount1": 0, "winPoolAmount1": 0, "winPoolCount2": 5, "winPoolAmount2": 125000.50, "winPoolCount3": 150, "winPoolAmount3": 5000.00, "winPoolCount4": 2500, "winPoolAmount4": 200.00 }`
+  - Body: `{ "drawSystemId": 12345, "drawDate": "2025-10-30", "lottoType": "Lotto", "numbers": [3, 12, 25, 31, 42, 48], "ticketPrice": 3.00, "winPoolCount1": 0, "winPoolAmount1": 0, "winPoolCount2": 5, "winPoolAmount2": 125000.50, "winPoolCount3": 150, "winPoolAmount3": 5000.00, "winPoolCount4": 2500, "winPoolAmount4": 200.00 }`
   - Response: `{ "message": "Losowanie utworzone pomyślnie" }`  
 
 #### F-DRAW-002: Przeglądanie historii losowań
@@ -201,8 +202,8 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 **Opis:** Każdy użytkownik może zobaczyć (zwykły i uprzywilejowany) listę wszystkich wprowadzonych wyników losowań z możliwością filtrowania po zakresie dat i typie gry.
 
 **Kryteria akceptacji:**
-- Lista zawiera: DrawSystemId, datę losowania, typ gry (LOTTO/LOTTO PLUS), 6 liczb, cenę kuponu, statystyki wygranych (opcjonalnie), datę dodania do systemu
-- Filtr typu gry: All / LOTTO / LOTTO PLUS
+- Lista zawiera: DrawSystemId, datę losowania, typ gry (Lotto/LottoPlus), 6 liczb, cenę kuponu, statystyki wygranych (opcjonalnie), datę dodania do systemu
+- Filtr typu gry: All / Lotto / LottoPlus
 - Sortowanie: domyślnie według daty losowania (najnowsze na górze)
 - Paginacja dla dużej liczby wyników (opcjonalnie w MVP)
 - **Filtr zakresu dat:**
@@ -213,12 +214,12 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
   - Walidacja: data "Od" nie może być późniejsza niż data "Do"
 
 **Endpointy API:**
-- `GET /api/draws?page=1&pageSize=100&sortBy=drawDate&sortOrder=desc&dateFrom=2025-10-01&dateTo=2025-10-31&lottoType=LOTTO`
+- `GET /api/draws?page=1&pageSize=100&sortBy=drawDate&sortOrder=desc&dateFrom=2025-10-01&dateTo=2025-10-31&lottoType=Lotto`
   - Query parameters:
     - `dateFrom` (opcjonalny): filtruj losowania od tej daty (format: YYYY-MM-DD)
     - `dateTo` (opcjonalny): filtruj losowania do tej daty (format: YYYY-MM-DD)
-    - `lottoType` (opcjonalny): filtruj po typie gry ("LOTTO" lub "LOTTO PLUS")
-  - Response: `{ "draws": [...], "totalCount": 123, "page": 1, "pageSize": 20, "filters": { "dateFrom": "2025-10-01", "dateTo": "2025-10-31", "lottoType": "LOTTO" } }`
+    - `lottoType` (opcjonalny): filtruj po typie gry ("Lotto" lub "LottoPlus")
+  - Response: `{ "draws": [...], "totalCount": 123, "page": 1, "pageSize": 20, "filters": { "dateFrom": "2025-10-01", "dateTo": "2025-10-31", "lottoType": "Lotto" } }`
 
 #### F-DRAW-003: Pobranie szczegółów losowania
 **Priorytet:** Should Have
@@ -226,7 +227,7 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 
 **Endpointy API:**
 - `GET /api/draws/{id}`
-  - Response: `{ "id": "number", "drawSystemId": 12345, "drawDate": "2025-10-30", "lottoType": "LOTTO", "numbers": [3, 12, 25, 31, 42, 48], "ticketPrice": 3.00, "winPoolCount1": 0, "winPoolAmount1": 0, "winPoolCount2": 5, "winPoolAmount2": 125000.50, "winPoolCount3": 150, "winPoolAmount3": 5000.00, "winPoolCount4": 2500, "winPoolAmount4": 200.00, "createdAt": "datetime" }`
+  - Response: `{ "id": "number", "drawSystemId": 12345, "drawDate": "2025-10-30", "lottoType": "Lotto", "numbers": [3, 12, 25, 31, 42, 48], "ticketPrice": 3.00, "winPoolCount1": 0, "winPoolAmount1": 0, "winPoolCount2": 5, "winPoolAmount2": 125000.50, "winPoolCount3": 150, "winPoolAmount3": 5000.00, "winPoolCount4": 2500, "winPoolAmount4": 200.00, "createdAt": "datetime" }`
 
 #### F-DRAW-004: Usuwanie wyniku losowania
 **Priorytet:** Must Have
@@ -253,7 +254,7 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 - Formularz z wypełnionymi aktualnymi wartościami:
   - DrawSystemId (identyfikator systemowy)
   - Data losowania
-  - Typ gry (LOTTO/LOTTO PLUS)
+  - Typ gry (Lotto/LottoPlus)
   - 6 pól numerycznych 1-49 (wylosowane liczby)
   - Cena kuponu (TicketPrice)
   - Pola wygranych dla wszystkich 4 stopni (Count i Amount)
@@ -265,7 +266,7 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 
 **Endpointy API:**
 - `PUT /api/draws/{id}`
-  - Body: `{ "drawSystemId": 12345, "drawDate": "2025-10-30", "lottoType": "LOTTO PLUS", "numbers": [3, 12, 25, 31, 42, 48], "ticketPrice": 3.00, "winPoolCount1": 0, "winPoolAmount1": 0, "winPoolCount2": 5, "winPoolAmount2": 125000.50, "winPoolCount3": 150, "winPoolAmount3": 5000.00, "winPoolCount4": 2500, "winPoolAmount4": 200.00 }`
+  - Body: `{ "drawSystemId": 12345, "drawDate": "2025-10-30", "lottoType": "LottoPlus", "numbers": [3, 12, 25, 31, 42, 48], "ticketPrice": 3.00, "winPoolCount1": 0, "winPoolAmount1": 0, "winPoolCount2": 5, "winPoolAmount2": 125000.50, "winPoolCount3": 150, "winPoolAmount3": 5000.00, "winPoolCount4": 2500, "winPoolAmount4": 200.00 }`
   - Response: `{ "message": "Wynik losowania zaktualizowany pomyślnie" }`
   - Authorization: Wymaga uprawnień administratora
 
@@ -289,10 +290,10 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 - Zapis działa standardowo (POST /api/draws)
 
 **Endpointy API:**
-- `GET /api/xlotto/actual-draws?Date=2025-11-04&LottoType=LOTTO`
+- `GET /api/xlotto/actual-draws?Date=2025-11-04&LottoType=Lotto`
   - Query parameters:
     - `Date` (wymagany): Data losowania w formacie YYYY-MM-DD
-    - `LottoType` (wymagany): Typ losowania ("LOTTO" lub "LOTTO PLUS")
+    - `LottoType` (wymagany): Typ losowania ("Lotto" lub "LottoPlus")
   - Response: `{ "success": true, "data": "{\"Data\": [...]}" }`
   - Authorization: Wymaga uprawnień administratora
 
@@ -310,7 +311,7 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 **Uwagi implementacyjne:**
 - Funkcjonalność wymaga aktywnego klucza API Google Gemini
 - Czas wykonania: ~2-4 sekundy (pobieranie HTML + przetwarzanie przez Gemini)
-- Backend zwraca wyniki dla obu typów losowania (LOTTO i LOTTO PLUS), frontend wybiera właściwy
+- Backend zwraca wyniki dla obu typów losowania (Lotto i LottoPlus), frontend wybiera właściwy
 - Endpoint nie zapisuje danych do bazy - tylko zwraca przetworzone wyniki
 
 **Feature Flag:**
@@ -323,13 +324,13 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 
 #### F-DRAW-007: Automatyczne pobieranie wyników - Background Worker
 **Priorytet:** Must Have
-**Opis:** System automatycznie pobiera wyniki losowań LOTTO i LOTTO PLUS w tle za pomocą workera działającego w skonfigurowanym oknie czasowym. Worker wykorzystuje dedykowany serwis **LottoOpenApiService**, który komunikuje się z oficjalnym Lotto OpenApi (https://www.lotto.pl).
+**Opis:** System automatycznie pobiera wyniki losowań Lotto i LottoPlus w tle za pomocą workera działającego w skonfigurowanym oknie czasowym. Worker wykorzystuje dedykowany serwis **LottoOpenApiService**, który komunikuje się z oficjalnym Lotto OpenApi (https://www.lotto.pl).
 
 **Kryteria akceptacji:**
 - Background service (`LottoWorker`) uruchamia się automatycznie przy starcie aplikacji
 - Worker działa w konfigurowalnym oknie czasowym (domyślnie: 22:15-23:00)
 - Sprawdzanie dostępności nowych wyników co X minut (domyślnie: 5 minut)
-- Automatyczne pobieranie wyników LOTTO i LOTTO PLUS z Lotto OpenApi jeśli nie istnieją w bazie
+- Automatyczne pobieranie wyników Lotto i LottoPlus z Lotto OpenApi jeśli nie istnieją w bazie
 - Walidacja pobranych danych (6 unikalnych liczb 1-49)
 - Zapisywanie wyników w transakcji (Draw + DrawNumbers)
 - Wykrywanie duplikatów i pomijanie istniejących wyników
@@ -365,7 +366,7 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
 2. Co X minut sprawdza czy Enable=true ORAZ jest w aktywnym oknie czasowym
 3. Jeśli OBA warunki spełnione:
    - Pinguje API (keep-alive)
-   - Sprawdza czy wyniki na targetDate już istnieją (LOTTO i LOTTO PLUS)
+   - Sprawdza czy wyniki na targetDate już istnieją (Lotto i LottoPlus)
    - Jeśli NIE: wywołuje `ILottoOpenApiService.GetActualDraws(date)` do pobrania wyników
    - LottoOpenApiService:
      - Endpoint: `GET /api/open/v1/lotteries/draw-results/by-date-per-game?drawDate={date}&gameType=Lotto&size=10`
@@ -426,7 +427,7 @@ private class LottoOpenApiResult
 - Wyniki pobrane przez workera mają CreatedByUserId = NULL
 - Worker nie wymaga interwencji użytkownika
 - Dedykowana dokumentacja: `.ai/worker-plan.md`
-- Mapowanie typów gier: "Lotto" → "LOTTO", "LottoPlus" → "LOTTO PLUS"
+- Mapowanie typów gier: "Lotto" (z API) → "Lotto" (w bazie), "LottoPlus" (z API) → "LottoPlus" (w bazie)
 
 **Różnica między metodami pobierania wyników:**
 - **LottoOpenApiService** (F-DRAW-007): Bezpośrednie wywołanie oficjalnego Lotto OpenApi, używane przez Background Worker do automatycznego pobierania
@@ -915,10 +916,10 @@ private class LottoOpenApiResult
 
 **Kryteria akceptacji:**
 - Lista wszystkich wyników losowań (domyślnie bez filtra)
-- Wyświetlenie: data losowania, typ gry (LOTTO/LOTTO PLUS), 6 liczb, data wprowadzenia
+- Wyświetlenie: data losowania, typ gry (Lotto/LottoPlus), 6 liczb, data wprowadzenia
 - Sortowanie według daty losowania (najnowsze na górze)
 - Filtr zakresu dat z polami "Od" i "Do"
-- Filtr typu gry: All / LOTTO / LOTTO PLUS
+- Filtr typu gry: All / Lotto / LottoPlus
 - Możliwość czyszczenia filtra
 - Przycisk akcji: Edytuj, Usuń (dla uprzywilejowanych użytkowników)
 
@@ -929,12 +930,12 @@ private class LottoOpenApiResult
 
 #### US-DRAWS-02: Wprowadzanie wyników losowania
 **Jako** użytkownik uprzywilejowany (admin)
-**Chcę** wprowadzić oficjalne wyniki losowania LOTTO lub LOTTO PLUS
+**Chcę** wprowadzić oficjalne wyniki losowania Lotto lub LottoPlus
 **Aby** móc zweryfikować swoje zestawy oraz by inni użytkownicy mogli to zrobić
 
 **Kryteria akceptacji:**
 - Formularz z 6 polami numerycznymi (zakres 1-49)
-- Wybór typu gry: LOTTO lub LOTTO PLUS
+- Wybór typu gry: Lotto lub LottoPlus
 - Walidacja unikalności liczb
 - Date picker do wyboru daty losowania
 - Walidacja: data nie może być w przyszłości
@@ -1134,7 +1135,7 @@ src/server/LottoTM.Server.Api/
 │       ├── User.cs
 │       ├── Ticket.cs              // Zawiera UserId, GroupName (string, max 100), CreatedAt
 │       ├── TicketNumber.cs        // Nowa encja dla znormalizowanej struktury
-│       ├── Draw.cs                // Zawiera DrawDate, LottoType (enum: LOTTO, LOTTO PLUS), CreatedAt, CreatedByUserId
+│       ├── Draw.cs                // Zawiera DrawDate, LottoType (enum: Lotto, LottoPlus), CreatedAt, CreatedByUserId
 │       └── DrawNumber.cs          // Nowa encja dla znormalizowanej struktury
 ├── Services/
 │       ├── JwtService.cs
@@ -1171,7 +1172,7 @@ Każdy feature (np. `ApiVersion`, `Register`, `AddTicket`) zawiera:
 
 **Draws (Losowania):**
 - Encja `Draw` zawiera metadane (Id, DrawDate, LottoType, CreatedAt, CreatedByUserId)
-- LottoType (enum lub string: "LOTTO", "LOTTO PLUS") - wymagane pole określające typ gry
+- LottoType (string: "Lotto", "LottoPlus") - wymagane pole określające typ gry
 - Encja `DrawNumber` przechowuje pojedyncze wylosowane liczby z pozycją (1-6)
 - Relacja: Draw (1) -> DrawNumbers (6)
 - Przy dodawaniu losowania: tworzenie 1 rekordu Draw + 6 rekordów DrawNumber w transakcji
@@ -1246,7 +1247,7 @@ CREATE TABLE Draws (
     Id INT PRIMARY KEY IDENTITY,
     DrawSystemId INT NOT NULL,
     DrawDate DATE NOT NULL,
-    LottoType NVARCHAR(50) NOT NULL CHECK (LottoType IN ('LOTTO', 'LOTTO PLUS')),
+    LottoType NVARCHAR(50) NOT NULL CHECK (LottoType IN ('Lotto', 'LottoPlus')),
     CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
     CreatedByUserId INT NULL,
     TicketPrice NUMERIC(18,2) NULL,
@@ -1269,7 +1270,7 @@ CREATE INDEX IX_Draws_LottoType ON Draws(LottoType);
 
 **Uwagi:**
 - **DrawSystemId** - identyfikator numeryczny losowania z zewnętrznego systemu losowania (wymagane)
-- **LottoType** - wymagane pole określające typ gry ("LOTTO" lub "LOTTO PLUS"), zwiększono rozmiar do NVARCHAR(50) dla elastyczności
+- **LottoType** - wymagane pole określające typ gry ("Lotto" lub "LottoPlus"), zwiększono rozmiar do NVARCHAR(50) dla elastyczności
 - **CreatedByUserId** - nullable (INT NULL), pole może być NULL dla wyników generowanych przez background workera
 - **TicketPrice** - cena za kupon dla tego losowania (nullable, może się zmieniać w czasie)
 - **WinPoolCount1-4** - ilości wygranych dla poszczególnych stopni (6, 5, 4, 3 trafienia)
@@ -1773,7 +1774,7 @@ Response:
         {
           "drawId": 123,
           "drawDate": "2025-10-28",
-          "lottoType": "LOTTO",
+          "lottoType": "Lotto",
           "drawNumbers": [12, 18, 25, 31, 40, 49],
           "matchCount": 3,
           "matchedNumbers": [12, 25, 31]
@@ -1857,7 +1858,7 @@ Response:
 
 ### Terminy biznesowe
 - **LOTTO** - Polska gra liczbowa polegająca na typowaniu 6 liczb z 49
-- **LOTTO PLUS** - Dodatkowa gra LOTTO z tymi samymi zasadami
+- **LottoPlus** - Dodatkowa gra Lotto z tymi samymi zasadami
 - **Zestaw/Kupon** - Kombinacja 6 liczb od 1 do 49 wybrana przez gracza
 - **Losowanie** - Oficjalne wylosowanie 6 liczb przez Totalizator Sportowy
 - **Trafienie** - Zgodność liczby z zestawu gracza z wylosowaną liczbą
@@ -1880,7 +1881,8 @@ Response:
 | 1.1 | 2025-11-05 | Tomasz Mularczyk | Poprawka numeracji i uzupełnienie brakujących sekcji |
 | 1.2 | 2025-11-05 | Tomasz Mularczyk | Reorganizacja historyjek użytkownika na grupy modułowe (US-AUTH-XX, US-TICKETS-XX, US-DRAWS-XX, US-CHECKS-XX), dodanie funkcji edycji zestawów i losowań do MVP, ujednolicenie priorytetów, aktualizacja API endpoints |
 | 1.3 | 2025-11-05 | Tomasz Mularczyk | Normalizacja struktury bazy danych: wprowadzenie tabel TicketNumbers i DrawNumbers dla pełnej normalizacji, dodanie uwag implementacyjnych dotyczących wydajności, walidacji unikalności, Entity Framework, weryfikacji wygranych z JOIN, aktualizacja sekcji Entities (dodano TicketNumber.cs i DrawNumber.cs) |
-| 1.4 | 2025-11-11 | Tomasz Mularczyk | Rozszerzenie modelu danych: dodanie pola GroupName (string, 100 znaków) do tabeli Tickets dla grupowania zestawów; dodanie pola LottoType (enum: LOTTO, LOTTO PLUS) do tabeli Draws dla obsługi różnych typów gier; aktualizacja wymagań funkcjonalnych, user stories, przykładów API oraz schematu bazy danych |
+| 1.4 | 2025-11-11 | Tomasz Mularczyk | Rozszerzenie modelu danych: dodanie pola GroupName (string, 100 znaków) do tabeli Tickets dla grupowania zestawów; dodanie pola LottoType (string: Lotto, LottoPlus) do tabeli Draws dla obsługi różnych typów gier; aktualizacja wymagań funkcjonalnych, user stories, przykładów API oraz schematu bazy danych |
+| 1.5 | 2025-12-02 | Tomasz Mularczyk | Aktualizacja wartości LottoType: zamiana "LOTTO" i "LOTTO PLUS" na "Lotto" i "LottoPlus" we wszystkich miejscach (API endpoints, JSON examples, SQL schema, komentarze); usunięcie constraint UNIQUE na (DrawDate, LottoType) - możliwe wiele losowań tego samego typu w tym samym dniu; dodanie informacji o walidacji duplikatów po DrawSystemId; aktualizacja mapowania typów gier |
 
 ---
 

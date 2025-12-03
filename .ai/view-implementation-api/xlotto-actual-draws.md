@@ -1,27 +1,27 @@
-# Plan implementacji API: XLotto Actual Draws
+# Plan implementacji API: XLOTTO Actual Draws
 
 ## 1. Przegląd
 
-Endpoint służy do pobierania aktualnych wyników losowań z witryny XLotto.pl za pomocą Google Gemini API. Funkcjonalność umożliwia administratorom szybkie wypełnienie formularza wyników losowania danymi pobranymi automatycznie z zewnętrznej strony.
+Endpoint służy do pobierania aktualnych wyników losowań z witryny XLOTTO.pl za pomocą Google Gemini API. Funkcjonalność umożliwia administratorom szybkie wypełnienie formularza wyników losowania danymi pobranymi automatycznie z zewnętrznej strony.
 
 **Główne funkcje:**
-- Pobieranie zawartości HTML ze strony XLotto.pl
+- Pobieranie zawartości HTML ze strony XLOTTO.pl
 - Przetwarzanie treści przez Google Gemini API w celu ekstrakcji wyników
 - Zwracanie wyników dla LOTTO i LOTTO PLUS w formacie JSON
 
 ## 2. Endpoint Definition
 
-**Ścieżka:** `GET /api/xlotto/actual-draws`
+**Ścieżka:** `GET /api/xLOTTO/actual-draws`
 
 **Typ dostępu:** Chroniony (wymaga autentykacji JWT)
 
 **Parametry zapytania:**
 - `Date` (wymagany): Data losowania w formacie YYYY-MM-DD
-- `LottoType` (wymagany): Typ losowania ("LOTTO" lub "LOTTO PLUS")
+- `LOTTOType` (wymagany): Typ losowania ("LOTTO" lub "LOTTO PLUS")
 
 **Przykład zapytania:**
 ```
-GET /api/xlotto/actual-draws?Date=2025-11-04&LottoType=LOTTO
+GET /api/xLOTTO/actual-draws?Date=2025-11-04&LOTTOType=LOTTO
 ```
 
 ## 3. Request/Response
@@ -109,7 +109,7 @@ Content-Type: application/json
 {
   "errors": {
     "Date": ["Data jest wymagana", "Nieprawidłowy format daty"],
-    "LottoType": ["Typ losowania jest wymagany", "Dozwolone wartości: LOTTO, LOTTO PLUS"]
+    "LOTTOType": ["Typ losowania jest wymagany", "Dozwolone wartości: LOTTO, LOTTO PLUS"]
   }
 }
 ```
@@ -117,17 +117,17 @@ Content-Type: application/json
 **Status Code:** 500 Internal Server Error
 ```json
 {
-  "error": "Nie udało się pobrać wyników z XLotto lub Gemini API"
+  "error": "Nie udało się pobrać wyników z XLOTTO lub Gemini API"
 }
 ```
 
 ## 4. Logika biznesowa
 
-### Krok 1: Pobranie zawartości XLotto
+### Krok 1: Pobranie zawartości XLOTTO
 ```csharp
 var httpClient = _httpClientFactory.CreateClient();
 httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0...");
-var response = await httpClient.GetAsync("https://www.xlotto.pl/");
+var response = await httpClient.GetAsync("https://www.xLOTTO.pl/");
 var htmlContent = await response.Content.ReadAsStringAsync();
 ```
 
@@ -183,7 +183,7 @@ return cleanedText;
   - Format: YYYY-MM-DD
   - Nie może być w przyszłości
 
-- **LottoType:**
+- **LOTTOType:**
   - Wymagany
   - Dozwolone wartości: "LOTTO", "LOTTO PLUS"
 
@@ -201,7 +201,7 @@ return cleanedText;
 ```csharp
 catch (HttpRequestException ex) {
     _logger.LogError(ex, "HTTP request failed while fetching draw results");
-    throw new InvalidOperationException("Failed to fetch draw results from XLotto or Gemini API", ex);
+    throw new InvalidOperationException("Failed to fetch draw results from XLOTTO or Gemini API", ex);
 }
 ```
 
@@ -254,7 +254,7 @@ catch (Exception ex) {
 ## 9. Wydajność
 
 ### Metryki
-- Czas pobierania HTML z XLotto.pl: ~200-500ms
+- Czas pobierania HTML z XLOTTO.pl: ~200-500ms
 - Czas przetwarzania przez Gemini API: ~1-3 sekundy
 - Całkowity czas: ~2-4 sekundy
 
@@ -267,8 +267,8 @@ catch (Exception ex) {
 
 ### Kluczowe punkty logowania
 ```csharp
-_logger.LogDebug("Fetching XLotto website content...");
-_logger.LogDebug("Successfully fetched XLotto website content. Size: {Size} bytes", htmlContent.Length);
+_logger.LogDebug("Fetching XLOTTO website content...");
+_logger.LogDebug("Successfully fetched XLOTTO website content. Size: {Size} bytes", htmlContent.Length);
 _logger.LogDebug("Sending request to Google Gemini API...");
 _logger.LogDebug("Received response from Google Gemini API");
 _logger.LogDebug("Successfully extracted draw results from Gemini response");
@@ -300,30 +300,30 @@ _logger.LogError(ex, "Unexpected error while fetching draw results");
 
 ### TypeScript Interface
 ```typescript
-export interface XLottoActualDrawsResponse {
+export interface XLOTTOActualDrawsResponse {
   success: boolean;
   data: string;
 }
 
-export interface XLottoDrawItem {
+export interface XLOTTODrawItem {
   DrawDate: string;
   GameType: string;
   Numbers: number[];
 }
 
-export interface XLottoDrawsData {
-  Data: XLottoDrawItem[];
+export interface XLOTTODrawsData {
+  Data: XLOTTODrawItem[];
 }
 ```
 
 ### API Service Method
 ```typescript
-public async xLottoActualDraws(request: XLottoActualDrawsRequest): Promise<XLottoActualDrawsResponse> {
+public async xLOTTOActualDraws(request: XLOTTOActualDrawsRequest): Promise<XLOTTOActualDrawsResponse> {
   const params = new URLSearchParams();
   params.append('Date', request.date);
-  params.append('LottoType', request.lottoType);
+  params.append('LOTTOType', request.LOTTOType);
 
-  const url = `${this.apiUrl}/api/xlotto/actual-draws?${params.toString()}`;
+  const url = `${this.apiUrl}/api/xLOTTO/actual-draws?${params.toString()}`;
   const response = await fetch(url, {
     method: 'GET',
     headers: this.getHeaders()
@@ -331,7 +331,7 @@ public async xLottoActualDraws(request: XLottoActualDrawsRequest): Promise<XLott
 
   if (!response.ok) {
     // Error handling
-    throw new Error('Failed to fetch XLotto draws');
+    throw new Error('Failed to fetch XLOTTO draws');
   }
 
   return await response.json();
@@ -340,7 +340,7 @@ public async xLottoActualDraws(request: XLottoActualDrawsRequest): Promise<XLott
 
 ### Frontend Usage
 ```typescript
-const handleLoadFromXLotto = async () => {
+const handleLoadFromXLOTTO = async () => {
   if (!formData.drawDate) {
     alert('Proszę najpierw wybrać datę losowania');
     return;
@@ -349,14 +349,14 @@ const handleLoadFromXLotto = async () => {
   setLoading(true);
   try {
     const apiService = getApiService();
-    const response = await apiService.xLottoActualDraws({
+    const response = await apiService.xLOTTOActualDraws({
       date: formData.drawDate,
-      lottoType: formData.lottoType,
+      LOTTOType: formData.LOTTOType,
     });
 
-    const drawsData: XLottoDrawsData = JSON.parse(response.data);
+    const drawsData: XLOTTODrawsData = JSON.parse(response.data);
     const drawItem = drawsData.Data.find(
-      (item) => item.GameType === formData.lottoType
+      (item) => item.GameType === formData.LOTTOType
     );
 
     if (drawItem) {
@@ -366,8 +366,8 @@ const handleLoadFromXLotto = async () => {
       }));
     }
   } catch (error) {
-    console.error('Error loading numbers from XLotto:', error);
-    alert('Błąd podczas pobierania danych z XLotto');
+    console.error('Error loading numbers from XLOTTO:', error);
+    alert('Błąd podczas pobierania danych z XLOTTO');
   } finally {
     setLoading(false);
   }
@@ -379,7 +379,7 @@ const handleLoadFromXLotto = async () => {
 ### Vertical Slice Architecture
 ```
 Features/
-└── XLotto/
+└── XLOTTO/
     └── ActualDraws/
         ├── Contracts.cs     - Request/Response DTOs
         ├── Handler.cs       - MediatR handler z logiką biznesową
@@ -389,20 +389,20 @@ Features/
 ### Services
 ```
 Services/
-├── IXLottoService.cs       - Interface
-└── XLottoService.cs        - Implementacja z HttpClient i Gemini API
+├── IXLOTTOService.cs       - Interface
+└── XLOTTOService.cs        - Implementacja z HttpClient i Gemini API
 ```
 
 ### Rejestracja w Program.cs
 ```csharp
 // Services
 builder.Services.AddHttpClient();
-builder.Services.AddScoped<IXLottoService, XLottoService>();
+builder.Services.AddScoped<IXLOTTOService, XLOTTOService>();
 
 // Endpoint
-app.MapXLottoActualDrawsEndpoint();
+app.MapXLOTTOActualDrawsEndpoint();
 ```
 
 ---
 
-**Koniec dokumentu: XLotto Actual Draws API Implementation**
+**Koniec dokumentu: XLOTTO Actual Draws API Implementation**

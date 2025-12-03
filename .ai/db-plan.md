@@ -1,7 +1,7 @@
 # Schemat Bazy Danych SQL Server - LottoTM MVP
 
-**Wersja:** 2.3
-**Data:** 2025-11-27
+**Wersja:** 2.4
+**Data:** 2025-12-02
 **Baza danych:** SQL Server 2022
 **ORM:** Entity Framework Core 9
 
@@ -48,14 +48,14 @@ CREATE INDEX IX_Users_Email ON Users(Email);
 
 ### 1.2 Tabela: Draws
 
-**Opis:** Globalny rejestr wyników losowań LOTTO i LOTTO PLUS dostępny dla wszystkich użytkowników. Każda kombinacja (data losowania + typ gry) jest unikalna. Losowania są wprowadzane przez użytkowników z uprawnieniami administratora.
+**Opis:** Globalny rejestr wyników losowań LOTTO i LOTTO PLUS dostępny dla wszystkich użytkowników. W tym samym dniu może odbyć się wiele losowań tego samego typu gry (np. 2 losowania "Lotto" w ciągu dnia). Losowania są wprowadzane przez użytkowników z uprawnieniami administratora lub przez background worker.
 
 ```sql
 CREATE TABLE Draws (
     Id INT PRIMARY KEY IDENTITY(1,1),
     DrawSystemId INT NOT NULL,
     DrawDate DATE NOT NULL,
-    LottoType NVARCHAR(50) NOT NULL CHECK (LottoType IN ('LOTTO', 'LOTTO PLUS')),
+    LottoType NVARCHAR(50) NOT NULL CHECK (LottoType IN ('Lotto', 'LottoPlus')),
     CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
     CreatedByUserId INT NULL,
     TicketPrice NUMERIC(18,2) NULL,
@@ -67,12 +67,12 @@ CREATE TABLE Draws (
     WinPoolAmount3 NUMERIC(18,2) NULL,
     WinPoolCount4 INT NULL,
     WinPoolAmount4 NUMERIC(18,2) NULL,
-    CONSTRAINT UQ_Draws_DrawDateLottoType UNIQUE (DrawDate, LottoType),
     CONSTRAINT FK_Draws_Users FOREIGN KEY (CreatedByUserId)
         REFERENCES Users(Id) ON DELETE CASCADE
 );
 
 CREATE INDEX IX_Draws_DrawDate ON Draws(DrawDate);
+CREATE INDEX IX_Draws_DrawSystemId ON Draws(DrawSystemId);
 CREATE INDEX IX_Draws_CreatedByUserId ON Draws(CreatedByUserId);
 CREATE INDEX IX_Draws_LottoType ON Draws(LottoType);
 ```
@@ -81,7 +81,7 @@ CREATE INDEX IX_Draws_LottoType ON Draws(LottoType);
 - `Id` - INT IDENTITY, klucz główny
 - `DrawSystemId` - INT, identyfikator numeryczny losowania (z systemu losowania)
 - `DrawDate` - DATE, data losowania (bez godziny)
-- `LottoType` - NVARCHAR(50), typ gry ("LOTTO" lub "LOTTO PLUS")
+- `LottoType` - NVARCHAR(50), typ gry ("Lotto" lub "LottoPlus")
 - `CreatedAt` - DATETIME2, data wprowadzenia wyniku do systemu (UTC)
 - `CreatedByUserId` - INT NULL, klucz obcy do Users (kto wprowadził wynik), nullable dla wyników generowanych przez workera
 - `TicketPrice` - NUMERIC(18,2) NULL, cena za kupon dla tego losowania
@@ -96,10 +96,10 @@ CREATE INDEX IX_Draws_LottoType ON Draws(LottoType);
 
 **Ograniczenia:**
 - PRIMARY KEY na `Id`
-- UNIQUE constraint na kombinacji (DrawDate, LottoType) - jedno losowanie danego typu na datę
-- CHECK constraint na LottoType - tylko wartości 'LOTTO' lub 'LOTTO PLUS'
+- UNIQUE constraint na `DrawSystemId` - każde losowanie ma unikalny identyfikator systemowy
+- CHECK constraint na LottoType - tylko wartości 'Lotto' lub 'LottoPlus'
 - FOREIGN KEY `CreatedByUserId` → `Users.Id` z CASCADE DELETE
-- NOT NULL na wszystkich kolumnach
+- NOT NULL na kolumnach: Id, DrawSystemId, DrawDate, LottoType, CreatedAt (pozostałe nullable)
 
 **Zmiany vs. wersja 1.0:**
 - **USUNIĘTO kolumny Number1-Number6** - zastąpione przez znormalizowaną tabelę `DrawNumbers`
@@ -108,10 +108,10 @@ CREATE INDEX IX_Draws_LottoType ON Draws(LottoType);
 - Dodano indeks `IX_Draws_CreatedByUserId` dla wydajności zapytań
 
 **Zmiany vs. wersja 2.1:**
-- **DODANO kolumnę `LottoType`** - obsługa różnych typów gier (LOTTO, LOTTO PLUS)
-- **ZMIENIONO UNIQUE constraint** - z `DrawDate` na `(DrawDate, LottoType)` - w tym samym dniu może być losowanie LOTTO i LOTTO PLUS
-- **DODANO CHECK constraint** - walidacja wartości LottoType na poziomie bazy danych
+- **DODANO kolumnę `LottoType`** - obsługa różnych typów gier (Lotto, LottoPlus)
+- **DODANO CHECK constraint** - walidacja wartości LottoType na poziomie bazy danych ('Lotto' lub 'LottoPlus')
 - **DODANO indeks `IX_Draws_LottoType`** - dla szybkiego filtrowania po typie gry
+- **UWAGA:** W tym samym dniu może odbyć się wiele losowań tego samego typu (np. 2 losowania "Lotto"), brak constraint UNIQUE na (DrawDate, LottoType)
 
 **Zmiany vs. wersja 2.2:**
 - **DODANO kolumnę `DrawSystemId`** - identyfikator numeryczny losowania z systemu losowania
@@ -362,7 +362,6 @@ foreach (var ticket in existingTickets)
 │ Position (1-6)       │
 └──────────────────────┘
 
-UQ: (DrawDate, LottoType)
 ```
 
 ### 2.2 Opis relacji
@@ -403,7 +402,7 @@ UQ: (DrawDate, LottoType)
 #### Draws (Globalny rejestr)
 
 - **Dostępność:** Wszystkie losowania dostępne dla wszystkich użytkowników (do weryfikacji)
-- **Unikalność dat:** Constraint `UQ_Draws_DrawDate` zapewnia jedno losowanie na dzień
+- **Brak unikalności dat:** W tym samym dniu może odbyć się wiele losowań tego samego typu (np. 2 losowania "Lotto" w ciągu dnia)
 - **Korzyści:** Eliminacja duplikacji danych, jedna prawda o wyniku losowania
 - **Weryfikacja:** Algorytm porównuje zestawy użytkownika (`TicketNumbers`) z wszystkimi losowaniami (`DrawNumbers`) w wybranym zakresie dat
 
@@ -465,15 +464,28 @@ ON TicketNumbers(Number);
 - Post-MVP: sugestie liczb
 
 ```sql
--- Indeks na DrawDate (date range queries + unikalność)
-CREATE UNIQUE INDEX IX_Draws_DrawDate
+-- Indeks na DrawDate (date range queries)
+CREATE INDEX IX_Draws_DrawDate
 ON Draws(DrawDate);
 ```
 
 **Cel:**
 - Szybkie queries dla date range picker (WHERE DrawDate BETWEEN @from AND @to)
-- Unikalność daty losowania (jedno losowanie na dzień)
 - Sortowanie wyników po dacie
+- W tym samym dniu może być wiele losowań tego samego typu
+
+```sql
+-- Indeks na DrawSystemId w Draws (sprawdzanie duplikatów + unikalność)
+CREATE UNIQUE INDEX IX_Draws_DrawSystemId
+ON Draws(DrawSystemId);
+```
+
+**Cel:**
+- Wymuszenie unikalności DrawSystemId na poziomie bazy danych
+- Szybkie sprawdzanie duplikatów przez background worker (WHERE DrawSystemId = @id)
+- Wyszukiwanie konkretnego losowania po identyfikatorze systemowym
+- Optymalizacja zapytań typu "czy losowanie o danym DrawSystemId już istnieje?"
+- UNIQUE constraint zapobiega przypadkowemu dodaniu duplikatu
 
 ```sql
 -- Indeks na CreatedByUserId w Draws (tracking autora)
@@ -1138,6 +1150,7 @@ protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         entity.HasKey(e => e.Id);
         entity.HasIndex(e => e.DrawDate);
+        entity.HasIndex(e => e.DrawSystemId).IsUnique();
         entity.HasIndex(e => e.CreatedByUserId);
         entity.HasIndex(e => e.LottoType);
         entity.Property(e => e.DrawSystemId).IsRequired();
@@ -1150,11 +1163,8 @@ protected override void OnModelCreating(ModelBuilder modelBuilder)
         entity.Property(e => e.WinPoolAmount3).HasColumnType("decimal(18,2)");
         entity.Property(e => e.WinPoolAmount4).HasColumnType("decimal(18,2)");
 
-        // UNIQUE constraint na (DrawDate, LottoType)
-        entity.HasIndex(e => new { e.DrawDate, e.LottoType }).IsUnique();
-
         // CHECK constraint na LottoType
-        entity.ToTable(t => t.HasCheckConstraint("CK_Draws_LottoType", "LottoType IN ('LOTTO', 'LOTTO PLUS')"));
+        entity.ToTable(t => t.HasCheckConstraint("CK_Draws_LottoType", "LottoType IN ('Lotto', 'LottoPlus')"));
 
         // Relacja do Users (tracking autora) z CASCADE DELETE, nullable dla worker-generated draws
         entity.HasOne(e => e.CreatedByUser)
@@ -1401,8 +1411,8 @@ catch
 
 **3. Zmiana unikalności losowań:**
 - **Było:** UNIQUE constraint na `DrawDate`
-- **Jest:** UNIQUE constraint na `(DrawDate, LottoType)`
-- **Powód:** W tym samym dniu może odbyć się losowanie LOTTO i LOTTO PLUS
+- **Jest:** Brak constraint UNIQUE - w tym samym dniu może odbyć się wiele losowań tego samego typu
+- **Powód:** W systemie losowania mogą odbywać się 2 lub więcej losowań danego typu w ciągu jednego dnia
 
 ### 📊 Główne zmiany w wersji 2.3
 
@@ -1498,6 +1508,7 @@ catch
 | 2.1 | 2025-11-05 | Tomasz Mularczyk | Zmiana Tickets.Id z UNIQUEIDENTIFIER (GUID) na INT IDENTITY dla prostszej struktury |
 | 2.2 | 2025-11-11 | Tomasz Mularczyk | Rozszerzenie modelu danych: dodanie pola GroupName (NVARCHAR(100) NOT NULL DEFAULT '') do tabeli Tickets dla grupowania zestawów; dodanie pola LottoType (NVARCHAR(20) NOT NULL) z CHECK constraint do tabeli Draws dla obsługi różnych typów gier (LOTTO, LOTTO PLUS); zmiana UNIQUE constraint na Draws z DrawDate na kombinację (DrawDate, LottoType); aktualizacja encji EF Core, DbContext configuration, przykładów użycia oraz diagramu relacji |
 | 2.3 | 2025-11-27 | Tomasz Mularczyk | Rozszerzenie tabeli Draws: dodanie pola DrawSystemId (INT NOT NULL) - identyfikator numeryczny losowania; dodanie pola TicketPrice (NUMERIC(18,2) NULL) - cena za kupon; dodanie pól WinPoolCount1-4 i WinPoolAmount1-4 dla statystyk wygranych (ilość i kwota wygranych dla poszczególnych stopni: 6, 5, 4, 3 trafienia); zmiana typu LottoType z NVARCHAR(20) na NVARCHAR(50); aktualizacja encji Draw.cs i konfiguracji EF Core |
+| 2.4 | 2025-12-02 | Tomasz Mularczyk | Usunięcie UNIQUE constraint na (DrawDate, LottoType) - w tym samym dniu może odbyć się wiele losowań tego samego typu; doprecyzowanie wartości CHECK constraint na LottoType ('Lotto', 'LottoPlus'); aktualizacja konfiguracji EF Core (zmiana z 'LOTTO', 'LOTTO PLUS' na 'Lotto', 'LottoPlus'); aktualizacja opisów i indeksów |
 
 ---
 

@@ -577,6 +577,141 @@
 
 ---
 
+#### **POST /api/draws/import-csv** (Feature Flag)
+
+**Opis:** Import wielu wyników losowań z pliku CSV
+
+**Feature Flag:** `Features:DrawImportExport:Enable` (true/false)
+
+**Autoryzacja:** Wymagany JWT (wymaga uprawnień administratora - IsAdmin)
+
+**Parametry zapytania:** Brak
+
+**Payload żądania:**
+- Content-Type: `multipart/form-data`
+- Pole: `file` (plik CSV)
+
+**Format pliku CSV:**
+```csv
+DrawDate,LottoType,DrawSystemId,TicketPrice,WinPoolCount1,WinPoolAmount1,WinPoolCount2,WinPoolAmount2,WinPoolCount3,WinPoolAmount3,WinPoolCount4,WinPoolAmount4,Number1,Number2,Number3,Number4,Number5,Number6
+2025-01-15,LOTTO,7001,3.00,1,1000000,5,50000,100,5000,500,500,3,12,25,31,42,48
+2025-01-16,LOTTO,7002,3.00,,,,,,,,,5,10,15,20,25,30
+```
+
+**Walidacja:**
+- Nagłówek: Wymagany format CSV z 18 kolumnami
+- `DrawDate`: Format DATE (YYYY-MM-DD), nie może być w przyszłości
+- `LottoType`: "LOTTO" lub "LOTTO PLUS"
+- `DrawSystemId`: INT, wymagany
+- `TicketPrice`: opcjonalne DECIMAL(10,2)
+- `WinPoolCount1-4`: opcjonalne INT
+- `WinPoolAmount1-4`: opcjonalne NUMERIC(18,2)
+- `Number1-6`: tablica 6 liczb INT z zakresu 1-49, unikalne w zestawie
+- Unikalność: sprawdzenie czy importowane losowania nie są duplikatami istniejących (DrawDate + LottoType)
+
+**Payload odpowiedzi (sukces):**
+```json
+{
+  "imported": 15,
+  "rejected": 2,
+  "errors": [
+    { "row": 3, "reason": "Duplikat losowania dla daty 2025-01-15 i typu LOTTO" },
+    { "row": 7, "reason": "Liczba spoza zakresu 1-49: 52" }
+  ]
+}
+```
+
+**Kody sukcesu:**
+- `200 OK` - Import zakończony (z raportem)
+
+**Kody błędów:**
+- `401 Unauthorized` - Brak tokenu
+- `403 Forbidden` - Użytkownik nie ma uprawnień administratora
+- `404 Not Found` - Feature wyłączony
+- `400 Bad Request` - Nieprawidłowy format pliku
+  ```json
+  {
+    "errors": {
+      "file": ["Plik CSV jest wymagany", "Nieprawidłowy format nagłówka"],
+      "validation": ["Wymagane 18 kolumn"]
+    }
+  }
+  ```
+
+**Logika biznesowa:**
+1. Sprawdzenie Feature Flag: `Features:DrawImportExport:Enable`
+2. Sprawdzenie uprawnień administratora (IsAdmin)
+3. Odczyt i parsowanie pliku CSV
+4. Walidacja nagłówka CSV
+5. Dla każdego wiersza CSV:
+   - Walidacja wszystkich pól (daty, typ losowania, liczby)
+   - Sprawdzenie unikalności (DrawDate + LottoType)
+   - Jeśli błąd: dodaj do listy errors
+   - Jeśli OK: dodaj do listy do importu
+6. Batch insert pomyślnie zwalidowanych losowań (transakcja):
+   - INSERT do `Draws` z CreatedAt = UTC now, CreatedByUserId z JWT
+   - INSERT do `DrawNumbers` dla każdego losowania
+7. Zwrot raportu: imported count, rejected count, errors list
+
+**Wydajność:**
+- Batch insert dla wydajności
+- Transakcja: albo wszystkie pomyślnie zwalidowane losowania, albo żadne
+
+---
+
+#### **GET /api/draws/export-csv** (Feature Flag)
+
+**Opis:** Eksport wszystkich wyników losowań do pliku CSV
+
+**Feature Flag:** `Features:DrawImportExport:Enable` (true/false)
+
+**Autoryzacja:** Wymagany JWT
+
+**Parametry zapytania:** Brak
+
+**Przykład:** `GET /api/draws/export-csv`
+
+**Payload odpowiedzi (sukces):**
+- Content-Type: `text/csv; charset=utf-8`
+- Content-Disposition: `attachment; filename="draws_{YYYY-MM-DD}.csv"`
+- Body: Plik CSV
+
+**Format pliku CSV:**
+```csv
+DrawDate,LottoType,DrawSystemId,TicketPrice,WinPoolCount1,WinPoolAmount1,WinPoolCount2,WinPoolAmount2,WinPoolCount3,WinPoolAmount3,WinPoolCount4,WinPoolAmount4,Number1,Number2,Number3,Number4,Number5,Number6
+2025-01-15,LOTTO,7001,3.00,1,1000000,5,50000,100,5000,500,500,3,12,25,31,42,48
+2025-01-16,LOTTO PLUS,7002,,,,,,,,,5,10,15,20,25,30
+```
+
+**Kody sukcesu:**
+- `200 OK` - Plik CSV wygenerowany i zwrócony
+
+**Kody błędów:**
+- `401 Unauthorized` - Brak tokenu
+- `404 Not Found` - Feature wyłączony
+
+**Logika biznesowa:**
+1. Sprawdzenie Feature Flag: `Features:DrawImportExport:Enable`
+2. Pobranie wszystkich losowań z bazy:
+   ```csharp
+   var draws = await db.Draws
+       .Include(d => d.Numbers)
+       .OrderBy(d => d.DrawDate)
+       .ThenBy(d => d.LottoType)
+       .ToListAsync();
+   ```
+3. Generowanie CSV (18 kolumn):
+   - Nagłówek
+   - Dla każdego losowania: dane + 6 liczb posortowanych po Position
+4. Nazwa pliku: `draws_{YYYY-MM-DD}.csv`
+5. Zwrot pliku CSV z odpowiednimi headerami
+
+**Wydajność:**
+- Eager loading: `.Include(d => d.Numbers)` aby uniknąć N+1 query
+- Sortowanie po DrawDate dla uporządkowanego eksportu
+
+---
+
 ### 2.3 Moduł: Zestawy (Tickets)
 
 ---
@@ -1977,6 +2112,8 @@ public List<int[]> GenerateSystemTickets()
 | POST | `/api/draws` | Dodanie wyniku losowania (admin) | Tak (IsAdmin) |
 | PUT | `/api/draws/{id}` | Edycja wyniku losowania (admin) | Tak (IsAdmin) |
 | DELETE | `/api/draws/{id}` | Usunięcie losowania (admin) | Tak (IsAdmin) |
+| POST | `/api/draws/import-csv` | Import losowań z pliku CSV (admin, Feature Flag) | Tak (IsAdmin) |
+| GET | `/api/draws/export-csv` | Eksport losowań do pliku CSV (Feature Flag) | Tak |
 | GET | `/api/tickets` | Lista zestawów użytkownika (z opcjonalnym filtrowaniem po groupName) | Tak |
 | GET | `/api/tickets/{id}` | Szczegóły zestawu (int) | Tak |
 | POST | `/api/tickets` | Dodanie zestawu ręcznie | Tak |

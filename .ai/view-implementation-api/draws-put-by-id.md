@@ -4,7 +4,7 @@
 
 **Endpoint:** `PUT /api/draws/{id}`
 
-**Opis:** Edycja istniejącego wyniku losowania LOTTO. Pozwala administratorowi na aktualizację daty losowania oraz wylosowanych liczb. Operacja wymaga uprawnień administratora i wykonuje transakcyjną aktualizację zarówno metadanych losowania (Draw), jak i wszystkich 6 liczb (DrawNumbers).
+**Opis:** Edycja istniejącego wyniku losowania Lotto. Pozwala administratorowi na aktualizację daty losowania oraz wylosowanych liczb. Operacja wymaga uprawnień administratora i wykonuje transakcyjną aktualizację zarówno metadanych losowania (Draw), jak i wszystkich 6 liczb (DrawNumbers).
 
 **Architektura:** Vertical Slice Architecture z MediatR
 - Feature: `Features/Draws/UpdateDraw/`
@@ -41,7 +41,7 @@ PUT /api/draws/{id}
 {
   "drawDate": "2025-10-30",
   "numbers": [3, 12, 25, 31, 42, 48],
-  "lottoType": "LOTTO",
+  "lottoType": "Lotto",
   "drawSystemId": 20250001,
   "ticketPrice": 3.00,
   "winPoolCount1": 2,
@@ -94,7 +94,7 @@ public class Contracts
         public int[] Numbers { get; init; } = Array.Empty<int>();
 
         /// <summary>
-        /// Lotto type ("LOTTO" or "LOTTO PLUS")
+        /// Lotto type ("Lotto" or "LottoPlus")
         /// </summary>
         public string LottoType { get; init; } = string.Empty;
 
@@ -399,8 +399,8 @@ public class Validator : AbstractValidator<Contracts.Request>
         RuleFor(x => x.LottoType)
             .NotEmpty()
             .WithMessage("Typ gry jest wymagany")
-            .Must(lt => lt == "LOTTO" || lt == "LOTTO PLUS")
-            .WithMessage("Dozwolone wartości: LOTTO, LOTTO PLUS");
+            .Must(lt => lt == "Lotto" || lt == "LottoPlus")
+            .WithMessage("Dozwolone wartości: Lotto, LottoPlus");
 
         RuleFor(x => x.DrawSystemId)
             .MaximumLength(20)

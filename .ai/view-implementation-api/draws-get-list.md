@@ -2,7 +2,7 @@
 
 ## 1. Przegląd punktu końcowego
 
-**Cel:** Pobieranie listy wszystkich wyników losowań LOTTO z paginacją i sortowaniem.
+**Cel:** Pobieranie listy wszystkich wyników losowań Lotto z paginacją i sortowaniem.
 
 **Funkcjonalność:**
 - Endpoint zwraca globalny rejestr wyników losowań dostępny dla wszystkich zalogowanych użytkowników
@@ -142,7 +142,7 @@ public class DrawNumber
     {
       "id": 1,
       "drawDate": "2025-10-30",
-      "lottoType": "LOTTO",
+      "lottoType": "Lotto",
       "numbers": [3, 12, 25, 31, 42, 48],
       "drawSystemId": 20250001,
       "ticketPrice": 3.00,
@@ -159,7 +159,7 @@ public class DrawNumber
     {
       "id": 2,
       "drawDate": "2025-10-28",
-      "lottoType": "LOTTO PLUS",
+      "lottoType": "LottoPlus",
       "numbers": [5, 14, 23, 29, 37, 41],
       "drawSystemId": null,
       "ticketPrice": null,

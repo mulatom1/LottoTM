@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAppContext } from '../../context/app-context';
 import DrawsFilterPanel from '../../components/draws/draws-filter-panel';
 import DrawList from '../../components/draws/draw-list';
@@ -76,6 +76,9 @@ function DrawsPage() {
 
   // State: toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Ref for file input
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   /**
    * Fetch draws from API with current pagination and filter settings
@@ -360,6 +363,97 @@ function DrawsPage() {
     setToastMessage(null);
   };
 
+  /**
+   * Handle CSV Import button click - trigger file input
+   */
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  /**
+   * Handle file selection for CSV import
+   */
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.name.endsWith('.csv')) {
+      setModalState(prev => ({
+        ...prev,
+        isErrorOpen: true,
+        errorMessages: ['Nieprawidłowy format pliku. Wybierz plik CSV.']
+      }));
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const result = await apiService.drawsImportCsv(file);
+
+      // Show success message with import details
+      if (result.imported > 0) {
+        setToastMessage(
+          `Import zakończony pomyślnie! Zaimportowano: ${result.imported}, Odrzucono: ${result.rejected}`
+        );
+      } else {
+        setToastMessage(`Import nie powiódł się. Odrzucono: ${result.rejected} wierszy.`);
+      }
+
+      // Show errors if any
+      if (result.errors.length > 0) {
+        const errorMessages = result.errors.slice(0, 10).map(
+          err => `Wiersz ${err.row}: ${err.reason}`
+        );
+        if (result.errors.length > 10) {
+          errorMessages.push(`... i ${result.errors.length - 10} więcej błędów`);
+        }
+        setModalState(prev => ({
+          ...prev,
+          isErrorOpen: true,
+          errorMessages
+        }));
+      }
+
+      // Refresh draws list
+      fetchDraws();
+    } catch (error) {
+      handleApiError(error, 'Nie udało się zaimportować pliku CSV');
+    } finally {
+      setLoading(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  /**
+   * Handle CSV Export button click
+   */
+  const handleExportClick = async () => {
+    try {
+      setLoading(true);
+      const blob = await apiService.drawsExportCsv();
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `draws_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      setToastMessage('Plik CSV został pobrany pomyślnie');
+    } catch (error) {
+      handleApiError(error, 'Nie udało się wyeksportować pliku CSV');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Effect: Initial load
   useEffect(() => {
     fetchDraws(1);
@@ -423,11 +517,28 @@ function DrawsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
         <h1 className="text-3xl font-bold text-gray-900">Historia losowań</h1>
         {isAdmin && (
-          <Button variant="primary" onClick={handleOpenAddModal}>
-            + Dodaj wynik
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={handleImportClick}>
+              📥 Import CSV
+            </Button>
+            <Button variant="secondary" onClick={handleExportClick}>
+              📤 Export CSV
+            </Button>
+            <Button variant="primary" onClick={handleOpenAddModal}>
+              + Dodaj wynik
+            </Button>
+          </div>
         )}
       </div>
+
+      {/* Hidden file input for CSV import */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".csv"
+        onChange={handleFileSelect}
+        className="hidden"
+      />
 
       {/* Filter Panel */}
       <DrawsFilterPanel

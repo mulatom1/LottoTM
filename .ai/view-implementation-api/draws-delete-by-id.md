@@ -2,7 +2,7 @@
 
 ## 1. Przegląd punktu końcowego
 
-Endpoint służy do usunięcia wyniku losowania LOTTO z systemu. Dostęp do tego endpointu mają **wyłącznie użytkownicy z uprawnieniami administratora** (IsAdmin = true).
+Endpoint służy do usunięcia wyniku losowania Lotto z systemu. Dostęp do tego endpointu mają **wyłącznie użytkownicy z uprawnieniami administratora** (IsAdmin = true).
 
 Usunięcie losowania automatycznie usuwa wszystkie powiązane liczby z tabeli `DrawNumbers` dzięki konfiguracji CASCADE DELETE w relacji Foreign Key.
 

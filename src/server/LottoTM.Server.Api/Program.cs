@@ -146,6 +146,8 @@ LottoTM.Server.Api.Features.Draws.DrawsGetList.Endpoint.AddEndpoint(app);
 LottoTM.Server.Api.Features.Draws.DrawsGetById.Endpoint.AddEndpoint(app);
 LottoTM.Server.Api.Features.Draws.DrawsUpdate.Endpoint.AddEndpoint(app);
 LottoTM.Server.Api.Features.Draws.DrawsDelete.Endpoint.AddEndpoint(app);
+LottoTM.Server.Api.Features.Draws.DrawsImportCsv.Endpoint.AddEndpoint(app);
+LottoTM.Server.Api.Features.Draws.DrawsExportCsv.Endpoint.AddEndpoint(app);
 LottoTM.Server.Api.Features.Tickets.TicketsCreate.Endpoint.AddEndpoint(app);
 LottoTM.Server.Api.Features.Tickets.TicketsGetList.Endpoint.AddEndpoint(app);
 LottoTM.Server.Api.Features.Tickets.TicketsGetById.Endpoint.AddEndpoint(app);

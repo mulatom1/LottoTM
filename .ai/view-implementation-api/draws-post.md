@@ -2,16 +2,16 @@
 
 ## 1. Przegląd punktu końcowego
 
-**Cel:** Dodanie nowego wyniku losowania LOTTO do globalnego rejestru wyników dostępnego dla wszystkich użytkowników.
+**Cel:** Dodanie nowego wyniku losowania Lotto do globalnego rejestru wyników dostępnego dla wszystkich użytkowników.
 
 **Funkcjonalność:**
 - Wprowadzenie wyniku losowania (data + 6 liczb) przez zalogowanego użytkownika
-- Walidacja daty losowania (nie może być w przyszłości, unikalna globalnie)
+- Walidacja daty losowania (nie może być w przyszłości)
 - Walidacja liczb (6 liczb w zakresie 1-49, wszystkie unikalne)
 - Tracking autora losowania przez pole `CreatedByUserId`
-- Opcjonalne nadpisanie istniejącego losowania na daną datę (decyzja biznesowa)
 - Tylko użytkownicy z uprawnieniami administratora mogą dodawać losowania (IsAdmin)
-- Jeśli losowanie o podanej dacie i typie już istnieje zwraca błąd (unikalny klucz)
+- Walidacja duplikatów: jeśli losowanie o podanym DrawSystemId już istnieje zwraca błąd
+- UWAGA: W tym samym dniu może być wiele losowań tego samego typu
 
 **Architektura:** Vertical Slice Architecture z MediatR
 
@@ -38,7 +38,7 @@ Brak
 {
   "drawDate": "2025-10-30",
   "numbers": [3, 12, 25, 31, 42, 48],
-  "lottoType": "LOTTO",
+  "lottoType": "Lotto",
   "drawSystemId": 20250001,
   "ticketPrice": 3.00,
   "winPoolCount1": 2,
@@ -56,10 +56,10 @@ Brak
 
 | Pole | Typ | Wymagane | Walidacja | Komunikaty błędów |
 |------|-----|----------|-----------|-------------------|
-| `drawDate` | DATE (YYYY-MM-DD) | Tak | - Format DATE<br>- Nie w przyszłości<br>- Unikalny globalnie (DrawDate + LottoType) | - "Data losowania jest wymagana"<br>- "Nieprawidłowy format daty"<br>- "Data losowania nie może być w przyszłości"<br>- "Losowanie z tą datą i typem gry już istnieje" |
+| `drawDate` | DATE (YYYY-MM-DD) | Tak | - Format DATE<br>- Nie w przyszłości | - "Data losowania jest wymagana"<br>- "Nieprawidłowy format daty"<br>- "Data losowania nie może być w przyszłości" |
 | `numbers` | Array<int> | Tak | - Dokładnie 6 elementów<br>- Każda liczba 1-49<br>- Wszystkie unikalne | - "Wymagane dokładnie 6 liczb"<br>- "Liczby muszą być w zakresie 1-49"<br>- "Liczby muszą być unikalne" |
-| `lottoType` | STRING | Tak | - Wymagane<br>- Tylko "LOTTO" lub "LOTTO PLUS" | - "Typ gry jest wymagany"<br>- "Dozwolone wartości: LOTTO, LOTTO PLUS" |
-| `drawSystemId` | INT | Tak | - Wymagane<br>- Wartość INT | - "DrawSystemId jest wymagany"<br>- "DrawSystemId musi być liczbą całkowitą" |
+| `lottoType` | STRING | Tak | - Wymagane<br>- Tylko "Lotto" lub "LottoPlus" | - "Typ gry jest wymagany"<br>- "Dozwolone wartości: Lotto, LottoPlus" |
+| `drawSystemId` | INT | Tak | - Wymagane<br>- Wartość INT<br>- Unikalny globalnie | - "DrawSystemId jest wymagany"<br>- "DrawSystemId musi być liczbą całkowitą"<br>- "Losowanie o tym DrawSystemId już istnieje" |
 | `ticketPrice` | DECIMAL | Nie | - Opcjonalne<br>- Wartość >= 0 jeśli podana | - "Cena biletu musi być wartością dodatnią" |
 | `winPoolCount1` | INT | Nie | - Opcjonalne<br>- Wartość >= 0 | - "Ilość wygranych musi być wartością nieujemną" |
 | `winPoolAmount1` | DECIMAL | Nie | - Opcjonalne<br>- Wartość >= 0 | - "Kwota wygranych musi być wartością dodatnią" |
@@ -114,7 +114,7 @@ public class Draw
 {
     public int Id { get; set; }
     public DateTime DrawDate { get; set; }
-    public string LottoType { get; set; } = string.Empty; // "LOTTO" lub "LOTTO PLUS"
+    public string LottoType { get; set; } = string.Empty; // "Lotto" lub "LottoPlus"
     public int DrawSystemId { get; set; }
     public decimal? TicketPrice { get; set; }
     public int? WinPoolCount1 { get; set; }
@@ -220,7 +220,7 @@ Content-Type: application/json
    ↓
 4. Handler (Handler.cs)
    - Pobiera UserId z JWT claims
-   - Sprawdza czy losowanie na daną datę i typ już istnieje
+   - Sprawdza czy losowanie o danym DrawSystemId już istnieje
    - Jeśli tak, rzucić błąd
    ↓
 5. Database Transaction
@@ -284,7 +284,8 @@ Content-Type: application/json
 2. `DrawNumbers` - zapis 6 liczb z pozycjami
 
 **Indeksy wykorzystane:**
-- `IX_Draws_DrawDate` - sprawdzenie unikalności daty
+- `IX_Draws_DrawSystemId` (UNIQUE) - sprawdzenie unikalności DrawSystemId + wymuszenie unikalności
+- `IX_Draws_DrawDate` - indeks na datę
 - `IX_DrawNumbers_DrawId` - relacja CASCADE dla DrawNumbers
 
 **Transakcja:**
@@ -375,8 +376,8 @@ public class CreateDrawValidator : AbstractValidator<CreateDrawRequest>
 
         RuleFor(x => x.LottoType)
             .NotEmpty().WithMessage("Typ gry jest wymagany")
-            .Must(lt => lt == "LOTTO" || lt == "LOTTO PLUS")
-                .WithMessage("Dozwolone wartości: LOTTO, LOTTO PLUS");
+            .Must(lt => lt == "Lotto" || lt == "LottoPlus")
+                .WithMessage("Dozwolone wartości: Lotto, LottoPlus");
 
         RuleFor(x => x.DrawSystemId)
             .MaximumLength(20)
@@ -433,14 +434,14 @@ public class CreateDrawValidator : AbstractValidator<CreateDrawRequest>
 
 **Warstwa 2: Business Logic (Handler.cs)**
 ```csharp
-// Sprawdzenie unikalności kombinacji DrawDate + LottoType
+// Sprawdzenie unikalności DrawSystemId
 var existingDraw = await _dbContext.Draws
-    .Where(d => d.DrawDate == request.DrawDate && d.LottoType == request.LottoType)
+    .Where(d => d.DrawSystemId == request.DrawSystemId)
     .AnyAsync(cancellationToken);
 
 if (existingDraw)
 {
-    throw new ValidationException("Losowanie z tą datą i typem gry już istnieje");
+    throw new ValidationException("Losowanie o tym DrawSystemId już istnieje w systemie");
 }
 ```
 
@@ -577,7 +578,7 @@ public class CreateDrawHandler : IRequestHandler<CreateDrawRequest, CreateDrawRe
 
 | Wąskie gardło | Opis | Mitygacja |
 |---------------|------|-----------|
-| **Brak indeksu na (DrawDate, LottoType)** | Sprawdzanie unikalności kombinacji: O(n) table scan | ✅ Indeks `IX_Draws_DrawDate_LottoType` (UNIQUE) |
+| **Brak indeksu na DrawSystemId** | Sprawdzanie unikalności: O(n) table scan | ✅ UNIQUE indeks `IX_Draws_DrawSystemId` |
 | **N+1 problem przy INSERT** | 6 osobnych INSERT do DrawNumbers | ✅ Bulk insert lub transakcja |
 | **Serializacja JSON** | Parsing dużych request body | ⚠️ Akceptowalne dla MVP (tylko 6 liczb) |
 | **Lock contention** | Wiele użytkowników dodaje losowania jednocześnie | ⚠️ Bardzo niskie ryzyko (1 losowanie/dzień/typ) |
@@ -586,7 +587,8 @@ public class CreateDrawHandler : IRequestHandler<CreateDrawRequest, CreateDrawRe
 
 **1. Indeksy bazy danych:**
 ```sql
-CREATE UNIQUE INDEX IX_Draws_DrawDate_LottoType ON Draws(DrawDate, LottoType);
+CREATE UNIQUE INDEX IX_Draws_DrawSystemId ON Draws(DrawSystemId);
+CREATE INDEX IX_Draws_DrawDate ON Draws(DrawDate);
 CREATE INDEX IX_DrawNumbers_DrawId ON DrawNumbers(DrawId);
 ```
 
@@ -724,8 +726,8 @@ public class CreateDrawValidator : AbstractValidator<Contracts.CreateDrawRequest
 
         RuleFor(x => x.LottoType)
             .NotEmpty().WithMessage("Typ gry jest wymagany")
-            .Must(lt => lt == "LOTTO" || lt == "LOTTO PLUS")
-                .WithMessage("Dozwolone wartości: LOTTO, LOTTO PLUS");
+            .Must(lt => lt == "Lotto" || lt == "LottoPlus")
+                .WithMessage("Dozwolone wartości: Lotto, LottoPlus");
 
         RuleFor(x => x.DrawSystemId)
             .MaximumLength(20)
@@ -832,21 +834,20 @@ public class CreateDrawHandler : IRequestHandler<Contracts.CreateDrawRequest, Co
             request.DrawDate, currentUserId
         );
 
-        // 3. Sprawdź czy losowanie na daną datę już istnieje
-        var drawDate = request.DrawDate.ToDateTime(TimeOnly.MinValue);
+        // 3. Sprawdź czy losowanie o podanym DrawSystemId już istnieje
         var existingDraw = await _dbContext.Draws
-            .AnyAsync(d => d.DrawDate == drawDate, cancellationToken);
+            .AnyAsync(d => d.DrawSystemId == request.DrawSystemId, cancellationToken);
 
         if (existingDraw)
         {
             _logger.LogDebug(
-                "Draw for date {DrawDate} already exists",
-                request.DrawDate
+                "Draw with DrawSystemId {DrawSystemId} already exists",
+                request.DrawSystemId
             );
 
             var errors = new List<FluentValidation.Results.ValidationFailure>
             {
-                new("drawDate", "Losowanie z tą datą już istnieje")
+                new("drawSystemId", "Losowanie o tym DrawSystemId już istnieje w systemie")
             };
             throw new ValidationException(errors);
         }
@@ -1125,7 +1126,8 @@ SELECT * FROM DrawNumbers WHERE DrawId = (
 ### Database Verification
 - [ ] Sprawdzenie istnienia tabeli `Draws`
 - [ ] Sprawdzenie istnienia tabeli `DrawNumbers`
-- [ ] Weryfikacja indeksu `IX_Draws_DrawDate` (UNIQUE)
+- [ ] Weryfikacja indeksu `IX_Draws_DrawSystemId` (UNIQUE)
+- [ ] Weryfikacja indeksu `IX_Draws_DrawDate`
 - [ ] Weryfikacja indeksu `IX_DrawNumbers_DrawId`
 - [ ] Weryfikacja CHECK constraints (Number BETWEEN 1 AND 49)
 
@@ -1136,7 +1138,7 @@ SELECT * FROM DrawNumbers WHERE DrawId = (
 - [ ] Test: Nieprawidłowa liczba liczb != 6 (400 Bad Request)
 - [ ] Test: Liczby poza zakresem 1-49 (400 Bad Request)
 - [ ] Test: Duplikaty liczb (400 Bad Request)
-- [ ] Test: Duplikat daty losowania (400 Bad Request)
+- [ ] Test: Duplikat DrawSystemId (400 Bad Request)
 - [ ] Test: Brak autoryzacji (401 Unauthorized)
 - [ ] Uruchomienie testów: `dotnet test`
 
@@ -1167,7 +1169,7 @@ SELECT * FROM DrawNumbers WHERE DrawId = (
 
 ## Podsumowanie
 
-Ten endpoint implementuje funkcjonalność dodawania wyników losowań LOTTO zgodnie z:
+Ten endpoint implementuje funkcjonalność dodawania wyników losowań Lotto zgodnie z:
 - **Architekturą:** Vertical Slice Architecture z MediatR
 - **Walidacją:** 2-warstwowa (FluentValidation + business logic)
 - **Bezpieczeństwem:** JWT authentication, parametryzowane zapytania

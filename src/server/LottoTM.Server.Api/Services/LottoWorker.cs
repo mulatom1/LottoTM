@@ -78,20 +78,20 @@ public class LottoWorker : BackgroundService
                 }
             }
 
-            //Archiwum
-            if (_options.Enable && lastArchRunTime.Year >= 1957)
-            {
-                lastArchRunTime = lastArchRunTime.AddDays(-1);
-
-                if (_options.InWeek.Contains(GetDayAbbreviation(lastArchRunTime.DayOfWeek)))
-                    await FetchAndSaveArchDrawsFromLottoOpenApi(lastArchRunTime, stoppingToken);
-            }
-
-            ////Wygrane
-            //if (_options.Enable)
+            ////Archiwum
+            //if (_options.Enable && lastArchRunTime.Year >= 1957)
             //{
-            //    await FetchAndSaveStatsDrawsFromLottoOpenApi(stoppingToken);
+            //    lastArchRunTime = lastArchRunTime.AddDays(-1);
+
+            //    if (_options.InWeek.Contains(GetDayAbbreviation(lastArchRunTime.DayOfWeek)))
+            //        await FetchAndSaveArchDrawsFromLottoOpenApi(lastArchRunTime, stoppingToken);
             //}
+
+            //Wygrane
+            if (_options.Enable)
+            {
+                await FetchAndSaveStatsDrawsFromLottoOpenApi(stoppingToken);
+            }
 
             if (!_options.Enable)
             {
@@ -174,34 +174,34 @@ public class LottoWorker : BackgroundService
         }
     }
 
-    private async Task FetchAndSaveArchDrawsFromLottoOpenApi(DateOnly date, CancellationToken stoppingToken)
-    {
-        _logger.LogDebug("Executing FetchAndSaveArchDrawsFromLottoOpenApi at: {Time}", DateTime.Now);
+    //private async Task FetchAndSaveArchDrawsFromLottoOpenApi(DateOnly date, CancellationToken stoppingToken)
+    //{
+    //    _logger.LogDebug("Executing FetchAndSaveArchDrawsFromLottoOpenApi at: {Time}", DateTime.Now);
 
-        try
-        {
-            using var scope = _serviceScopeFactory.CreateScope();
-            var lottoOpenApiService = scope.ServiceProvider.GetRequiredService<ILottoOpenApiService>();
-            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    //    try
+    //    {
+    //        using var scope = _serviceScopeFactory.CreateScope();
+    //        var lottoOpenApiService = scope.ServiceProvider.GetRequiredService<ILottoOpenApiService>();
+    //        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-            _logger.LogDebug("Fetching arch draws for date: {Date}", date);
+    //        _logger.LogDebug("Fetching arch draws for date: {Date}", date);
 
-            var response = await lottoOpenApiService.GetDrawsLottoByDate(date);
-            if (response == null || response.TotalRows == 0)
-            {
-                _logger.LogDebug("No response received from LottoOpenApiService for date: {Date}", date);
-                return;
-            }
+    //        var response = await lottoOpenApiService.GetDrawsLottoByDate(date);
+    //        if (response == null || response.TotalRows == 0)
+    //        {
+    //            _logger.LogDebug("No response received from LottoOpenApiService for date: {Date}", date);
+    //            return;
+    //        }
 
-            await SaveInDatabase(response, dbContext, stoppingToken);
+    //        await SaveInDatabase(response, dbContext, stoppingToken);
 
-            _logger.LogDebug("FetchAndSaveDrawsFromLottoOpenApi completed successfully");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error occurred while executing FetchAndSaveDrawsFromLottoOpenApi");
-        }
-    }
+    //        _logger.LogDebug("FetchAndSaveDrawsFromLottoOpenApi completed successfully");
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        _logger.LogError(ex, "Error occurred while executing FetchAndSaveDrawsFromLottoOpenApi");
+    //    }
+    //}
 
     private async Task FetchAndSaveStatsDrawsFromLottoOpenApi(CancellationToken stoppingToken)
     {
@@ -388,6 +388,8 @@ public class LottoWorker : BackgroundService
                 if (pos == null) continue;
 
                 var draw = await dbContext.Draws.FirstOrDefaultAsync(d => d.DrawSystemId == pos.DrawSystemId && d.LottoType == pos.GameType, stoppingToken);
+                if (draw == null)
+                    draw = await dbContext.Draws.FirstOrDefaultAsync(d => d.DrawDate == DateOnly.FromDateTime(pos.DrawDate) && d.LottoType == pos.GameType && d.WinPoolAmount1 == null, stoppingToken);
                 if (draw == null) continue;
 
                 draw.WinPoolCount1 = pos.Prizes?.GetValueOrDefault("1", new GetDrawsStatsByIdResponsePrizeInfo()).Prize ?? 0;
