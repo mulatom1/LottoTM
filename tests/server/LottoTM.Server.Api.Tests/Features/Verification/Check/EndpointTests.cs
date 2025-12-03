@@ -288,10 +288,10 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     /// <summary>
-    /// Test with date range exceeding 3 years
+    /// Test with date range exceeding configured maximum days (31 days by default)
     /// </summary>
     [Fact]
-    public async Task CheckVerification_WithRangeExceeding3Years_Returns400()
+    public async Task CheckVerification_WithRangeExceedingConfiguredDays_Returns400()
     {
         // Arrange
         var testDbName = "TestDb_Check_RangeTooLarge_" + Guid.NewGuid();
@@ -304,8 +304,8 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         var request = new Contracts.Request(
-            DateOnly.Parse("2022-01-01"),
-            DateOnly.Parse("2025-12-31"), // ~4 years - exceeds 3 year limit
+            DateOnly.Parse("2025-01-01"),
+            DateOnly.Parse("2025-02-15"), // 45 days - exceeds 31 day limit configured in Features:Verification:Days
             null // No group filter
         );
 
@@ -740,7 +740,8 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
                     ["Jwt:Issuer"] = "TestIssuer",
                     ["Jwt:Audience"] = "TestAudience",
                     ["Jwt:ExpiryInMinutes"] = "1440",
-                    ["Swagger:Enabled"] = "false"
+                    ["Swagger:Enabled"] = "false",
+                    ["Features:Verification:Days"] = "31"
                 });
             });
 

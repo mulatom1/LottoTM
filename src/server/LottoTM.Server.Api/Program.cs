@@ -138,6 +138,7 @@ app.UseAuthorization();
 
 // Register endpoints
 LottoTM.Server.Api.Features.ApiVersion.Endpoint.AddEndpoint(app);
+LottoTM.Server.Api.Features.Config.Endpoint.AddEndpoint(app);
 LottoTM.Server.Api.Features.Auth.Login.Endpoint.AddEndpoint(app);
 LottoTM.Server.Api.Features.Auth.Register.Endpoint.AddEndpoint(app);
 LottoTM.Server.Api.Features.Auth.SetAdmin.Endpoint.AddEndpoint(app);

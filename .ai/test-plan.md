@@ -135,7 +135,7 @@ Proces testowy zostanie podzielony na następujące poziomy i typy:
 *   **[x] TC14g:** Weryfikacja z kuponami mającymi dokładnie 3 trafienia - są uwzględniane.
 *   **[x] TC14h:** Weryfikacja z kuponami mającymi tylko 2 trafienia - nie są uwzględniane.
 *   **[x] TC14i:** Weryfikacja zakresu dat - DateTo przed DateFrom zwraca błąd 400.
-*   **[x] TC14j:** Weryfikacja zakresu dat przekraczającego 31 dni - zwraca błąd 400.
+*   **[x] TC14j:** Weryfikacja zakresu dat przekraczającego limit z `Features:Verification:Days` (domyślnie 31 dni) - zwraca błąd 400.
 *   **[x] TC14k:** Weryfikacja bez autentykacji - zwraca błąd 401.
 *   **[x] TC14l:** Weryfikacja izolacji użytkowników - zwracane tylko kupony zalogowanego użytkownika.
 *   **[x] TC14m:** Weryfikacja z różnymi typami losowań (LOTTO, LOTTO PLUS) - poprawne rozpoznanie typów.

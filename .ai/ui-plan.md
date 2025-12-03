@@ -687,7 +687,7 @@ Wyświetlana po zakończeniu weryfikacji, przed szczegółową listą losowań.
 **Filtry wyników (po zakończeniu weryfikacji, przed listą losowań):**
 - **Panel granularnych filtrów (5 checkboxów):**
   - **Checkbox 1:** "Pokaż kupony bez trafień" (showNonWinningTickets)
-    - Default: true (zaznaczony - pokazuje kupony z 0 trafień)
+    - Default: false (odznaczony - domyślnie ukrywa kupony z 0 trafień, pokazuje tylko wygrane)
   - **Checkbox 2:** "Pokaż 3 trafienia" (show3Hits)
     - Default: true (zaznaczony)
   - **Checkbox 3:** "Pokaż 4 trafienia" (show4Hits)
@@ -767,7 +767,8 @@ Struktura - każde losowanie (Draw) jako card/rekord z dwoma rozwijalnymi sekcja
 - **Bezpieczeństwo:**
   - Backend filtruje zestawy po UserId (użytkownik widzi tylko swoje wygrane)
   - Weryfikacja wykonana na backendzie (frontend tylko rendering, brak manipulacji danych)
-  - Walidacja zakresu dat na backendzie (max 31 dni, NFR-005 z api-plan.md)
+  - Walidacja zakresu dat na backendzie (limit konfigurowalny przez `Features:Verification:Days`, domyślnie 31 dni, NFR-005 z api-plan.md)
+  - Frontend pobiera limit z endpointu `GET /api/config` i używa go do walidacji formularza
 
 **Performance:**
 - Wymaganie NFR-001: weryfikacja 100 zestawów × 1 losowanie ≤ 2 sekundy

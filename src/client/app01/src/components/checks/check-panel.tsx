@@ -10,6 +10,7 @@ interface CheckPanelProps {
   dateFrom: string;
   dateTo: string;
   groupName: string;
+  verificationMaxDays: number;
   onDateFromChange: (value: string) => void;
   onDateToChange: (value: string) => void;
   onGroupNameChange: (value: string) => void;
@@ -26,6 +27,7 @@ export function CheckPanel({
   dateFrom,
   dateTo,
   groupName,
+  verificationMaxDays,
   onDateFromChange,
   onDateToChange,
   onGroupNameChange,
@@ -37,16 +39,16 @@ export function CheckPanel({
   // Validate dates on change
   useEffect(() => {
     if (dateFrom && dateTo) {
-      const error = validateDateRange(dateFrom, dateTo);
+      const error = validateDateRange(dateFrom, dateTo, verificationMaxDays);
       setDateError(error);
     }
-  }, [dateFrom, dateTo]);
+  }, [dateFrom, dateTo, verificationMaxDays]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     // Final validation before submit
-    const error = validateDateRange(dateFrom, dateTo);
+    const error = validateDateRange(dateFrom, dateTo, verificationMaxDays);
     if (error) {
       setDateError(error);
       return;
@@ -157,7 +159,7 @@ export function CheckPanel({
 
       {/* Info text */}
       <p className="text-xs text-gray-500 mt-4">
-        Zakres dat może obejmować maksymalnie 3 lata
+        Zakres dat może obejmować maksymalnie {verificationMaxDays} {verificationMaxDays === 1 ? 'dzień' : verificationMaxDays < 5 ? 'dni' : 'dni'}
       </p>
     </div>
   );

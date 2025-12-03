@@ -132,6 +132,8 @@ src/
 - `appsettings.json` - Base configuration
 - `appsettings.Development.json` - Development overrides
 - Required sections: `ConnectionStrings:DefaultConnection`, `Jwt:Key/Issuer/Audience`, `ApiVersion`, `Swagger:Enabled`, `Serilog`
+- Feature configuration: `Features:Verification:Days` - Maximum days for verification date range (default: 31)
+- Frontend fetches configuration via `GET /api/config` endpoint
 
 ### Testing Strategy
 

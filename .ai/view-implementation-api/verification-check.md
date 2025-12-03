@@ -117,32 +117,52 @@ Wszystkie typy zostały zdefiniowane w folderze `Features/Verification/Check`.
 11. Konstruuje finalny obiekt `Response(ExecutionTimeMs, DrawsResults, TicketsResults)`.
 12. Zwraca odpowiedź `200 OK`.
 
-## 6. Względy bezpieczeństwa
+## 6. Konfiguracja
+
+System wykorzystuje parametr konfiguracyjny określający maksymalny zakres dat dla weryfikacji:
+
+- **`Features:Verification:Days`** (appsettings.json): Określa maksymalną liczbę dni wstecz, które mogą być uwzględnione w weryfikacji kuponów użytkownika z losowaniami. Domyślna wartość: 31 dni.
+
+Przykład konfiguracji w `appsettings.json`:
+```json
+{
+  "Features": {
+    "Verification": {
+      "Days": 31
+    }
+  }
+}
+```
+
+Handler odczytuje wartość z `IConfiguration` i waliduje, że zakres dat `(dateTo - dateFrom).Days` nie przekracza wartości `Features:Verification:Days`.
+
+## 7. Względy bezpieczeństwa
 
 - **Uwierzytelnianie**: Endpoint będzie chroniony za pomocą `[Authorize]`, co gwarantuje, że tylko zalogowani użytkownicy mogą z niego korzystać.
 - **Autoryzacja**: Logika w handlerze musi ściśle filtrować dane (`Tickets`) na podstawie `UserId` pobranego z tokenu JWT. Zapobiega to możliwości odpytania o dane innego użytkownika.
-- **Walidacja danych wejściowych**: `FluentValidation` zabezpiecza przed niepoprawnymi danymi (np. nieprawidłowy format daty, odwrócony zakres). Ograniczenie zakresu do 3 lat chroni przed atakami typu DoS polegającymi na żądaniu weryfikacji dla ogromnego przedziału czasowego.
+- **Walidacja danych wejściowych**: `FluentValidation` zabezpiecza przed niepoprawnymi danymi (np. nieprawidłowy format daty, odwrócony zakres). Ograniczenie zakresu dat (zgodnie z parametrem `Features:Verification:Days`) chroni przed atakami typu DoS polegającymi na żądaniu weryfikacji dla ogromnego przedziału czasowego.
 
-## 7. Obsługa błędów
+## 8. Obsługa błędów
 
 - **400 Bad Request**: Zwracany, gdy walidacja `FluentValidation` nie powiodła się. Globalny middleware `ExceptionHandlingMiddleware` przechwyci `ValidationException` i sformatuje odpowiedź z listą błędów.
 - **401 Unauthorized**: Zwracany przez middleware autoryzacji ASP.NET Core, jeśli token JWT jest nieprawidłowy, brak go lub wygasł.
 - **500 Internal Server Error**: Zwracany przez `ExceptionHandlingMiddleware` w przypadku nieoczekiwanych błędów (np. problem z połączeniem z bazą danych). Błąd zostanie zarejestrowany przez `Serilog`.
 
-## 8. Rozważania dotyczące wydajności
+## 9. Rozważania dotyczące wydajności
 
 - **Dostęp do bazy danych**: Dane (kupony i losowania) są pobierane w dwóch osobnych, zoptymalizowanych zapytaniach z użyciem `AsNoTracking()` i `Include()`, aby zminimalizować liczbę zapytań (2 zapytania na żądanie). Wykorzystane zostaną indeksy na `Tickets.UserId` i `Draws.DrawDate`.
 - **Przetwarzanie w pamięci**: Główna logika porównawcza (pętle i `Intersect`) odbywa się w pamięci. Dla maksymalnych wartości (100 kuponów, ~600 losowań w 3 latach dla obu typów gier LOTTO + LOTTO PLUS) operacja jest zoptymalizowana. Złożoność obliczeniowa to O(liczba_kuponów * liczba_losowań).
 - **Asynchroniczność**: Wszystkie operacje I/O (dostęp do bazy danych) są w pełni asynchroniczne (`async/await`), co zapewnia, że wątek nie jest blokowany podczas oczekiwania na dane.
 
-## 9. Etapy wdrożenia
+## 10. Etapy wdrożenia
 
 1. Utworzenie nowego folderu w projekcie `LottoTM.Server.Api`: `src/server/LottoTM.Server.Api/Features/Verification/Check`.
 2. W folderze `Check` utwórz plik `Contracts.cs` i zdefiniuj w nim rekordy: `Request` (z opcjonalnym parametrem `GroupName`), `Response`, `TicketVerificationResult`, `DrawVerificationResult`.
-3. Utwórz plik `Validator.cs` i zaimplementuj logikę walidacji dla `Request` przy użyciu `FluentValidation`, sprawdzając poprawność i zakres dat (max 31 dni).
-4. Utwórz plik `Handler.cs` i zaimplementuj klasę `CheckVerificationHandler` dziedziczącą po `IRequestHandler<Contracts.Request, Contracts.Response>`.
-5. Wstrzyknij `AppDbContext`, `IHttpContextAccessor` i `IValidator<Contracts.Request>` do konstruktora handlera.
-6. Zaimplementuj metodę `Handle`:
+3. Dodaj sekcję `Features:Verification:Days` do pliku `appsettings.json` z wartością domyślną (np. 31 dni).
+4. Utwórz plik `Validator.cs` i zaimplementuj logikę walidacji dla `Request` przy użyciu `FluentValidation`, sprawdzając poprawność i zakres dat. Walidator powinien odczytywać wartość `Features:Verification:Days` z `IConfiguration` i sprawdzać, czy `(dateTo - dateFrom).Days <= Features:Verification:Days`.
+5. Utwórz plik `Handler.cs` i zaimplementuj klasę `CheckVerificationHandler` dziedziczącą po `IRequestHandler<Contracts.Request, Contracts.Response>`.
+6. Wstrzyknij `AppDbContext`, `IHttpContextAccessor`, `IConfiguration` i `IValidator<Contracts.Request>` do konstruktora handlera.
+7. Zaimplementuj metodę `Handle`:
    a. Uruchom walidację.
    b. Pobierz `UserId` z `HttpContext`.
    c. Uruchom `Stopwatch`.
@@ -150,7 +170,7 @@ Wszystkie typy zostały zdefiniowane w folderze `Features/Verification/Check`.
    e. Asynchronicznie pobierz dane losowań z bazy.
    f. Zaimplementuj logikę porównywania w pętlach.
    g. Zatrzymaj `Stopwatch` i zbuduj obiekt odpowiedzi.
-7. Utwórz plik `Endpoint.cs` i zdefiniuj w nim metodę rozszerzającą `AddEndpoint`, która mapuje `POST /api/verification/check` do logiki handlera. Zabezpiecz endpoint za pomocą `.RequireAuthorization()`.
-8. W głównym pliku `Program.cs` zarejestruj nowo utworzony endpoint, wywołując `LottoTM.Server.Api.Features.Verification.Check.Endpoint.AddEndpoint(app);`.
-9. Zarejestruj walidator w kontenerze DI w `Program.cs`: `builder.Services.AddScoped<IValidator<Features.Verification.Check.Contracts.Request>, Features.Verification.Check.Validator>();`.
-10. Upewnij się, że wszystkie nowe pliki używają poprawnej przestrzeni nazw `LottoTM.Server.Api.Features.Verification.Check`.
+8. Utwórz plik `Endpoint.cs` i zdefiniuj w nim metodę rozszerzającą `AddEndpoint`, która mapuje `POST /api/verification/check` do logiki handlera. Zabezpiecz endpoint za pomocą `.RequireAuthorization()`.
+9. W głównym pliku `Program.cs` zarejestruj nowo utworzony endpoint, wywołując `LottoTM.Server.Api.Features.Verification.Check.Endpoint.AddEndpoint(app);`.
+10. Zarejestruj walidator w kontenerze DI w `Program.cs`: `builder.Services.AddScoped<IValidator<Features.Verification.Check.Contracts.Request>, Features.Verification.Check.Validator>();`.
+11. Upewnij się, że wszystkie nowe pliki używają poprawnej przestrzeni nazw `LottoTM.Server.Api.Features.Verification.Check`.

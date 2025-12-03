@@ -2,7 +2,7 @@
 // ChecksPage - Main page component for verification of winning tickets
 // ===================================================================
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useAppContext } from '../../context/app-context';
 import { CheckPanel } from '../../components/checks/check-panel';
 import { CheckSummary } from '../../components/checks/check-summary';
@@ -15,7 +15,7 @@ import type { DrawsResult, TicketsResult } from '../../services/contracts/verifi
 /**
  * Checks Page - Main page for verifying user's lottery tickets against draw results
  * Features:
- * - Date range selection (default: last week, max: 3 years)
+ * - Date range selection (default: last week, max: configurable on backend)
  * - Optional group name filter (partial match, case-insensitive)
  * - Automatic verification via API
  * - Results displayed in accordion format grouped by draws
@@ -43,10 +43,12 @@ export default function ChecksPage() {
   }, []);
 
   // State management
+  const [verificationMaxDays, setVerificationMaxDays] = useState<number>(31); // Default value
+  const [isLoadingConfig, setIsLoadingConfig] = useState<boolean>(true);
   const [dateFrom, setDateFrom] = useState<string>(getDefaultDateFrom());
   const [dateTo, setDateTo] = useState<string>(getDefaultDateTo());
   const [groupName, setGroupName] = useState<string>('');
-  const [showNonWinningTickets, setShowNonWinningTickets] = useState<boolean>(true);
+  const [showNonWinningTickets, setShowNonWinningTickets] = useState<boolean>(false);
   const [show3Hits, setShow3Hits] = useState<boolean>(true);
   const [show4Hits, setShow4Hits] = useState<boolean>(true);
   const [show5Hits, setShow5Hits] = useState<boolean>(true);
@@ -56,6 +58,27 @@ export default function ChecksPage() {
   const [ticketsResults, setTicketsResults] = useState<TicketsResult[] | null>(null);
   const [executionTimeMs, setExecutionTimeMs] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
+
+  /**
+   * Fetch configuration on mount
+   */
+  useEffect(() => {
+    const fetchConfig = async () => {
+      if (!apiService) return;
+
+      try {
+        const config = await apiService.getConfig();
+        setVerificationMaxDays(config.verificationMaxDays);
+      } catch (err) {
+        console.error('Failed to fetch config:', err);
+        // Keep default value of 31 days
+      } finally {
+        setIsLoadingConfig(false);
+      }
+    };
+
+    fetchConfig();
+  }, [apiService]);
 
   /**
    * Handle verification submission
@@ -148,11 +171,12 @@ export default function ChecksPage() {
             dateFrom={dateFrom}
             dateTo={dateTo}
             groupName={groupName}
+            verificationMaxDays={verificationMaxDays}
             onDateFromChange={setDateFrom}
             onDateToChange={setDateTo}
             onGroupNameChange={setGroupName}
             onSubmit={handleSubmit}
-            isLoading={isLoading}
+            isLoading={isLoading || isLoadingConfig}
           />
         </div>
 

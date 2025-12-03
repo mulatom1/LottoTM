@@ -20,6 +20,42 @@
 
 ## 2. Punkty końcowe
 
+### 2.0 Moduł: Konfiguracja (Config)
+
+---
+
+#### **GET /api/config**
+
+**Opis:** Pobieranie konfiguracji aplikacji dostępnej dla klientów frontendowych
+
+**Autoryzacja:** Brak (endpoint publiczny)
+
+**Parametry zapytania:** Brak
+
+**Payload odpowiedzi (sukces):**
+```json
+{
+  "verificationMaxDays": 31
+}
+```
+
+- `verificationMaxDays` (int): Maksymalna liczba dni dozwolona dla zakresu dat weryfikacji (wartość z `Features:Verification:Days` w appsettings.json)
+
+**Kody sukcesu:**
+- `200 OK` - Konfiguracja pobrana pomyślnie
+
+**Kody błędów:**
+- `500 Internal Server Error` - Błąd serwera
+
+**Cel:**
+Endpoint umożliwia frontendowi dynamiczne pobranie konfiguracji aplikacji bez hardkodowania wartości. Używany szczególnie przez stronę weryfikacji do walidacji zakresu dat po stronie klienta.
+
+**Implementacja:**
+- Handler: `Features/Config/Handler.cs`
+- Odczyt: `IConfiguration.GetValue<int>("Features:Verification:Days", 31)`
+
+---
+
 ### 2.1 Moduł: Autentykacja (Auth)
 
 ---
@@ -1304,10 +1340,22 @@ Number1,Number2,Number3,Number4,Number5,Number6,GroupName
 **Walidacja:**
 - `dateFrom`: wymagane, format DATE (YYYY-MM-DD)
 - `dateTo`: wymagane, format DATE, musi być ≥ `dateFrom`
-- Zakres dat nie może przekraczać 3 lat (~1095 dni)
+- Zakres dat nie może przekraczać wartości zdefiniowanej w konfiguracji `Features:Verification:Days` (domyślnie 31 dni)
 - `groupName`: opcjonalne, string - filtr na nazwę grupy kuponów (wyszukiwanie częściowe)
   - Jeśli podane, weryfikowane są tylko kupony, których nazwa grupy zawiera podany tekst (LIKE/Contains, case-insensitive)
   - Jeśli puste lub nie podane, weryfikowane są wszystkie kupony użytkownika
+
+**Konfiguracja:**
+- `Features:Verification:Days` (appsettings.json): Maksymalna liczba dni wstecz dla weryfikacji. Domyślnie: 31.
+  ```json
+  {
+    "Features": {
+      "Verification": {
+        "Days": 31
+      }
+    }
+  }
+  ```
 
 **Payload odpowiedzi (sukces):**
 ```json
@@ -1369,7 +1417,7 @@ Frontend musi przekształcić tę strukturę do wyświetlenia wyników pogrupowa
   {
     "errors": {
       "dateFrom": ["Wymagany format YYYY-MM-DD"],
-      "dateTo": ["Data 'dateTo' musi być późniejsza lub równa 'dateFrom'", "Zakres dat nie może przekraczać 3 lat"]
+      "dateTo": ["Data 'dateTo' musi być późniejsza lub równa 'dateFrom'", "Zakres dat nie może przekraczać {Features:Verification:Days} dni"]
     }
   }
   ```
@@ -2103,6 +2151,7 @@ public List<int[]> GenerateSystemTickets()
 
 | Metoda | Endpoint | Opis | Autoryzacja |
 |--------|----------|------|-------------|
+| GET | `/api/config` | Pobieranie konfiguracji aplikacji | Nie |
 | POST | `/api/auth/register` | Rejestracja + automatyczne logowanie | Nie |
 | POST | `/api/auth/login` | Logowanie | Nie |
 | POST | `/api/auth/logout` | Wylogowanie | Tak |

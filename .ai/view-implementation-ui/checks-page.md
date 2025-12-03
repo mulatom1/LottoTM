@@ -5,7 +5,8 @@
 Checks Page to widok umożliwiający użytkownikom weryfikację swoich zestawów liczb LOTTO względem wyników losowań w określonym zakresie czasowym. System automatycznie identyfikuje wygrane (3 lub więcej trafień) i prezentuje je w przejrzysty sposób z wyróżnieniem trafionych liczb.
 
 **Główne funkcjonalności:**
-- Wybór zakresu dat do weryfikacji (domyślnie ostatni tydzień, maksymalnie 3 lata)
+- Wybór zakresu dat do weryfikacji (domyślnie ostatni tydzień, maksymalnie konfigurowalny przez `Features:Verification:Days`, domyślnie 31 dni)
+- Frontend pobiera limit z endpointu `GET /api/config` przy ładowaniu strony
 - Opcjonalne filtrowanie kuponów według nazwy grupy (groupName) z wyszukiwaniem częściowym (Contains)
 - Granularne filtrowanie wyników: kontrola wyświetlania kuponów według liczby trafień (0, 3, 4, 5, 6 trafień) - lokalne filtrowanie bez ponownego odpytywania backendu
 - Automatyczne porównanie zestawów użytkownika z losowaniami w wybranym okresie
@@ -109,7 +110,7 @@ Główny kontener strony weryfikacji wygranych. Zarządza stanem formularza zakr
 
 **Warunki walidacji:**
 - `dateFrom` nie może być późniejsza niż `dateTo`
-- Zakres dat nie może przekraczać 3 lat (walidacja na backendzie)
+- Zakres dat nie może przekraczać limitu z `Features:Verification:Days` (walidacja na backendzie i frontendzie, frontend pobiera wartość z `GET /api/config`)
 - Daty muszą być w formacie YYYY-MM-DD
 
 **Typy (DTO i ViewModel):**
@@ -124,10 +125,12 @@ Brak (komponent strony, nie przyjmuje propsów)
 **Stan lokalny:**
 ```typescript
 interface ChecksPageState {
+  verificationMaxDays: number;       // Limit dni z backend config (domyślnie 31)
+  isLoadingConfig: boolean;          // Stan ładowania konfiguracji
   dateFrom: string;                  // Format YYYY-MM-DD
   dateTo: string;                    // Format YYYY-MM-DD
   groupName: string;                 // Nazwa grupy (opcjonalnie)
-  showNonWinningTickets: boolean;    // Filtr: pokaż kupony bez trafień (domyślnie true)
+  showNonWinningTickets: boolean;    // Filtr: pokaż kupony bez trafień (domyślnie false)
   show3Hits: boolean;                // Filtr: pokaż kupony z 3 trafieniami (domyślnie true)
   show4Hits: boolean;                // Filtr: pokaż kupony z 4 trafieniami (domyślnie true)
   show5Hits: boolean;                // Filtr: pokaż kupony z 5 trafieniami (domyślnie true)
@@ -310,7 +313,7 @@ Kontener renderujący wyniki weryfikacji w formie listy Draw Cards. Każde losow
 - `<div>` - header sekcji wyników z filtrami:
   - `<div>` - info o liczbie wyników (opcjonalnie: "Znaleziono X losowań")
   - **Panel filtrów (checkboxy):**
-    - `<label>` + `<input type="checkbox">` - "Pokaż kupony bez trafień" (showNonWinningTickets, domyślnie zaznaczony)
+    - `<label>` + `<input type="checkbox">` - "Pokaż kupony bez trafień" (showNonWinningTickets, domyślnie odznaczony)
     - `<label>` + `<input type="checkbox">` - "Pokaż 3 trafienia" (show3Hits, domyślnie zaznaczony)
     - `<label>` + `<input type="checkbox">` - "Pokaż 4 trafienia" (show4Hits, domyślnie zaznaczony)
     - `<label>` + `<input type="checkbox">` - "Pokaż 5 trafień" (show5Hits, domyślnie zaznaczony)
@@ -870,10 +873,12 @@ const WIN_LABELS: Record<WinLevel, string> = {
 
 **Stan zarządzany w ChecksPage:**
 ```typescript
+const [verificationMaxDays, setVerificationMaxDays] = useState<number>(31);  // z backend config
+const [isLoadingConfig, setIsLoadingConfig] = useState<boolean>(true);
 const [dateFrom, setDateFrom] = useState<string>(getDefaultDateFrom());  // -1 tydzień
 const [dateTo, setDateTo] = useState<string>(getDefaultDateTo());        // dzisiaj
 const [groupName, setGroupName] = useState<string>('');                  // puste domyślnie
-const [showNonWinningTickets, setShowNonWinningTickets] = useState<boolean>(true);  // domyślnie true
+const [showNonWinningTickets, setShowNonWinningTickets] = useState<boolean>(false);  // domyślnie false (ukrywa losowania bez dopasowań)
 const [show3Hits, setShow3Hits] = useState<boolean>(true);               // domyślnie true
 const [show4Hits, setShow4Hits] = useState<boolean>(true);               // domyślnie true
 const [show5Hits, setShow5Hits] = useState<boolean>(true);               // domyślnie true
@@ -909,18 +914,18 @@ function getDefaultDateTo(): string {
 
 **Walidacja przed submit:**
 ```typescript
-function validateDateRange(dateFrom: string, dateTo: string): string | null {
+function validateDateRange(dateFrom: string, dateTo: string, maxDays: number): string | null {
   if (dateFrom > dateTo) {
     return "Data 'Od' musi być wcześniejsza lub równa 'Do'";
   }
 
-  // Sprawdzenie zakresu 3 lat (opcjonalnie na frontendzie)
+  // Sprawdzenie zakresu (limit z backend config przez GET /api/config)
   const from = new Date(dateFrom);
   const to = new Date(dateTo);
   const diffDays = Math.ceil((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24));
 
-  if (diffDays > 1095) {  // 3 lata ≈ 1095 dni
-    return "Zakres dat nie może przekraczać 3 lat";
+  if (diffDays > maxDays) {
+    return `Zakres dat nie może przekraczać ${maxDays} dni`;
   }
 
   return null;  // Valid
@@ -1065,7 +1070,7 @@ async function handleSubmit() {
 
 **Warunki weryfikowane przez API:**
 - `dateFrom ≤ dateTo` - walidacja na backendzie
-- Zakres dat max 3 lata - walidacja na backendzie
+- Zakres dat max `Features:Verification:Days` (domyślnie 31 dni) - walidacja na backendzie
 - Użytkownik musi być zalogowany (JWT w header)
 - Backend filtruje zestawy po `UserId` z tokenu (izolacja danych)
 
@@ -1131,13 +1136,13 @@ async function handleSubmit() {
 3. Button "Sprawdź wygrane" disabled
 4. Użytkownik poprawia datę → błąd znika, button enabled
 
-### 8.4 Scenariusz błędu - przekroczenie zakresu 3 lat
+### 8.4 Scenariusz błędu - przekroczenie zakresu maksymalnego
 
-1. Użytkownik wybiera zakres > 3 lat
-2. Opcjonalnie: frontend walidacja inline (komunikat błędu)
-3. Lub: backend walidacja → ErrorModal:
+1. Użytkownik wybiera zakres większy niż limit z `Features:Verification:Days` (np. > 31 dni)
+2. Frontend walidacja inline (komunikat błędu pod polem "Do")
+3. Lub jeśli bypass frontend: backend walidacja → ErrorModal:
    - Tytuł: "Błąd"
-   - Treść: "Zakres dat nie może przekraczać 3 lat"
+   - Treść: "Zakres dat nie może przekraczać {maxDays} dni"
    - Button: [Zamknij]
 
 ### 8.5 Interakcje keyboard navigation
@@ -1157,10 +1162,10 @@ async function handleSubmit() {
    - Moment weryfikacji: onChange dla date pickerów (inline validation)
    - Wpływ na UI: Komunikat błędu pod polem "Do", button disabled
 
-2. Zakres dat ≤ 3 lata
-   - Weryfikacja: Backend (opcjonalnie frontend dla lepszego UX)
-   - Moment weryfikacji: onSubmit
-   - Wpływ na UI: ErrorModal z komunikatem "Zakres dat nie może przekraczać 3 lat"
+2. Zakres dat ≤ limit z `Features:Verification:Days` (domyślnie 31 dni)
+   - Weryfikacja: Backend i frontend (frontend pobiera limit z `GET /api/config` przy ładowaniu strony)
+   - Moment weryfikacji: onChange (inline), onSubmit
+   - Wpływ na UI: Komunikat błędu inline lub ErrorModal z komunikatem "Zakres dat nie może przekraczać {maxDays} dni"
 
 3. Format daty YYYY-MM-DD
    - Weryfikacja: Natywna HTML5 (input type="date")
@@ -1169,7 +1174,7 @@ async function handleSubmit() {
 
 **Komunikaty błędów (polski):**
 - "Data 'Od' musi być wcześniejsza lub równa 'Do'"
-- "Zakres dat nie może przekraczać 3 lat"
+- "Zakres dat nie może przekraczać {maxDays} dni" (gdzie maxDays pochodzi z `GET /api/config`)
 - "Nieprawidłowy format daty"
 
 ### 9.2 Warunki prezentacji wyników (CheckResults)
@@ -1398,7 +1403,11 @@ numbers.map(num => {
 - Callback `onSubmit(dateFrom, dateTo, groupName)`
 
 ### Krok 12: Implementacja ChecksPage (główny komponent)
-- Stan lokalny (dateFrom, dateTo, groupName, showNonWinningTickets, show3Hits, show4Hits, show5Hits, show6Hits, isLoading, drawsResults, ticketsResults, executionTimeMs, error)
+- Stan lokalny (verificationMaxDays, isLoadingConfig, dateFrom, dateTo, groupName, showNonWinningTickets, show3Hits, show4Hits, show5Hits, show6Hits, isLoading, drawsResults, ticketsResults, executionTimeMs, error)
+- **useEffect do pobrania konfiguracji:**
+  - Wywołanie `apiService.getConfig()` przy montowaniu komponentu
+  - Ustawienie `verificationMaxDays` z odpowiedzi (domyślnie 31 jeśli błąd)
+  - Ustawienie `isLoadingConfig` na false po zakończeniu
 - **Animowane tło** - generowanie 200 losowych numerów loterii z `useMemo`:
   - Losowe pozycje (x, y), rozmiar, opacity, duration, delay
   - Kolory: text-gray-500, text-blue-600, text-yellow-600

@@ -1,4 +1,5 @@
 import type { ApiVersionResponse } from "./contracts/api-version-response";
+import type { ConfigResponse } from "./contracts/config-response";
 import type { AuthLoginRequest } from "./contracts/auth-login-request";
 import type { AuthLoginResponse } from "./contracts/auth-login-response";
 import type { AuthRegisterRequest } from "./contracts/auth-register-request";
@@ -76,6 +77,20 @@ export class ApiService {
 
       if (!response.ok) {
         throw new Error(`Error fetching API version: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      return result;
+    }
+
+    public async getConfig(): Promise<ConfigResponse> {
+      const response = await fetch(`${this.apiUrl}/api/config`, {
+        method: 'GET',
+        headers: this.getHeaders()
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error fetching config: ${response.statusText}`);
       }
 
       const result = await response.json();

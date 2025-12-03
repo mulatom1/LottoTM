@@ -1,4 +1,5 @@
 using FluentValidation;
+using Microsoft.Extensions.Configuration;
 
 namespace LottoTM.Server.Api.Features.Verification.Check;
 
@@ -8,8 +9,13 @@ namespace LottoTM.Server.Api.Features.Verification.Check;
 /// </summary>
 public class CheckValidator : AbstractValidator<Contracts.Request>
 {
-    public CheckValidator()
+    private readonly int _maxVerificationDays;
+
+    public CheckValidator(IConfiguration configuration)
     {
+        // Read the maximum verification days from configuration (default: 31 days)
+        _maxVerificationDays = configuration.GetValue<int>("Features:Verification:Days", 31);
+
         RuleFor(x => x.DateFrom)
             .NotEmpty()
             .WithMessage("Data początkowa jest wymagana");
@@ -23,8 +29,8 @@ public class CheckValidator : AbstractValidator<Contracts.Request>
             .WithMessage("'Date To' must be greater than or equal to 'Date From'.");
 
         RuleFor(x => x)
-            .Must(x => (x.DateTo.ToDateTime(TimeOnly.MinValue) - x.DateFrom.ToDateTime(TimeOnly.MinValue)).TotalDays <= 1095)
-            .WithMessage("Zakres dat nie może przekraczać 3 lat.")
+            .Must(x => (x.DateTo.ToDateTime(TimeOnly.MinValue) - x.DateFrom.ToDateTime(TimeOnly.MinValue)).TotalDays <= _maxVerificationDays)
+            .WithMessage(x => $"Zakres dat nie może przekraczać {_maxVerificationDays} dni.")
             .WithName("DateRange");
     }
 }

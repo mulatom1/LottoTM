@@ -352,7 +352,12 @@ Wielu graczy LOTTO posiada liczne zestawy liczb do sprawdzenia. Ręczne weryfiko
     "Url": "https://www.lotto.pl",
     "ApiKey": "your-secret-api-key"
   },
-  "ApiUrl": "https://your-api-url.com"
+  "ApiUrl": "https://your-api-url.com",
+  "Features": {
+    "Verification": {
+      "Days": 31
+    }
+  }
 }
 ```
 
@@ -633,7 +638,8 @@ private class LottoOpenApiResult
 
 **Kryteria akceptacji:**
 - Date range picker do wyboru zakresu dat (od - do)
-- Domyślna wartość zakresu dat - ostatni tydzień (maksymalnie 3 lata)
+- Domyślna wartość zakresu dat - ostatni tydzień
+- Maksymalny zakres dat konfigurowalny w `Features:Verification:Days` (domyślnie 31 dni)
 - Textbox z filtrem groupName (opcjonalny) - pozwala przefiltrować kupony według nazwy grupy (wyszukiwanie częściowe)
 - Przycisk "Sprawdź wygrane"
 - System porównuje zestawy użytkownika z wynikami losowań w wybranym zakresie
@@ -991,7 +997,7 @@ private class LottoOpenApiResult
 **Aby** poznać swoje wygrane
 
 **Kryteria akceptacji:**
-- Date range picker do wyboru zakresu dat (od - do, max 3 lata)
+- Date range picker do wyboru zakresu dat (od - do, max zgodnie z `Features:Verification:Days` w konfiguracji)
 - Przycisk "Sprawdź wygrane"
 - Wykonanie weryfikacji wszystkich moich zestawów względem losowań w zakresie
 - Lista zbiorcza wyników z pogrubionymi wygranymi liczbami

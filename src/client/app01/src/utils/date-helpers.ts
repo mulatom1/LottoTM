@@ -24,20 +24,22 @@ export function getDefaultDateTo(): string {
  * Validate date range
  * @param dateFrom - Start date in YYYY-MM-DD format
  * @param dateTo - End date in YYYY-MM-DD format
+ * @param maxDays - Maximum number of days allowed (from backend config)
  * @returns Error message if validation fails, null if valid
  */
-export function validateDateRange(dateFrom: string, dateTo: string): string | null {
+export function validateDateRange(dateFrom: string, dateTo: string, maxDays: number = 31): string | null {
   if (dateFrom > dateTo) {
     return "Data 'Od' musi być wcześniejsza lub równa 'Do'";
   }
 
-  // Check if date range exceeds 3 years (optional frontend validation)
+  // Check if date range exceeds configured maximum
+  // Note: Backend will perform the authoritative validation using Features:Verification:Days
   const from = new Date(dateFrom);
   const to = new Date(dateTo);
   const diffDays = Math.ceil((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24));
 
-  if (diffDays > 1095) { // 3 years ≈ 1095 days
-    return "Zakres dat nie może przekraczać 3 lat";
+  if (diffDays > maxDays) {
+    return `Zakres dat nie może przekraczać ${maxDays} dni`;
   }
 
   return null; // Valid
