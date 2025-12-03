@@ -82,13 +82,6 @@ public class ImportCsvHandler : IRequestHandler<Contracts.Request, Contracts.Res
             throw new ValidationException($"Nieprawidłowy format nagłówka. Oczekiwano: {ExpectedHeader}");
         }
 
-        // Fetch existing draws for uniqueness validation (DrawDate + LottoType)
-        var existingDraws = await _dbContext.Draws
-            .Select(d => new { d.DrawDate, d.LottoType })
-            .ToListAsync(cancellationToken);
-
-        var existingDrawKeys = existingDraws.Select(d => $"{d.DrawDate}_{d.LottoType}").ToHashSet();
-
         // Parse data rows
         for (int i = 1; i < lines.Length; i++)
         {
@@ -172,19 +165,6 @@ public class ImportCsvHandler : IRequestHandler<Contracts.Request, Contracts.Res
                     continue;
                 }
 
-                // Check for duplicate draw (DrawDate + LottoType)
-                var drawKey = $"{drawDate}_{lottoType}";
-                var isDuplicate = existingDrawKeys.Contains(drawKey);
-
-                // Also check against already parsed draws in current import
-                var isDuplicateInCurrentImport = drawsToImport.Any(d => d.DrawDate == drawDate && d.LottoType == lottoType);
-
-                if (isDuplicate || isDuplicateInCurrentImport)
-                {
-                    errors.Add(new Contracts.ImportError(rowNumber, $"Duplikat losowania dla daty {drawDate} i typu {lottoType}"));
-                    continue;
-                }
-
                 drawsToImport.Add(new DrawToImport(
                     drawDate,
                     lottoType,
@@ -200,9 +180,6 @@ public class ImportCsvHandler : IRequestHandler<Contracts.Request, Contracts.Res
                     winPoolAmount4,
                     numbers
                 ));
-
-                // Add to existing keys to prevent duplicates in the same import
-                existingDrawKeys.Add(drawKey);
             }
             catch (Exception ex)
             {

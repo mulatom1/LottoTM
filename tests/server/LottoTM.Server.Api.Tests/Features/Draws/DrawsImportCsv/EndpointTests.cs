@@ -68,49 +68,6 @@ public class EndpointTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     /// <summary>
-    /// Test CSV import with duplicate draws
-    /// </summary>
-    [Fact]
-    public async Task ImportDrawsCsv_WithDuplicateDraws_RejectsDuplicates()
-    {
-        // Arrange
-        var testDbName = "TestDb_Duplicates_" + Guid.NewGuid();
-        var factory = CreateTestFactory(testDbName, true);
-
-        var userId = SeedTestUser(testDbName, "admin@example.com", "Password123!", true);
-
-        // Seed existing draw
-        SeedTestDraw(factory, userId, DateOnly.Parse("2025-01-15"), "LOTTO", new[] { 1, 2, 3, 4, 5, 6 });
-
-        var client = factory.CreateClient();
-        var token = GenerateTestToken(factory, userId, "admin@example.com", true);
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-        // Create CSV with duplicate draw
-        var csvContent = @"DrawDate,LottoType,DrawSystemId,TicketPrice,WinPoolCount1,WinPoolAmount1,WinPoolCount2,WinPoolAmount2,WinPoolCount3,WinPoolAmount3,WinPoolCount4,WinPoolAmount4,Number1,Number2,Number3,Number4,Number5,Number6
-2025-01-15,LOTTO,7001,3.00,,,,,,,,,3,12,25,31,42,48
-2025-01-16,LOTTO,7002,3.00,,,,,,,,,5,10,15,20,25,30";
-
-        var content = new MultipartFormDataContent();
-        var fileContent = new ByteArrayContent(Encoding.UTF8.GetBytes(csvContent));
-        fileContent.Headers.ContentType = new MediaTypeHeaderValue("text/csv");
-        content.Add(fileContent, "file", "draws.csv");
-
-        // Act
-        var response = await client.PostAsync("/api/draws/import-csv", content);
-
-        // Assert
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
-        var result = await response.Content.ReadFromJsonAsync<ImportCsvResponse>();
-        Assert.NotNull(result);
-        Assert.Equal(1, result.Imported); // Only one new draw
-        Assert.Equal(1, result.Rejected); // Duplicate rejected
-        Assert.Single(result.Errors);
-        Assert.Contains("Duplikat", result.Errors[0].Reason);
-    }
-
-    /// <summary>
     /// Test CSV import with invalid header
     /// </summary>
     [Fact]
