@@ -12,7 +12,7 @@ Secret: xxx
 
 ###
 
-GET https://developers.lotto.pl/api/open/v1/lotteries/draw-prizes/Lotto/7273
+GET https://developers.lotto.pl/api/open/v1/lotteries/draw-prizes/Lotto/2236
 Accept: application/json
 Secret: xxx
 
