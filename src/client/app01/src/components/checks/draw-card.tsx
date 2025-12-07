@@ -65,7 +65,7 @@ export function DrawCard({ draw }: DrawCardProps) {
     <div className="border border-gray-200 rounded-lg shadow-sm bg-white overflow-hidden">
       {/* Main Header (always visible, not clickable) */}
       <div className="px-6 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
-        <div className="flex items-start justify-between flex-wrap gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div className="flex-1 min-w-0">
             {/* Date */}
             <div className="text-2xl font-bold text-gray-900 mb-2">
@@ -95,7 +95,7 @@ export function DrawCard({ draw }: DrawCardProps) {
           </div>
 
           {/* Draw Numbers */}
-          <div className="flex gap-2 items-center">
+          <div className="flex gap-2 items-center justify-center sm:justify-end">
             {draw.drawNumbers.map((num, index) => (
               <span
                 key={index}
